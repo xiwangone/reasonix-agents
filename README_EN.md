@@ -1,0 +1,211 @@
+<div align="center">
+
+<img src="logo.png" width="96" height="96" alt="Reasonix Android" style="border-radius: 24px" />
+
+# Reasonix Android
+
+**🤖 Native Android client for Reasonix · Kotlin + Jetpack Compose · Basic Auth / HTTPS support**
+
+[![Build](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml)
+[![Stars](https://img.shields.io/github/stars/xiwangone/reasonix-android?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/reasonix-android)
+[![License](https://img.shields.io/github/license/xiwangone/reasonix-android?color=ff69b4&label=License)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/xiwangone/reasonix-android?color=yellow&label=Last%20Commit&logo=github)](https://github.com/xiwangone/reasonix-android/commits/master)
+
+[**简体中文**](README.md) | **English**
+
+</div>
+
+---
+
+## 🚨 Disclaimer
+
+| Project | Link | Description |
+|------|------|------|
+| 🔵 **DeepSeek-Reasonix (Protocol Upstream)** | https://github.com/esengine/DeepSeek-Reasonix | **Backend service & protocol definition this client follows** |
+| 🟢 **DeepSeek-Reasonix-android (Original Client)** | https://github.com/hxr66666/DeepSeek-Reasonix-android | **Original fork this repo is based on (MIT)** |
+| 🟡 **This Repo (Independently Maintained)** | https://github.com/xiwangone/reasonix-android | **Forked with credit to the original author; independently developed** |
+
+> ### ⚠️ Notice
+>
+> - **❌ Not an official release** — not published by esengine or hxr66666
+> - ✅ Source is trustworthy (MIT license), original author credited in LICENSE
+> - 💡 For issues, refer to the [original repo](https://github.com/hxr66666/DeepSeek-Reasonix-android) or [protocol upstream](https://github.com/esengine/DeepSeek-Reasonix)
+
+---
+
+## Overview
+
+A **native Android client** for [DeepSeek-Reasonix](https://github.com/esengine/DeepSeek-Reasonix), fully rewritten based on the Web frontend protocol using **Kotlin + Jetpack Compose + Markwon**. Not a WebView wrapper — Compose declarative layout auto-adapts to mobile.
+
+**Highlights**: SSE streaming chat, real-time reasoning rendering, tool call cards, Rewind, Slash commands, bilingual (zh/en).
+
+---
+
+## Features
+
+| Module | Description |
+|------|------|
+| 💬 **AI Chat** | Full SSE streaming, real-time reasoning rendering, tool call cards, cost stats |
+| 📝 **Markdown Rendering** | Markwon engine: syntax highlight (Prism4j), tables, images, HTML, task lists |
+| 🧠 **Reasoning Display** | Collapsible reasoning blocks |
+| 🔧 **Tool Cards** | Real-time tool calls — name, args, output, collapsible |
+| ⏪ **Rewind** | Roll back to checkpoints (code+chat / chat-only / code-only / fork) |
+| 📦 **Session Management** | New / resume / switch / delete sessions |
+| ⌨️ **Slash Commands** | `/compact` `/new` `/resume` `/rewind` `/model` `/mcp` `/help` etc. |
+| 🔐 **Basic Auth** | Username/password auth (added 2026-08-04, optional, backward compatible) |
+| 🌐 **HTTP/HTTPS** | Protocol switchable, HTTPS default port 443 (added 2026-08-04) |
+| 🌙 **Dark Theme** | Material 3 dark theme, OKLCH colors matching Web |
+| 🌐 **i18n** | Chinese / English |
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/Screenshot_20260622_032436.png" width="24%" alt="Screenshot 1">
+  <img src="screenshots/Screenshot_20260622_032549.png" width="24%" alt="Screenshot 2">
+  <img src="screenshots/Screenshot_20260622_032605.png" width="24%" alt="Screenshot 3">
+  <img src="screenshots/Screenshot_20260622_032628.png" width="24%" alt="Screenshot 4">
+  <img src="screenshots/Screenshot_20260622_032639.png" width="24%" alt="Screenshot 5">
+  <img src="screenshots/Screenshot_20260622_032658.png" width="24%" alt="Screenshot 6">
+  <img src="screenshots/Screenshot_20260622_032708.png" width="24%" alt="Screenshot 7">
+  <img src="screenshots/Screenshot_20260622_032730.png" width="24%" alt="Screenshot 8">
+</p>
+
+---
+
+## Tech Stack
+
+| Layer | Tech |
+|------|------|
+| **Language** | Kotlin 2.1 |
+| **UI** | Jetpack Compose (Material 3, BOM 2026.02) |
+| **Architecture** | MVVM (ViewModel + Repository) |
+| **Network** | OkHttp 4.12 + OkHttp-SSE |
+| **Serialization** | Gson 2.10 |
+| **Markdown** | Markwon 4.6 (core + syntax-highlight + html + image + tables + tasklist + strikethrough + linkify) |
+| **Highlighting** | Prism4j 2.0 |
+| **Image Loading** | Coil 2.7 / Glide 4.16 / Picasso 2.8 |
+| **Coroutines** | Kotlinx Coroutines 1.7 |
+| **Build** | Gradle 9.3 + AGP 9.1 + Version Catalog |
+
+### Compatibility
+
+- **Min**: Android 6.0 (API 23)
+- **Target**: Android 14 (API 36)
+- **Compile**: Android 15 (API 37)
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **JDK 17+**
+- **Android Studio** (latest stable)
+- **Android SDK** (API 37)
+
+### Build & Run
+
+```bash
+# 1. Clone
+git clone https://github.com/xiwangone/reasonix-android.git
+cd reasonix-android
+
+# 2. Build Debug APK
+./gradlew assembleDebug
+
+# 3. Install
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+Or open in Android Studio and hit Run.
+
+### Connect to Backend
+
+```bash
+# Start Reasonix server (see DeepSeek-Reasonix upstream)
+reasonix serve --addr "0.0.0.0:8787"
+```
+
+Open the app → Server Config page:
+
+| Field | Description |
+|--------|------|
+| Protocol | HTTP / HTTPS (HTTPS default port 443) |
+| Address | Server IP or domain |
+| Port | Default 8920 (HTTP) / 443 (HTTPS), configurable |
+| Username/Password | Optional; for Basic Auth, leave blank for no-auth direct connect |
+
+---
+
+## Project Structure
+
+```
+reasonix-android/
+├── app/
+│   ├── build.gradle.kts
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/com/reasonix/deepseek_reasonix_android/
+│       │   ├── MainActivity.kt
+│       │   ├── data/
+│       │   │   ├── ServerConfigStore.kt        # Config persistence (credentials/protocol)
+│       │   │   ├── api/
+│       │   │   │   ├── ReasonixApi.kt          # REST API (Basic Auth)
+│       │   │   │   └── ReasonixSseClient.kt    # SSE streaming (Basic Auth)
+│       │   │   ├── model/Models.kt
+│       │   │   └── repository/ChatRepository.kt
+│       │   └── ui/
+│       │       ├── screen/
+│       │       │   ├── ChatScreen.kt
+│       │       │   └── ServerConfigScreen.kt   # Server config (protocol/credentials)
+│       │       ├── components/
+│       │       │   ├── ChatMessage.kt
+│       │       │   ├── MarkdownRenderer.kt
+│       │       │   ├── MessageList.kt
+│       │       │   ├── ReasoningBlock.kt
+│       │       │   ├── RewindPickerDialog.kt
+│       │       │   ├── SlashMenu.kt
+│       │       │   ├── StatsDialog.kt
+│       │       │   ├── ToolCard.kt
+│       │       │   └── WelcomeScreen.kt
+│       │       ├── theme/
+│       │       └── viewmodel/ChatViewModel.kt
+│       └── res/
+│           ├── drawable/logo.png
+│           └── mipmap-*/
+├── gradle/
+│   └── libs.versions.toml
+├── settings.gradle.kts
+└── build.gradle.kts
+```
+
+---
+
+## CI/CD
+
+GitHub Actions builds on every push to `master` or Pull Request:
+
+- ✅ Compile check
+- ✅ Debug APK build
+- ✅ Release APK build
+- ✅ Upload APKs to Actions Artifacts
+
+Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml)
+
+Build status: [![Build](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml)
+
+---
+
+## Relation to Web
+
+Android client fully follows the [DeepSeek-Reasonix](https://github.com/esengine/DeepSeek-Reasonix) backend protocol (SSE message format, tool call structure, rewind semantics), providing the same AI coding assistant experience as the Web UI.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+**Credits**: Forked from [hxr66666/DeepSeek-Reasonix-android](https://github.com/hxr66666/DeepSeek-Reasonix-android) (MIT), protocol follows [esengine/DeepSeek-Reasonix](https://github.com/esengine/DeepSeek-Reasonix). Thanks to the original authors.
