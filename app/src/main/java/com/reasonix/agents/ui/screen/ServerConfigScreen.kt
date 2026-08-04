@@ -83,7 +83,8 @@ fun ServerConfigScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Bg),
+            .background(Bg)
+            .safeDrawingPadding(),
         contentAlignment = Alignment.Center
     ) {
         Column(

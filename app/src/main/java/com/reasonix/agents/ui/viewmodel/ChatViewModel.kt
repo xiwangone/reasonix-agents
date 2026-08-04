@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.reasonix.agents.data.api.ReasonixApi
 import com.reasonix.agents.data.api.ReasonixSseClient
 import com.reasonix.agents.data.model.*
+import com.reasonix.agents.data.AppSettingsStore
 import com.reasonix.agents.data.repository.ChatRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -24,6 +25,8 @@ data class ChatUiState(
     val showRewindPicker: Boolean = false,
     val checkpoints: List<CheckpointInfo> = emptyList(),
     val showStatsDialog: Boolean = false,
+    val showSettings: Boolean = false,
+    val settings: AppSettingsStore.Settings = AppSettingsStore.Settings(),
     val cumulativeTokens: Long = 0,
     val cumulativeCost: Double = 0.0,
     val cumulativeCacheHit: Long = 0,
@@ -146,6 +149,24 @@ class ChatViewModel(
 
     fun onServerUrlChange(url: String) {
         _uiState.update { it.copy(serverUrl = url) }
+    }
+
+    // ── 设置页 ──
+
+    fun toggleSettings(settings: AppSettingsStore.Settings? = null) {
+        _uiState.update { it.copy(showSettings = !it.showSettings, settings = settings ?: it.settings) }
+    }
+
+    fun updateThemeMode(mode: Int) {
+        _uiState.update { it.copy(settings = it.settings.copy(themeMode = mode)) }
+    }
+
+    fun updateShowReasoning(show: Boolean) {
+        _uiState.update { it.copy(settings = it.settings.copy(showReasoning = show)) }
+    }
+
+    fun updateShowTokens(show: Boolean) {
+        _uiState.update { it.copy(settings = it.settings.copy(showTokens = show)) }
     }
 
     // ── 发送消息 ──

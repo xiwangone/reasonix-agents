@@ -38,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.reasonix.agents.data.model.SessionInfo
 import com.reasonix.agents.data.model.StatusInfo
 import com.reasonix.agents.ui.components.*
+import com.reasonix.agents.ui.screen.SettingsScreen
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
 
 // ═══════════════════════════════════════════════
@@ -91,6 +92,7 @@ fun ChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Bg)
+            .safeDrawingPadding()
             .imePadding()
             .onKeyEvent { event ->
                 if (event.type == KeyEventType.KeyUp) return@onKeyEvent false
@@ -212,7 +214,22 @@ fun ChatScreen(
                 onRewind = { viewModel.showRewindPicker() },
                 onFork = { viewModel.showRewindPicker() },
                 onStats = { viewModel.showStatsDialog() },
+                onSettings = { viewModel.toggleSettings() },
                 modifier = Modifier.width(220.dp)
+            )
+        }
+
+        // ── 设置页覆盖层 ──
+        if (state.showSettings) {
+            SettingsScreen(
+                serverUrl = state.serverUrl,
+                status = state.status,
+                settings = state.settings,
+                onThemeModeChange = { viewModel.updateThemeMode(it) },
+                onShowReasoningChange = { viewModel.updateShowReasoning(it) },
+                onShowTokensChange = { viewModel.updateShowTokens(it) },
+                onClose = { viewModel.toggleSettings() },
+                modifier = Modifier.fillMaxSize().zIndex(20f)
             )
         }
 
@@ -312,6 +329,7 @@ private fun Sidebar(
     onRewind: () -> Unit,
     onFork: () -> Unit,
     onStats: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -358,6 +376,11 @@ private fun Sidebar(
             HorizontalDivider(color = Border, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
 
             SidebarItem("统计", onClick = onStats)
+
+            Spacer(modifier = Modifier.height(2.dp))
+            HorizontalDivider(color = Border, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+
+            SidebarItem("设置", onClick = onSettings)
         }
 
         // ── 会话标签 ──
