@@ -39,32 +39,33 @@ import com.reasonix.agents.data.model.SessionInfo
 import com.reasonix.agents.data.model.StatusInfo
 import com.reasonix.agents.ui.components.*
 import com.reasonix.agents.ui.screen.SettingsScreen
+import com.reasonix.agents.ui.theme.LocalPalette
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
 
 // ═══════════════════════════════════════════════
 // 调色板 — 匹配 index.html 的 Reasonix 暗色主题
 // ═══════════════════════════════════════════════
 
-private val Bg       = Color(0xFF1C1A1B)
-private val Bg2      = Color(0xFF222022)
-private val Panel    = Color(0xFF2A2729)
-private val Panel2   = Color(0xFF2E2C2E)
-private val Card     = Color(0xFF282528)
-private val CardHover= Color(0xFF302E30)
-private val Border   = Color(0xFF3D3938)
-private val BorderStr= Color(0xFF5A5452)
-private val Accent   = Color(0xFFEA8800)
-private val AccentS  = Color(0x26EA8800)
-private val Violet   = Color(0xFF9B6FD8)
-private val Fg       = Color(0xFFF5F2F0)
-private val Fg2      = Color(0xFFCCC5C0)
-private val Muted    = Color(0xFF9E9896)
-private val Muted2   = Color(0xFF7A7270)
-private val Danger    = Color(0xFFE04636)
-private val DangerS   = Color(0x29E04636)
-private val Success   = Color(0xFF40A060)
-private val SuccessS  = Color(0x2440A060)
-private val Warning   = Color(0xFFE5B830)
+private val Bg get() = LocalPalette.current.bg
+private val Bg2 get() = LocalPalette.current.bg2
+private val Panel get() = LocalPalette.current.panel
+private val Panel2 get() = LocalPalette.current.panel2
+private val Card get() = LocalPalette.current.card
+private val CardHover get() = LocalPalette.current.cardHover
+private val Border get() = LocalPalette.current.border
+private val BorderStr get() = LocalPalette.current.borderStr
+private val Accent get() = LocalPalette.current.accent
+private val AccentS get() = LocalPalette.current.accentS
+private val Violet get() = LocalPalette.current.violet
+private val Fg get() = LocalPalette.current.fg
+private val Fg2 get() = LocalPalette.current.fg2
+private val Muted get() = LocalPalette.current.muted
+private val Muted2 get() = LocalPalette.current.muted2
+private val Danger get() = LocalPalette.current.danger
+private val DangerS get() = LocalPalette.current.dangerS
+private val Success get() = LocalPalette.current.success
+private val SuccessS get() = LocalPalette.current.successS
+private val Warning get() = LocalPalette.current.warning
 
 // ═══════════════════════════════════════════════
 // ChatScreen — 主界面入口
@@ -74,6 +75,7 @@ private val Warning   = Color(0xFFE5B830)
 fun ChatScreen(
     initialServerUrl: String = "http://127.0.0.1:8920",
     initialCredentials: Pair<String, String>? = null,
+    onSettingsChanged: (com.reasonix.agents.data.AppSettingsStore.Settings) -> Unit = {},
     viewModel: ChatViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -225,9 +227,18 @@ fun ChatScreen(
                 serverUrl = state.serverUrl,
                 status = state.status,
                 settings = state.settings,
-                onThemeModeChange = { viewModel.updateThemeMode(it) },
-                onShowReasoningChange = { viewModel.updateShowReasoning(it) },
-                onShowTokensChange = { viewModel.updateShowTokens(it) },
+                onThemeModeChange = { mode ->
+                    viewModel.updateThemeMode(mode)
+                    onSettingsChanged(state.settings.copy(themeMode = mode))
+                },
+                onShowReasoningChange = { show ->
+                    viewModel.updateShowReasoning(show)
+                    onSettingsChanged(state.settings.copy(showReasoning = show))
+                },
+                onShowTokensChange = { show ->
+                    viewModel.updateShowTokens(show)
+                    onSettingsChanged(state.settings.copy(showTokens = show))
+                },
                 onClose = { viewModel.toggleSettings() },
                 modifier = Modifier.fillMaxSize().zIndex(20f)
             )

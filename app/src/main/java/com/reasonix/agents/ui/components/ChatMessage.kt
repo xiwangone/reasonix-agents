@@ -21,22 +21,23 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.data.model.UsagePayload
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // ═══════════════════════════════════════════════
 // 调色板（与深色主题对齐）
 // ═══════════════════════════════════════════════
 
-private val accent = Color(0xFFEA8800)
-private val fg = Color(0xFFF5F2F0)
-private val fg2 = Color(0xFFCCC5C0)
-private val muted = Color(0xFF9E9896)
-private val muted2 = Color(0xFF7A7270)
-private val danger = Color(0xFFE04636)
-private val dangerSoft = Color(0x29E04636)
-private val success = Color(0xFF40A060)
-private val border = Color(0xFF3D3938)
-private val bg2 = Color(0xFF222022)
-private val panel2 = Color(0xFF2E2C2E)
+private val accent get() = LocalPalette.current.accent
+private val fg get() = LocalPalette.current.fg
+private val fg2 get() = LocalPalette.current.fg2
+private val muted get() = LocalPalette.current.muted
+private val muted2 get() = LocalPalette.current.muted2
+private val danger get() = LocalPalette.current.danger
+private val dangerSoft get() = LocalPalette.current.dangerS
+private val success get() = LocalPalette.current.success
+private val border get() = LocalPalette.current.border
+private val bg2 get() = LocalPalette.current.bg2
+private val panel2 get() = LocalPalette.current.panel2
 private val userBubbleBg = accent   // #EA8800 橙底（高对比度）
 private val userBubbleFg = Color(0xFFFFFFFF)
 

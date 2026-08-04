@@ -27,7 +27,8 @@ data class Palette(
     val dangerS: Color,
     val success: Color,
     val successS: Color,
-    val warning: Color
+    val warning: Color,
+    val warningS: Color
 )
 
 val DarkPalette = Palette(
@@ -50,7 +51,8 @@ val DarkPalette = Palette(
     dangerS = Color(0x29E04636),
     success = Color(0xFF40A060),
     successS = Color(0x2440A060),
-    warning = Color(0xFFE5B830)
+    warning = Color(0xFFE5B830),
+    warningS = Color(0x29E5B830)
 )
 
 val LightPalette = Palette(
@@ -73,7 +75,8 @@ val LightPalette = Palette(
     dangerS = Color(0x29C03222),
     success = Color(0xFF2E7D46),
     successS = Color(0x242E7D46),
-    warning = Color(0xFFB58A12)
+    warning = Color(0xFFB58A12),
+    warningS = Color(0x29B58A12)
 )
 
 val LocalPalette = staticCompositionLocalOf { DarkPalette }

@@ -17,10 +17,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.data.model.ChatItem
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // 匹配 index.html 调色板
-private val bg = Color(0xFF1C1A1B)
-private val border = Color(0xFF3D3938)
+private val bg get() = LocalPalette.current.bg
+private val border get() = LocalPalette.current.border
 
 /**
  * 聊天消息列表 — LazyColumn 渲染所有 ChatItem 类型。

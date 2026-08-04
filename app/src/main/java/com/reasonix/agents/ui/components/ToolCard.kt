@@ -45,24 +45,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // ═══════════════════════════════════════════════
 // 颜色常量
 // ═══════════════════════════════════════════════
 
-private val CardBg = Color(0xFF282528)
-private val Border = Color(0xFF3D3938)
-private val Accent = Color(0xFFEA8800)
-private val AccentSoft = Color(0x26EA8800)
-private val Success = Color(0xFF40A060)
-private val SuccessSoft = Color(0x2440A060)
-private val Danger = Color(0xFFE04636)
-private val DangerSoft = Color(0x29E04636)
-private val Bg2 = Color(0xFF222022)
-private val Fg = Color(0xFFF5F2F0)
-private val Fg2 = Color(0xFFCCC5C0)
-private val Muted = Color(0xFF9E9896)
-private val Panel2 = Color(0xFF2E2C2E)
+private val CardBg get() = LocalPalette.current.card
+private val Border get() = LocalPalette.current.border
+private val Accent get() = LocalPalette.current.accent
+private val AccentSoft get() = LocalPalette.current.accentS
+private val Success get() = LocalPalette.current.success
+private val SuccessSoft get() = LocalPalette.current.successS
+private val Danger get() = LocalPalette.current.danger
+private val DangerSoft get() = LocalPalette.current.dangerS
+private val Bg2 get() = LocalPalette.current.bg2
+private val Fg get() = LocalPalette.current.fg
+private val Fg2 get() = LocalPalette.current.fg2
+private val Muted get() = LocalPalette.current.muted
+private val Panel2 get() = LocalPalette.current.panel2
 
 // ═══════════════════════════════════════════════
 // ToolCard — 可折叠工具执行卡片

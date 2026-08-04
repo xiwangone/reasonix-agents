@@ -23,26 +23,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.data.model.AskQuestion
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // ═══════════════════════════════════════════════
 // 调色板 (Reasonix 暗色主题)
 // ═══════════════════════════════════════════════
 
-private val panel     = Color(0xFF2A2729)
-private val panel2    = Color(0xFF2E2C2E)
-private val bg2       = Color(0xFF222022)
-private val card      = Color(0xFF282528)
-private val border    = Color(0xFF3D3938)
-private val borderStrong = Color(0xFF5A5452)
-private val accent    = Color(0xFFEA8800)
-private val accentSoft = Color(0x26EA8800)
-private val fg        = Color(0xFFF5F2F0)
-private val fg2       = Color(0xFFCCC5C0)
-private val muted     = Color(0xFF9E9896)
-private val muted2    = Color(0xFF7A7270)
-private val warning   = Color(0xFFE5B830)
-private val warningSoft = Color(0x29E5B830)
-private val danger    = Color(0xFFE04636)
+private val panel get() = LocalPalette.current.panel
+private val panel2 get() = LocalPalette.current.panel2
+private val bg2 get() = LocalPalette.current.bg2
+private val card get() = LocalPalette.current.card
+private val border get() = LocalPalette.current.border
+private val borderStrong get() = LocalPalette.current.borderStr
+private val accent get() = LocalPalette.current.accent
+private val accentSoft get() = LocalPalette.current.accentS
+private val fg get() = LocalPalette.current.fg
+private val fg2 get() = LocalPalette.current.fg2
+private val muted get() = LocalPalette.current.muted
+private val muted2 get() = LocalPalette.current.muted2
+private val warning get() = LocalPalette.current.warning
+private val warningSoft get() = LocalPalette.current.warningS
+private val danger get() = LocalPalette.current.danger
 
 // ═══════════════════════════════════════════════
 // 1. ReasoningBlock

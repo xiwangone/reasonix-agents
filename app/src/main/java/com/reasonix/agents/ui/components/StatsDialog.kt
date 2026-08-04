@@ -21,23 +21,24 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.reasonix.agents.data.model.StatusInfo
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // ═══════════════════════════════════════════════
 // 调色板 — Reasonix dark
 // ═══════════════════════════════════════════════
 
-private val Panel = Color(0xFF2A2729)
-private val Bg2 = Color(0xFF222022)
-private val Border = Color(0xFF3D3938)
-private val BorderStrong = Color(0xFF5A5452)
-private val Accent = Color(0xFFEA8800)
+private val Panel get() = LocalPalette.current.panel
+private val Bg2 get() = LocalPalette.current.bg2
+private val Border get() = LocalPalette.current.border
+private val BorderStrong get() = LocalPalette.current.borderStr
+private val Accent get() = LocalPalette.current.accent
 
-private val Fg = Color(0xFFF5F2F0)
-private val Muted = Color(0xFF9E9896)
-private val Muted2 = Color(0xFF7A7270)
-private val Success = Color(0xFF40A060)
-private val Danger = Color(0xFFE04636)
-private val Warning = Color(0xFFE5B830)
+private val Fg get() = LocalPalette.current.fg
+private val Muted get() = LocalPalette.current.muted
+private val Muted2 get() = LocalPalette.current.muted2
+private val Success get() = LocalPalette.current.success
+private val Danger get() = LocalPalette.current.danger
+private val Warning get() = LocalPalette.current.warning
 
 // ═══════════════════════════════════════════════
 // 工具函数

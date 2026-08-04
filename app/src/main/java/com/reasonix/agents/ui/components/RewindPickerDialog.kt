@@ -24,22 +24,23 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.reasonix.agents.data.model.CheckpointInfo
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // ═══════════════════════════════════════════════
 // 调色板 (Reasonix dark)
 // ═══════════════════════════════════════════════
 
-private val Bg          = Color(0xFF1C1A1B)
-private val Panel       = Color(0xFF2A2729)
-private val CardHover   = Color(0xFF302E30)
-private val Border      = Color(0xFF3D3938)
-private val BorderStrong = Color(0xFF5A5452)
-private val Accent      = Color(0xFFEA8800)
-private val AccentSoft  = Color(0x26EA8800)
-private val Fg          = Color(0xFFF5F2F0)
-private val Fg2         = Color(0xFFCCC5C0)
-private val Muted       = Color(0xFF9E9896)
-private val Muted2      = Color(0xFF7A7270)
+private val Bg get() = LocalPalette.current.bg
+private val Panel get() = LocalPalette.current.panel
+private val CardHover get() = LocalPalette.current.cardHover
+private val Border get() = LocalPalette.current.border
+private val BorderStrong get() = LocalPalette.current.borderStr
+private val Accent get() = LocalPalette.current.accent
+private val AccentSoft get() = LocalPalette.current.accentS
+private val Fg get() = LocalPalette.current.fg
+private val Fg2 get() = LocalPalette.current.fg2
+private val Muted get() = LocalPalette.current.muted
+private val Muted2 get() = LocalPalette.current.muted2
 
 // ═══════════════════════════════════════════════
 // Scope 定义

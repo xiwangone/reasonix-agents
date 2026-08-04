@@ -18,21 +18,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // ═══════════════════════════════════════════════
 // 调色板
 // ═══════════════════════════════════════════════
 
-private val Accent  = Color(0xFFEA8800)
-private val Violet  = Color(0xFF9B6FD8)
-private val Fg      = Color(0xFFF5F2F0)
-private val Fg2     = Color(0xFFCCC5C0)
-private val Muted   = Color(0xFF9E9896)
-private val Muted2  = Color(0xFF7A7270)
-private val Bg2     = Color(0xFF222022)
-private val Panel   = Color(0xFF2A2729)
-private val Panel2  = Color(0xFF2E2C2E)
-private val Border  = Color(0xFF3D3938)
+private val Accent get() = LocalPalette.current.accent
+private val Violet get() = LocalPalette.current.violet
+private val Fg get() = LocalPalette.current.fg
+private val Fg2 get() = LocalPalette.current.fg2
+private val Muted get() = LocalPalette.current.muted
+private val Muted2 get() = LocalPalette.current.muted2
+private val Bg2 get() = LocalPalette.current.bg2
+private val Panel get() = LocalPalette.current.panel
+private val Panel2 get() = LocalPalette.current.panel2
+private val Border get() = LocalPalette.current.border
 
 // ═══════════════════════════════════════════════
 // WelcomeScreen

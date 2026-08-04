@@ -18,19 +18,20 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // ═══════════════════════════════════════════════
 // 调色板
 // ═══════════════════════════════════════════════
 
-private val Bg2     = Color(0xFF222022)
-private val Card    = Color(0xFF282528)
-private val Border  = Color(0xFF3D3938)
-private val Accent  = Color(0xFFEA8800)
-private val AccentSoft = Color(0x26EA8800)
-private val Fg      = Color(0xFFF5F2F0)
-private val Muted   = Color(0xFF9E9896)
-private val Muted2  = Color(0xFF7A7270)
+private val Bg2 get() = LocalPalette.current.bg2
+private val Card get() = LocalPalette.current.card
+private val Border get() = LocalPalette.current.border
+private val Accent get() = LocalPalette.current.accent
+private val AccentSoft get() = LocalPalette.current.accentS
+private val Fg get() = LocalPalette.current.fg
+private val Muted get() = LocalPalette.current.muted
+private val Muted2 get() = LocalPalette.current.muted2
 
 // ═══════════════════════════════════════════════
 // 命令定义
