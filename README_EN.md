@@ -37,6 +37,21 @@
 
 ---
 
+## 🤖 AI Maintenance
+
+> This project is **co-developed and maintained by AI (Reasonix Agents Assistant)** alongside humans.
+
+| Area | Description |
+|--------|------|
+| 🧑💻 **AI Co-development** | Basic Auth, HTTP/HTTPS switch, fixed signing etc. implemented by AI with CI verification loop |
+| 🛠️ **AI Ongoing Maintenance** | Requirement breakdown, code review, build troubleshooting, docs sync all AI-assisted |
+| 🔍 **AI-driven Iteration** | Every feature follows "analyze → implement → verify → sync manual" |
+| 👤 **Human Decisions** | Key decisions (security boundaries, credential management, release policy) confirmed by humans |
+
+> **Security**: AI strictly follows credential masking, free operations inside sandbox, external changes require confirmation; code commits and key management fully traceable.
+
+---
+
 ## Overview
 
 A **native Android client** for [DeepSeek-Reasonix](https://github.com/esengine/DeepSeek-Reasonix), fully rewritten based on the Web frontend protocol using **Kotlin + Jetpack Compose + Markwon**. Not a WebView wrapper — Compose declarative layout auto-adapts to mobile.
