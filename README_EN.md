@@ -75,7 +75,6 @@ A **native Android client** for [DeepSeek-Reasonix](https://github.com/esengine/
 | 🌐 **HTTP/HTTPS** | Protocol switchable, HTTPS default port 443 |
 | 🔑 **Credential Persist** | Server address/credentials saved, auto-fill on next launch |
 | 🔒 **Password Masking** | `PasswordVisualTransformation` hides input |
-| 🖊️ **Fixed Signing** | Release APK signed with fixed keystore (secrets-managed, supports upgrade install) |
 | 📥 **Auto Release** | GitHub Releases one-click: manual CI trigger builds & uploads APK |
 | 🌙 **Dark Theme** | Material 3 dark theme, OKLCH colors matching Web |
 | 🌐 **i18n** | Chinese / English |
