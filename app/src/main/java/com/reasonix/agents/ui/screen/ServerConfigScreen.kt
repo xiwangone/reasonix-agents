@@ -372,6 +372,40 @@ fun ServerConfigScreen(
                         color = if (canConnect) Color.White else Muted
                     )
                 }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // ── 关于说明 ──
+                androidx.compose.material3.Text(
+                    text = "关于",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Fg
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                androidx.compose.material3.Text(
+                    text = "Reasonix Agents · AI 协助维护版（非官方 / 非原版发布）",
+                    fontSize = 11.sp,
+                    color = Muted2
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                androidx.compose.material3.Text(
+                    text = "本仓库: github.com/xiwangone/reasonix-agents",
+                    fontSize = 11.sp,
+                    color = Muted2
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                androidx.compose.material3.Text(
+                    text = "基于原版 (MIT): github.com/hxr66666/DeepSeek-Reasonix-android",
+                    fontSize = 11.sp,
+                    color = Muted2
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                androidx.compose.material3.Text(
+                    text = "协议上游: github.com/esengine/DeepSeek-Reasonix",
+                    fontSize = 11.sp,
+                    color = Muted2
+                )
             }
         }
     }
