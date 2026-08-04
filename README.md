@@ -56,25 +56,23 @@
 | ⏪ **Rewind 回退** | 回退到历史检查点，支持多种作用域（代码+对话 / 仅对话 / 仅代码 / 分叉） |
 | 📦 **会话管理** | 新建 / 恢复 / 切换会话，会话列表 |
 | ⌨️ **Slash 命令** | `/compact` `/new` `/resume` `/rewind` `/model` `/mcp` `/help` 等 |
-| 🔐 **Basic Auth** | 连接支持用户名/密码认证（2026-08-04 新增，可选填，兼容无认证直连） |
-| 🌐 **HTTP/HTTPS** | 协议可切换，HTTPS 默认端口 443（2026-08-04 新增） |
+| 🔐 **Basic Auth** | 连接支持用户名/密码认证（可选填，兼容无认证直连） |
+| 🌐 **HTTP/HTTPS** | 协议可切换，HTTPS 默认端口 443 |
+| 🔑 **凭据回填** | 服务器地址/凭据持久化，下次启动自动回填 |
+| 🔒 **密码遮蔽** | 密码输入框 `PasswordVisualTransformation` 遮蔽，防窥屏 |
+| 🖊️ **固定签名** | Release APK 使用固定 keystore 签名（secrets 管理，可覆盖安装升级） |
+| 📥 **自动发行** | GitHub Releases 一键发布：手动触发 CI 自动构建 + 上传 APK |
 | 🌙 **暗色主题** | Material 3 暗色主题，与 Web 端一致的 OKLCH 色彩 |
 | 🌐 **国际化** | 中 / 英双语 |
 
 ---
 
-## 截图
+## 界面
 
-<p align="center">
-  <img src="screenshots/Screenshot_20260622_032436.png" width="24%" alt="截图1">
-  <img src="screenshots/Screenshot_20260622_032549.png" width="24%" alt="截图2">
-  <img src="screenshots/Screenshot_20260622_032605.png" width="24%" alt="截图3">
-  <img src="screenshots/Screenshot_20260622_032628.png" width="24%" alt="截图4">
-  <img src="screenshots/Screenshot_20260622_032639.png" width="24%" alt="截图5">
-  <img src="screenshots/Screenshot_20260622_032658.png" width="24%" alt="截图6">
-  <img src="screenshots/Screenshot_20260622_032708.png" width="24%" alt="截图7">
-  <img src="screenshots/Screenshot_20260622_032730.png" width="24%" alt="截图8">
-</p>
+原生 Compose 界面，暗色主题，自动适配移动端：
+
+- **服务器配置页**：协议（HTTP/HTTPS）切换、地址/端口输入、用户名/密码（可选）、连接预览
+- **聊天页**：流式消息、推理折叠、工具卡片、会话管理、Slash 命令、Rewind
 
 ---
 

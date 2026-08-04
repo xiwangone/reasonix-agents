@@ -56,25 +56,23 @@ A **native Android client** for [DeepSeek-Reasonix](https://github.com/esengine/
 | ⏪ **Rewind** | Roll back to checkpoints (code+chat / chat-only / code-only / fork) |
 | 📦 **Session Management** | New / resume / switch / delete sessions |
 | ⌨️ **Slash Commands** | `/compact` `/new` `/resume` `/rewind` `/model` `/mcp` `/help` etc. |
-| 🔐 **Basic Auth** | Username/password auth (added 2026-08-04, optional, backward compatible) |
-| 🌐 **HTTP/HTTPS** | Protocol switchable, HTTPS default port 443 (added 2026-08-04) |
+| 🔐 **Basic Auth** | Username/password auth (optional, backward compatible) |
+| 🌐 **HTTP/HTTPS** | Protocol switchable, HTTPS default port 443 |
+| 🔑 **Credential Persist** | Server address/credentials saved, auto-fill on next launch |
+| 🔒 **Password Masking** | `PasswordVisualTransformation` hides input |
+| 🖊️ **Fixed Signing** | Release APK signed with fixed keystore (secrets-managed, supports upgrade install) |
+| 📥 **Auto Release** | GitHub Releases one-click: manual CI trigger builds & uploads APK |
 | 🌙 **Dark Theme** | Material 3 dark theme, OKLCH colors matching Web |
 | 🌐 **i18n** | Chinese / English |
 
 ---
 
-## Screenshots
+## UI
 
-<p align="center">
-  <img src="screenshots/Screenshot_20260622_032436.png" width="24%" alt="Screenshot 1">
-  <img src="screenshots/Screenshot_20260622_032549.png" width="24%" alt="Screenshot 2">
-  <img src="screenshots/Screenshot_20260622_032605.png" width="24%" alt="Screenshot 3">
-  <img src="screenshots/Screenshot_20260622_032628.png" width="24%" alt="Screenshot 4">
-  <img src="screenshots/Screenshot_20260622_032639.png" width="24%" alt="Screenshot 5">
-  <img src="screenshots/Screenshot_20260622_032658.png" width="24%" alt="Screenshot 6">
-  <img src="screenshots/Screenshot_20260622_032708.png" width="24%" alt="Screenshot 7">
-  <img src="screenshots/Screenshot_20260622_032730.png" width="24%" alt="Screenshot 8">
-</p>
+Native Compose UI, dark theme, auto-adapts to mobile:
+
+- **Server Config page**: protocol (HTTP/HTTPS) switch, address/port input, username/password (optional), connection preview
+- **Chat page**: streaming messages, collapsible reasoning, tool cards, session management, Slash commands, Rewind
 
 ---
 
