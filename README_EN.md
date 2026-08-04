@@ -6,16 +6,16 @@
 
 **🤖 Native Android client for Reasonix · Kotlin + Jetpack Compose · Basic Auth / HTTPS support**
 
-[![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-android?color=2ea44f&label=Latest%20Release&logo=github)](https://github.com/xiwangone/reasonix-android/releases/latest)
-[![Build](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml)
-[![Stars](https://img.shields.io/github/stars/xiwangone/reasonix-android?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/reasonix-android)
-[![Downloads](https://img.shields.io/github/downloads/xiwangone/reasonix-android/total?color=blue&label=Downloads&logo=download)](https://github.com/xiwangone/reasonix-android/releases)
-[![License](https://img.shields.io/github/license/xiwangone/reasonix-android?color=ff69b4&label=License)](LICENSE)
-[![Last Commit](https://img.shields.io/github/last-commit/xiwangone/reasonix-android?color=yellow&label=Last%20Commit&logo=github)](https://github.com/xiwangone/reasonix-android/commits/master)
+[![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-agents?color=2ea44f&label=Latest%20Release&logo=github)](https://github.com/xiwangone/reasonix-agents/releases/latest)
+[![Build](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml)
+[![Stars](https://img.shields.io/github/stars/xiwangone/reasonix-agents?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/reasonix-agents)
+[![Downloads](https://img.shields.io/github/downloads/xiwangone/reasonix-agents/total?color=blue&label=Downloads&logo=download)](https://github.com/xiwangone/reasonix-agents/releases)
+[![License](https://img.shields.io/github/license/xiwangone/reasonix-agents?color=ff69b4&label=License)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/xiwangone/reasonix-agents?color=yellow&label=Last%20Commit&logo=github)](https://github.com/xiwangone/reasonix-agents/commits/master)
 
 [**简体中文**](README.md) | **English**
 
-[![📥 Download APK](https://img.shields.io/badge/📥-Download%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-android/releases/latest)
+[![📥 Download APK](https://img.shields.io/badge/📥-Download%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 
 </div>
 
@@ -27,7 +27,7 @@
 |------|------|------|
 | 🔵 **DeepSeek-Reasonix (Protocol Upstream)** | https://github.com/esengine/DeepSeek-Reasonix | **Backend service & protocol definition this client follows** |
 | 🟢 **DeepSeek-Reasonix-android (Original Client)** | https://github.com/hxr66666/DeepSeek-Reasonix-android | **Original fork this repo is based on (MIT)** |
-| 🟡 **This Repo (Independently Maintained)** | https://github.com/xiwangone/reasonix-android | **Forked with credit to the original author; independently developed** |
+| 🟡 **This Repo (Independently Maintained)** | https://github.com/xiwangone/reasonix-agents | **Forked with credit to the original author; independently developed** |
 
 > ### ⚠️ Notice
 >
@@ -125,8 +125,8 @@ Native Compose UI, dark theme, auto-adapts to mobile:
 
 ```bash
 # 1. Clone
-git clone https://github.com/xiwangone/reasonix-android.git
-cd reasonix-android
+git clone https://github.com/xiwangone/reasonix-agents.git
+cd reasonix-agents
 
 # 2. Build Debug APK
 ./gradlew assembleDebug
@@ -158,12 +158,12 @@ Open the app → Server Config page:
 ## Project Structure
 
 ```
-reasonix-android/
+reasonix-agents/
 ├── app/
 │   ├── build.gradle.kts
 │   └── src/main/
 │       ├── AndroidManifest.xml
-│       ├── java/com/reasonix/deepseek_reasonix_android/
+│       ├── java/com/reasonix/agents/
 │       │   ├── MainActivity.kt
 │       │   ├── data/
 │       │   │   ├── ServerConfigStore.kt        # Config persistence (credentials/protocol)
@@ -210,7 +210,7 @@ GitHub Actions builds on every push to `master` or Pull Request:
 
 Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml)
 
-Build status: [![Build](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml)
+Build status: [![Build](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml)
 
 ---
 

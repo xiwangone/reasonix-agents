@@ -6,16 +6,16 @@
 
 **🤖 Reasonix 的 Android 原生客户端 · Kotlin + Jetpack Compose · 支持 Basic Auth / HTTPS**
 
-[![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-android?color=2ea44f&label=最新版本&logo=github)](https://github.com/xiwangone/reasonix-android/releases/latest)
-[![Build](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml)
-[![Stars](https://img.shields.io/github/stars/xiwangone/reasonix-android?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/reasonix-android)
-[![Downloads](https://img.shields.io/github/downloads/xiwangone/reasonix-android/total?color=blue&label=下载量&logo=download)](https://github.com/xiwangone/reasonix-android/releases)
-[![License](https://img.shields.io/github/license/xiwangone/reasonix-android?color=ff69b4&label=许可)](LICENSE)
-[![Last Commit](https://img.shields.io/github/last-commit/xiwangone/reasonix-android?color=yellow&label=最近提交&logo=github)](https://github.com/xiwangone/reasonix-android/commits/master)
+[![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-agents?color=2ea44f&label=最新版本&logo=github)](https://github.com/xiwangone/reasonix-agents/releases/latest)
+[![Build](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml)
+[![Stars](https://img.shields.io/github/stars/xiwangone/reasonix-agents?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/reasonix-agents)
+[![Downloads](https://img.shields.io/github/downloads/xiwangone/reasonix-agents/total?color=blue&label=下载量&logo=download)](https://github.com/xiwangone/reasonix-agents/releases)
+[![License](https://img.shields.io/github/license/xiwangone/reasonix-agents?color=ff69b4&label=许可)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/xiwangone/reasonix-agents?color=yellow&label=最近提交&logo=github)](https://github.com/xiwangone/reasonix-agents/commits/master)
 
 [**English**](README_EN.md) | **简体中文**
 
-[![📥 下载 APK](https://img.shields.io/badge/📥-下载%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-android/releases/latest)
+[![📥 下载 APK](https://img.shields.io/badge/📥-下载%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 
 </div>
 
@@ -27,7 +27,7 @@
 |------|------|------|
 | 🔵 **DeepSeek-Reasonix（协议上游）** | https://github.com/esengine/DeepSeek-Reasonix | **后端服务与协议定义，本客户端遵循其协议** |
 | 🟢 **DeepSeek-Reasonix-android（客户端原版）** | https://github.com/hxr66666/DeepSeek-Reasonix-android | **原版 Fork，本仓库基于此（MIT）** |
-| 🟡 **本仓库（独立维护版）** | https://github.com/xiwangone/reasonix-android | **致谢原作者前提下独立开发，不依赖上游更新** |
+| 🟡 **本仓库（独立维护版）** | https://github.com/xiwangone/reasonix-agents | **致谢原作者前提下独立开发，不依赖上游更新** |
 
 > ### ⚠️ 使用须知
 >
@@ -125,8 +125,8 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/xiwangone/reasonix-android.git
-cd reasonix-android
+git clone https://github.com/xiwangone/reasonix-agents.git
+cd reasonix-agents
 
 # 2. 构建 Debug APK
 ./gradlew assembleDebug
@@ -160,12 +160,12 @@ reasonix serve --addr "0.0.0.0:8787"
 ## 项目结构
 
 ```
-reasonix-android/
+reasonix-agents/
 ├── app/
 │   ├── build.gradle.kts          # 应用构建配置
 │   └── src/main/
 │       ├── AndroidManifest.xml
-│       ├── java/com/reasonix/deepseek_reasonix_android/
+│       ├── java/com/reasonix/agents/
 │       │   ├── MainActivity.kt
 │       │   ├── data/
 │       │   │   ├── ServerConfigStore.kt        # 配置持久化（含凭据/协议）
@@ -212,7 +212,7 @@ reasonix-android/
 
 工作流配置见 [`.github/workflows/build.yml`](.github/workflows/build.yml)。
 
-构建状态：[![Build](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml)
+构建状态：[![Build](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml)
 
 ---
 

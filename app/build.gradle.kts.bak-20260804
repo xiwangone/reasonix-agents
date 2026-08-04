@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-    namespace = "com.reasonix.agents"
+    namespace = "com.reasonix.deepseek_reasonix_android"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.reasonix.agents"
+        applicationId = "com.reasonix.deepseek_reasonix_android"
         minSdk = 23
         targetSdk = 36
         versionCode = 1
