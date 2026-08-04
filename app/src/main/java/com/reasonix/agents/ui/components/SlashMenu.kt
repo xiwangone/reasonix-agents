@@ -24,14 +24,14 @@ import com.reasonix.agents.ui.theme.LocalPalette
 // 调色板
 // ═══════════════════════════════════════════════
 
-private val Bg2 @Composable get() = LocalPalette.current.bg2
-private val Card @Composable get() = LocalPalette.current.card
-private val Border @Composable get() = LocalPalette.current.border
-private val Accent @Composable get() = LocalPalette.current.accent
-private val AccentSoft @Composable get() = LocalPalette.current.accentS
-private val Fg @Composable get() = LocalPalette.current.fg
-private val Muted @Composable get() = LocalPalette.current.muted
-private val Muted2 @Composable get() = LocalPalette.current.muted2
+private val Bg2: Color @Composable get() = LocalPalette.current.bg2
+private val Card: Color @Composable get() = LocalPalette.current.card
+private val Border: Color @Composable get() = LocalPalette.current.border
+private val Accent: Color @Composable get() = LocalPalette.current.accent
+private val AccentSoft: Color @Composable get() = LocalPalette.current.accentS
+private val Fg: Color @Composable get() = LocalPalette.current.fg
+private val Muted: Color @Composable get() = LocalPalette.current.muted
+private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 
 // ═══════════════════════════════════════════════
 // 命令定义

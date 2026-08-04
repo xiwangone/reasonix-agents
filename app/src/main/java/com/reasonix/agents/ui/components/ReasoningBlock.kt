@@ -29,21 +29,21 @@ import com.reasonix.agents.ui.theme.LocalPalette
 // 调色板 (Reasonix 暗色主题)
 // ═══════════════════════════════════════════════
 
-private val panel @Composable get() = LocalPalette.current.panel
-private val panel2 @Composable get() = LocalPalette.current.panel2
-private val bg2 @Composable get() = LocalPalette.current.bg2
-private val card @Composable get() = LocalPalette.current.card
-private val border @Composable get() = LocalPalette.current.border
-private val borderStrong @Composable get() = LocalPalette.current.borderStr
-private val accent @Composable get() = LocalPalette.current.accent
-private val accentSoft @Composable get() = LocalPalette.current.accentS
-private val fg @Composable get() = LocalPalette.current.fg
-private val fg2 @Composable get() = LocalPalette.current.fg2
-private val muted @Composable get() = LocalPalette.current.muted
-private val muted2 @Composable get() = LocalPalette.current.muted2
-private val warning @Composable get() = LocalPalette.current.warning
-private val warningSoft @Composable get() = LocalPalette.current.warningS
-private val danger @Composable get() = LocalPalette.current.danger
+private val panel: Color @Composable get() = LocalPalette.current.panel
+private val panel2: Color @Composable get() = LocalPalette.current.panel2
+private val bg2: Color @Composable get() = LocalPalette.current.bg2
+private val card: Color @Composable get() = LocalPalette.current.card
+private val border: Color @Composable get() = LocalPalette.current.border
+private val borderStrong: Color @Composable get() = LocalPalette.current.borderStr
+private val accent: Color @Composable get() = LocalPalette.current.accent
+private val accentSoft: Color @Composable get() = LocalPalette.current.accentS
+private val fg: Color @Composable get() = LocalPalette.current.fg
+private val fg2: Color @Composable get() = LocalPalette.current.fg2
+private val muted: Color @Composable get() = LocalPalette.current.muted
+private val muted2: Color @Composable get() = LocalPalette.current.muted2
+private val warning: Color @Composable get() = LocalPalette.current.warning
+private val warningSoft: Color @Composable get() = LocalPalette.current.warningS
+private val danger: Color @Composable get() = LocalPalette.current.danger
 
 // ═══════════════════════════════════════════════
 // 1. ReasoningBlock

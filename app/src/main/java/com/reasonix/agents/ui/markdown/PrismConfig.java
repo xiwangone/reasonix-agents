@@ -1,4 +1,4 @@
-//package com.reasonix.deepseek_reasonix_android.ui.markdown;
+//package com.reasonix.agents.ui.markdown;
 //
 //import io.noties.prism4j.annotations.PrismBundle;
 //

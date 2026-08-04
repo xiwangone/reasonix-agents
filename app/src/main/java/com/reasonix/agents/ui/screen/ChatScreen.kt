@@ -46,26 +46,26 @@ import com.reasonix.agents.ui.viewmodel.ChatViewModel
 // 调色板 — 匹配 index.html 的 Reasonix 暗色主题
 // ═══════════════════════════════════════════════
 
-private val Bg @Composable get() = LocalPalette.current.bg
-private val Bg2 @Composable get() = LocalPalette.current.bg2
-private val Panel @Composable get() = LocalPalette.current.panel
-private val Panel2 @Composable get() = LocalPalette.current.panel2
-private val Card @Composable get() = LocalPalette.current.card
-private val CardHover @Composable get() = LocalPalette.current.cardHover
-private val Border @Composable get() = LocalPalette.current.border
-private val BorderStr @Composable get() = LocalPalette.current.borderStr
-private val Accent @Composable get() = LocalPalette.current.accent
-private val AccentS @Composable get() = LocalPalette.current.accentS
-private val Violet @Composable get() = LocalPalette.current.violet
-private val Fg @Composable get() = LocalPalette.current.fg
-private val Fg2 @Composable get() = LocalPalette.current.fg2
-private val Muted @Composable get() = LocalPalette.current.muted
-private val Muted2 @Composable get() = LocalPalette.current.muted2
-private val Danger @Composable get() = LocalPalette.current.danger
-private val DangerS @Composable get() = LocalPalette.current.dangerS
-private val Success @Composable get() = LocalPalette.current.success
-private val SuccessS @Composable get() = LocalPalette.current.successS
-private val Warning @Composable get() = LocalPalette.current.warning
+private val Bg: Color @Composable get() = LocalPalette.current.bg
+private val Bg2: Color @Composable get() = LocalPalette.current.bg2
+private val Panel: Color @Composable get() = LocalPalette.current.panel
+private val Panel2: Color @Composable get() = LocalPalette.current.panel2
+private val Card: Color @Composable get() = LocalPalette.current.card
+private val CardHover: Color @Composable get() = LocalPalette.current.cardHover
+private val Border: Color @Composable get() = LocalPalette.current.border
+private val BorderStr: Color @Composable get() = LocalPalette.current.borderStr
+private val Accent: Color @Composable get() = LocalPalette.current.accent
+private val AccentS: Color @Composable get() = LocalPalette.current.accentS
+private val Violet: Color @Composable get() = LocalPalette.current.violet
+private val Fg: Color @Composable get() = LocalPalette.current.fg
+private val Fg2: Color @Composable get() = LocalPalette.current.fg2
+private val Muted: Color @Composable get() = LocalPalette.current.muted
+private val Muted2: Color @Composable get() = LocalPalette.current.muted2
+private val Danger: Color @Composable get() = LocalPalette.current.danger
+private val DangerS: Color @Composable get() = LocalPalette.current.dangerS
+private val Success: Color @Composable get() = LocalPalette.current.success
+private val SuccessS: Color @Composable get() = LocalPalette.current.successS
+private val Warning: Color @Composable get() = LocalPalette.current.warning
 
 // ═══════════════════════════════════════════════
 // ChatScreen — 主界面入口

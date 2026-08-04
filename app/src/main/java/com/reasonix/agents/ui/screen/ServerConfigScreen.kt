@@ -34,18 +34,18 @@ import kotlinx.coroutines.withContext
 // 调色板 — Reasonix 暗色主题
 // ═══════════════════════════════════════════════
 
-private val Bg @Composable get() = LocalPalette.current.bg
-private val Bg2 @Composable get() = LocalPalette.current.bg2
-private val Panel @Composable get() = LocalPalette.current.panel
-private val Panel2 @Composable get() = LocalPalette.current.panel2
-private val Border @Composable get() = LocalPalette.current.border
-private val Accent @Composable get() = LocalPalette.current.accent
-private val Violet @Composable get() = LocalPalette.current.violet
-private val Fg @Composable get() = LocalPalette.current.fg
-private val Fg2 @Composable get() = LocalPalette.current.fg2
-private val Muted @Composable get() = LocalPalette.current.muted
-private val Muted2 @Composable get() = LocalPalette.current.muted2
-private val Success @Composable get() = LocalPalette.current.success
+private val Bg: Color @Composable get() = LocalPalette.current.bg
+private val Bg2: Color @Composable get() = LocalPalette.current.bg2
+private val Panel: Color @Composable get() = LocalPalette.current.panel
+private val Panel2: Color @Composable get() = LocalPalette.current.panel2
+private val Border: Color @Composable get() = LocalPalette.current.border
+private val Accent: Color @Composable get() = LocalPalette.current.accent
+private val Violet: Color @Composable get() = LocalPalette.current.violet
+private val Fg: Color @Composable get() = LocalPalette.current.fg
+private val Fg2: Color @Composable get() = LocalPalette.current.fg2
+private val Muted: Color @Composable get() = LocalPalette.current.muted
+private val Muted2: Color @Composable get() = LocalPalette.current.muted2
+private val Success: Color @Composable get() = LocalPalette.current.success
 
 // ═══════════════════════════════════════════════
 // ServerConfigScreen

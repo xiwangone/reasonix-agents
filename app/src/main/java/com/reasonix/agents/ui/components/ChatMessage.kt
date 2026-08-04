@@ -27,17 +27,17 @@ import com.reasonix.agents.ui.theme.LocalPalette
 // 调色板（与深色主题对齐）
 // ═══════════════════════════════════════════════
 
-private val accent @Composable get() = LocalPalette.current.accent
-private val fg @Composable get() = LocalPalette.current.fg
-private val fg2 @Composable get() = LocalPalette.current.fg2
-private val muted @Composable get() = LocalPalette.current.muted
-private val muted2 @Composable get() = LocalPalette.current.muted2
-private val danger @Composable get() = LocalPalette.current.danger
-private val dangerSoft @Composable get() = LocalPalette.current.dangerS
-private val success @Composable get() = LocalPalette.current.success
-private val border @Composable get() = LocalPalette.current.border
-private val bg2 @Composable get() = LocalPalette.current.bg2
-private val panel2 @Composable get() = LocalPalette.current.panel2
+private val accent: Color @Composable get() = LocalPalette.current.accent
+private val fg: Color @Composable get() = LocalPalette.current.fg
+private val fg2: Color @Composable get() = LocalPalette.current.fg2
+private val muted: Color @Composable get() = LocalPalette.current.muted
+private val muted2: Color @Composable get() = LocalPalette.current.muted2
+private val danger: Color @Composable get() = LocalPalette.current.danger
+private val dangerSoft: Color @Composable get() = LocalPalette.current.dangerS
+private val success: Color @Composable get() = LocalPalette.current.success
+private val border: Color @Composable get() = LocalPalette.current.border
+private val bg2: Color @Composable get() = LocalPalette.current.bg2
+private val panel2: Color @Composable get() = LocalPalette.current.panel2
 private val userBubbleBg = accent   // #EA8800 橙底（高对比度）
 private val userBubbleFg = Color(0xFFFFFFFF)
 

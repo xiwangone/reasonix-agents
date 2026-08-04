@@ -1,4 +1,4 @@
-package com.reasonix.deepseek_reasonix_android.ui.markdown;
+package com.reasonix.agents.ui.markdown;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
