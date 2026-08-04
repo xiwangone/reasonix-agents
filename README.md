@@ -27,13 +27,14 @@
 |------|------|------|
 | 🔵 **DeepSeek-Reasonix（协议上游）** | https://github.com/esengine/DeepSeek-Reasonix | **后端服务与协议定义，本客户端遵循其协议** |
 | 🟢 **DeepSeek-Reasonix-android（客户端原版）** | https://github.com/hxr66666/DeepSeek-Reasonix-android | **原版 Fork，本仓库基于此（MIT）** |
-| 🟡 **本仓库（独立维护版）** | https://github.com/xiwangone/reasonix-agents | **致谢原作者前提下独立开发，不依赖上游更新** |
+| 🟡 **本仓库（AI 协助维护版）** | https://github.com/xiwangone/reasonix-agents | **AI 协助合并上游 + 编译** |
 
 > ### ⚠️ 使用须知
 >
-> - **❌ 非官方发布** — 不是 esengine 或 hxr66666 官方发布
-> - ✅ 代码来源可信（MIT 许可），已在 LICENSE 注明原作者致谢
-> - 💡 如遇问题，可参考 [原版仓库](https://github.com/hxr66666/DeepSeek-Reasonix-android) 或 [协议上游](https://github.com/esengine/DeepSeek-Reasonix)
+> - **❌ 非官方发布** — 不是 esengine 官方发布
+> - **❌ 非原版发布** — 不是 hxr66666 原版开发者发布
+> - ✅ 代码来源可信（MIT 许可），由 AI 协助合并上游代码并持续编译，已在 LICENSE 注明原作者致谢
+> - 💡 如遇问题，建议优先使用 [原版仓库](https://github.com/hxr66666/DeepSeek-Reasonix-android) 或 [协议上游](https://github.com/esengine/DeepSeek-Reasonix)
 
 ---
 

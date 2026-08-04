@@ -31,9 +31,10 @@
 
 > ### ⚠️ Notice
 >
-> - **❌ Not an official release** — not published by esengine or hxr66666
-> - ✅ Source is trustworthy (MIT license), original author credited in LICENSE
-> - 💡 For issues, refer to the [original repo](https://github.com/hxr66666/DeepSeek-Reasonix-android) or [protocol upstream](https://github.com/esengine/DeepSeek-Reasonix)
+> - **❌ Not an official release** — not published by esengine
+> - **❌ Not the original release** — not published by hxr66666
+> - ✅ Source is trustworthy (MIT license), AI-assisted maintenance merging upstream with continuous builds, original author credited in LICENSE
+> - 💡 For issues, prefer the [original repo](https://github.com/hxr66666/DeepSeek-Reasonix-android) or [protocol upstream](https://github.com/esengine/DeepSeek-Reasonix)
 
 ---
 
