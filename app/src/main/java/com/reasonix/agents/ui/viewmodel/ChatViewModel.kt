@@ -16,6 +16,9 @@ data class ChatUiState(
     val messages: List<ChatItem> = emptyList(),
     val sessions: List<SessionInfo> = emptyList(),
     val status: StatusInfo? = null,
+    val models: List<ModelInfo> = emptyList(),
+    val currentModel: String = "",
+    val systemPrompt: String? = null,
     val isStreaming: Boolean = false,
     val planMode: Boolean = false,
     val toolApprovalMode: String = "auto",
@@ -83,6 +86,8 @@ class ChatViewModel(
             val sessions = repository.getSessions()
             val status = repository.getStatus()
             val history = repository.getHistory()
+            val modelsResp = repository.getModels()
+            val systemPrompt = repository.getSystemPrompt()
 
             val historyItems = buildHistoryItems(history)
 
@@ -90,11 +95,38 @@ class ChatViewModel(
                 it.copy(
                     sessions = sessions,
                     status = status,
+                    models = modelsResp?.models ?: emptyList(),
+                    currentModel = modelsResp?.current ?: status?.label ?: "",
+                    systemPrompt = systemPrompt,
                     messages = historyItems,
                     planMode = status?.plan ?: false,
                     toolApprovalMode = status?.toolApprovalMode ?: "auto"
                 )
             }
+        }
+    }
+
+    // ── 切换模型 ──
+    fun setModel(model: String) {
+        viewModelScope.launch {
+            repository.setModel(model)
+            // 刷新状态与模型列表
+            val status = repository.getStatus()
+            val modelsResp = repository.getModels()
+            _uiState.update {
+                it.copy(
+                    status = status,
+                    currentModel = modelsResp?.current ?: status?.label ?: model
+                )
+            }
+        }
+    }
+
+    // ── 刷新模型列表 ──
+    fun reloadModels() {
+        viewModelScope.launch {
+            val modelsResp = repository.getModels()
+            _uiState.update { it.copy(models = modelsResp?.models ?: emptyList()) }
         }
     }
 

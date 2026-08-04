@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -54,10 +56,14 @@ private val Muted2 @Composable get() = LocalPalette.current.muted2
 fun SettingsScreen(
     serverUrl: String,
     status: StatusInfo?,
+    models: List<ModelInfo> = emptyList(),
+    currentModel: String = "",
+    systemPrompt: String? = null,
     settings: AppSettingsStore.Settings,
     onThemeModeChange: (Int) -> Unit,
     onShowReasoningChange: (Boolean) -> Unit,
     onShowTokensChange: (Boolean) -> Unit,
+    onModelSelect: (String) -> Unit = {},
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -112,6 +118,44 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ── 模型 ──
+            SectionTitle("模型")
+            if (models.isEmpty()) {
+                InfoRow("当前", currentModel.ifEmpty { "—" })
+            } else {
+                InfoRow("当前", currentModel.ifEmpty { "—" })
+                Spacer(modifier = Modifier.height(6.dp))
+                models.forEach { m ->
+                    val label = m.model.ifEmpty { m.ref }
+                    val selected = label == currentModel || m.ref == currentModel || m.active
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (selected) Accent.copy(alpha = 0.15f) else Panel)
+                            .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
+                            .clickable { onModelSelect(m.ref) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 13.sp,
+                            color = if (selected) Accent else Fg,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (selected) {
+                            Text("✓", fontSize = 13.sp, color = Accent)
+                        } else if (m.default) {
+                            Text("默认", fontSize = 11.sp, color = Muted2)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // ── 显示选项 ──
             SectionTitle("显示")
             SettingSwitch(
@@ -134,6 +178,37 @@ fun SettingsScreen(
             InfoRow("计划模式", status?.plan?.let { if (it) "开" else "关" } ?: "—")
             InfoRow("工具审批", status?.toolApprovalMode ?: "—")
             InfoRow("余额", status?.balance?.display ?: "—")
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── 系统提示词（只读）──
+            SectionTitle("系统提示词")
+            if (systemPrompt.isNullOrBlank()) {
+                InfoRow("提示词", "—")
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 220.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Panel)
+                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = systemPrompt,
+                        fontSize = 12.sp,
+                        color = Fg2,
+                        lineHeight = 18.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "只读：服务端不支持修改系统提示词",
+                    fontSize = 11.sp,
+                    color = Muted2
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 

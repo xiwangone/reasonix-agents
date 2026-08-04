@@ -31,6 +31,9 @@ class ChatRepository(
     suspend fun getHistory(): List<HistoryMessage> = api.getHistory()
 
     suspend fun getStatus(): StatusInfo? = api.getStatus()
+    suspend fun getModels(): ModelsResponse? = api.getModels()
+    suspend fun setModel(model: String) = api.setModel(model)
+    suspend fun getSystemPrompt(): String? = api.getSystemPrompt()
 
     suspend fun getSessions(): List<SessionInfo> = api.getSessions()
 

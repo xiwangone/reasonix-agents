@@ -65,6 +65,28 @@ class ReasonixApi(
         }
     }
 
+    // ── 获取模型列表 ──
+    suspend fun getModels(): ModelsResponse? = withContext(Dispatchers.IO) {
+        val json = get("/models")
+        if (json.isNullOrBlank()) return@withContext null
+        try {
+            gson.fromJson(json, ModelsResponse::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // ── 切换模型（POST /settings {model}）──
+    suspend fun setModel(model: String) = withContext(Dispatchers.IO) {
+        post("/settings", mapOf("model" to model))
+    }
+
+    // ── 获取系统提示词（从 history 提取 role=system）──
+    suspend fun getSystemPrompt(): String? = withContext(Dispatchers.IO) {
+        val history = getHistory()
+        history.firstOrNull { it.role == "system" }?.content
+    }
+
     // ── 会话列表 ──
     suspend fun getSessions(): List<SessionInfo> = withContext(Dispatchers.IO) {
         val json = get("/sessions")

@@ -226,7 +226,11 @@ fun ChatScreen(
             SettingsScreen(
                 serverUrl = state.serverUrl,
                 status = state.status,
+                models = state.models,
+                currentModel = state.currentModel,
+                systemPrompt = state.systemPrompt,
                 settings = state.settings,
+                onModelSelect = { model -> viewModel.setModel(model) },
                 onThemeModeChange = { mode ->
                     viewModel.updateThemeMode(mode)
                     onSettingsChanged(state.settings.copy(themeMode = mode))
@@ -726,17 +730,23 @@ private fun Footer(
                 )
             }
 
-            // ── 输入框 ──
+            // ── 输入框（输入区 + 独立发送按钮）──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Card)
-                    .border(1.dp, BorderStr, RoundedCornerShape(14.dp))
-                    .padding(start = 14.dp, top = 2.dp, bottom = 2.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 输入区：独立背景/边框，整块可点击输入
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Card)
+                        .border(1.dp, BorderStr, RoundedCornerShape(14.dp))
+                        .padding(start = 14.dp, top = 2.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                 Text(
                     "›",
                     fontSize = 16.sp,
@@ -785,7 +795,11 @@ private fun Footer(
                     }
                 )
 
-                // 发送/停止按钮
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // 发送/停止按钮（独立于输入区）
                 if (isStreaming) {
                     IconButton(
                         onClick = onCancel,

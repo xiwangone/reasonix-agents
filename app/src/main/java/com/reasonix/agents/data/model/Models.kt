@@ -219,3 +219,20 @@ sealed class ChatItem {
         val questions: List<AskQuestion> = emptyList()
     ) : ChatItem()
 }
+
+// ── 模型列表（GET /models）──
+data class ModelInfo(
+    val ref: String = "",
+    val provider: String = "",
+    val model: String = "",
+    val kind: String = "openai",
+    val active: Boolean = false,
+    val default: Boolean = false
+)
+
+data class ModelsResponse(
+    val current: String = "",
+    val default: String = "",
+    val label: String = "",
+    val models: List<ModelInfo> = emptyList()
+)
