@@ -30,17 +30,17 @@ import com.reasonix.agents.ui.theme.LocalPalette
 // 调色板 (Reasonix dark)
 // ═══════════════════════════════════════════════
 
-private val Bg get() = LocalPalette.current.bg
-private val Panel get() = LocalPalette.current.panel
-private val CardHover get() = LocalPalette.current.cardHover
-private val Border get() = LocalPalette.current.border
-private val BorderStrong get() = LocalPalette.current.borderStr
-private val Accent get() = LocalPalette.current.accent
-private val AccentSoft get() = LocalPalette.current.accentS
-private val Fg get() = LocalPalette.current.fg
-private val Fg2 get() = LocalPalette.current.fg2
-private val Muted get() = LocalPalette.current.muted
-private val Muted2 get() = LocalPalette.current.muted2
+private val Bg @Composable get() = LocalPalette.current.bg
+private val Panel @Composable get() = LocalPalette.current.panel
+private val CardHover @Composable get() = LocalPalette.current.cardHover
+private val Border @Composable get() = LocalPalette.current.border
+private val BorderStrong @Composable get() = LocalPalette.current.borderStr
+private val Accent @Composable get() = LocalPalette.current.accent
+private val AccentSoft @Composable get() = LocalPalette.current.accentS
+private val Fg @Composable get() = LocalPalette.current.fg
+private val Fg2 @Composable get() = LocalPalette.current.fg2
+private val Muted @Composable get() = LocalPalette.current.muted
+private val Muted2 @Composable get() = LocalPalette.current.muted2
 
 // ═══════════════════════════════════════════════
 // Scope 定义

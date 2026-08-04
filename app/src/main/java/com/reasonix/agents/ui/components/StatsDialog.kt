@@ -27,18 +27,18 @@ import com.reasonix.agents.ui.theme.LocalPalette
 // 调色板 — Reasonix dark
 // ═══════════════════════════════════════════════
 
-private val Panel get() = LocalPalette.current.panel
-private val Bg2 get() = LocalPalette.current.bg2
-private val Border get() = LocalPalette.current.border
-private val BorderStrong get() = LocalPalette.current.borderStr
-private val Accent get() = LocalPalette.current.accent
+private val Panel @Composable get() = LocalPalette.current.panel
+private val Bg2 @Composable get() = LocalPalette.current.bg2
+private val Border @Composable get() = LocalPalette.current.border
+private val BorderStrong @Composable get() = LocalPalette.current.borderStr
+private val Accent @Composable get() = LocalPalette.current.accent
 
-private val Fg get() = LocalPalette.current.fg
-private val Muted get() = LocalPalette.current.muted
-private val Muted2 get() = LocalPalette.current.muted2
-private val Success get() = LocalPalette.current.success
-private val Danger get() = LocalPalette.current.danger
-private val Warning get() = LocalPalette.current.warning
+private val Fg @Composable get() = LocalPalette.current.fg
+private val Muted @Composable get() = LocalPalette.current.muted
+private val Muted2 @Composable get() = LocalPalette.current.muted2
+private val Success @Composable get() = LocalPalette.current.success
+private val Danger @Composable get() = LocalPalette.current.danger
+private val Warning @Composable get() = LocalPalette.current.warning
 
 // ═══════════════════════════════════════════════
 // 工具函数

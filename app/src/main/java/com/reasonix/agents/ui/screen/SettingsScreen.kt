@@ -35,16 +35,16 @@ import com.reasonix.agents.data.model.StatusInfo
 import com.reasonix.agents.ui.theme.LocalPalette
 
 // 调色板 — 从 LocalPalette 读取（支持主题切换）
-private val Bg get() = LocalPalette.current.bg
-private val Bg2 get() = LocalPalette.current.bg2
-private val Panel get() = LocalPalette.current.panel
-private val Border get() = LocalPalette.current.border
-private val Accent get() = LocalPalette.current.accent
-private val Violet get() = LocalPalette.current.violet
-private val Fg get() = LocalPalette.current.fg
-private val Fg2 get() = LocalPalette.current.fg2
-private val Muted get() = LocalPalette.current.muted
-private val Muted2 get() = LocalPalette.current.muted2
+private val Bg @Composable get() = LocalPalette.current.bg
+private val Bg2 @Composable get() = LocalPalette.current.bg2
+private val Panel @Composable get() = LocalPalette.current.panel
+private val Border @Composable get() = LocalPalette.current.border
+private val Accent @Composable get() = LocalPalette.current.accent
+private val Violet @Composable get() = LocalPalette.current.violet
+private val Fg @Composable get() = LocalPalette.current.fg
+private val Fg2 @Composable get() = LocalPalette.current.fg2
+private val Muted @Composable get() = LocalPalette.current.muted
+private val Muted2 @Composable get() = LocalPalette.current.muted2
 
 /**
  * 设置页（全屏覆盖层）。

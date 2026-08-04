@@ -20,8 +20,8 @@ import com.reasonix.agents.data.model.ChatItem
 import com.reasonix.agents.ui.theme.LocalPalette
 
 // 匹配 index.html 调色板
-private val bg get() = LocalPalette.current.bg
-private val border get() = LocalPalette.current.border
+private val bg @Composable get() = LocalPalette.current.bg
+private val border @Composable get() = LocalPalette.current.border
 
 /**
  * 聊天消息列表 — LazyColumn 渲染所有 ChatItem 类型。

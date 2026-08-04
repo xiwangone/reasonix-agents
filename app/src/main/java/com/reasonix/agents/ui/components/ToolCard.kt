@@ -51,19 +51,19 @@ import com.reasonix.agents.ui.theme.LocalPalette
 // 颜色常量
 // ═══════════════════════════════════════════════
 
-private val CardBg get() = LocalPalette.current.card
-private val Border get() = LocalPalette.current.border
-private val Accent get() = LocalPalette.current.accent
-private val AccentSoft get() = LocalPalette.current.accentS
-private val Success get() = LocalPalette.current.success
-private val SuccessSoft get() = LocalPalette.current.successS
-private val Danger get() = LocalPalette.current.danger
-private val DangerSoft get() = LocalPalette.current.dangerS
-private val Bg2 get() = LocalPalette.current.bg2
-private val Fg get() = LocalPalette.current.fg
-private val Fg2 get() = LocalPalette.current.fg2
-private val Muted get() = LocalPalette.current.muted
-private val Panel2 get() = LocalPalette.current.panel2
+private val CardBg @Composable get() = LocalPalette.current.card
+private val Border @Composable get() = LocalPalette.current.border
+private val Accent @Composable get() = LocalPalette.current.accent
+private val AccentSoft @Composable get() = LocalPalette.current.accentS
+private val Success @Composable get() = LocalPalette.current.success
+private val SuccessSoft @Composable get() = LocalPalette.current.successS
+private val Danger @Composable get() = LocalPalette.current.danger
+private val DangerSoft @Composable get() = LocalPalette.current.dangerS
+private val Bg2 @Composable get() = LocalPalette.current.bg2
+private val Fg @Composable get() = LocalPalette.current.fg
+private val Fg2 @Composable get() = LocalPalette.current.fg2
+private val Muted @Composable get() = LocalPalette.current.muted
+private val Panel2 @Composable get() = LocalPalette.current.panel2
 
 // ═══════════════════════════════════════════════
 // ToolCard — 可折叠工具执行卡片
