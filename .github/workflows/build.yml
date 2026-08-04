@@ -107,7 +107,7 @@ jobs:
             gh release upload "$TAG" "$apk" --clobber
             echo "Uploaded $apk"
           done
-          cd ../../debug
+          cd ../debug
           for apk in *.apk; do
             gh release upload "$TAG" "$apk" --clobber
             echo "Uploaded $apk"
