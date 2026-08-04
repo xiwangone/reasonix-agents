@@ -30,6 +30,7 @@ data class ChatUiState(
     val showStatsDialog: Boolean = false,
     val showSettings: Boolean = false,
     val settings: AppSettingsStore.Settings = AppSettingsStore.Settings(),
+    val ciSettings: com.reasonix.agents.data.CiMonitorStore.CiSettings = com.reasonix.agents.data.CiMonitorStore.CiSettings(),
     val cumulativeTokens: Long = 0,
     val cumulativeCost: Double = 0.0,
     val cumulativeCacheHit: Long = 0,
@@ -120,6 +121,11 @@ class ChatViewModel(
                 )
             }
         }
+    }
+
+    // ── 更新 CI 监控设置 ──
+    fun updateCiSettings(s: com.reasonix.agents.data.CiMonitorStore.CiSettings) {
+        _uiState.update { it.copy(ciSettings = s) }
     }
 
     // ── 刷新模型列表 ──

@@ -76,6 +76,7 @@ fun ChatScreen(
     initialServerUrl: String = "http://127.0.0.1:8920",
     initialCredentials: Pair<String, String>? = null,
     onSettingsChanged: (com.reasonix.agents.data.AppSettingsStore.Settings) -> Unit = {},
+    onCiSettingsChanged: (com.reasonix.agents.data.CiMonitorStore.CiSettings) -> Unit = {},
     viewModel: ChatViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -230,7 +231,12 @@ fun ChatScreen(
                 currentModel = state.currentModel,
                 systemPrompt = state.systemPrompt,
                 settings = state.settings,
+                ciSettings = state.ciSettings,
                 onModelSelect = { model -> viewModel.setModel(model) },
+                onCiSettingsChange = { newCi ->
+                    viewModel.updateCiSettings(newCi)
+                    onCiSettingsChanged(newCi)
+                },
                 onThemeModeChange = { mode ->
                     viewModel.updateThemeMode(mode)
                     onSettingsChanged(state.settings.copy(themeMode = mode))
