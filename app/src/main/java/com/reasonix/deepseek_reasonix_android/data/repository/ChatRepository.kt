@@ -12,6 +12,10 @@ class ChatRepository(
     private val api: ReasonixApi,
     private val sseClient: ReasonixSseClient
 ) {
+    constructor(baseUrl: String, credentials: Pair<String, String>? = null) : this(
+        ReasonixApi(baseUrl, credentials),
+        ReasonixSseClient(baseUrl, credentials)
+    )
 
     // ── SSE 事件流 ──
     fun sseEvents(): Flow<SseEvent> = sseClient.connect()

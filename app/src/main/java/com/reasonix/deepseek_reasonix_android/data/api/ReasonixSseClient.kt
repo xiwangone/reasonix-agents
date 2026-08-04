@@ -1,5 +1,6 @@
 package com.reasonix.deepseek_reasonix_android.data.api
 
+import android.util.Base64
 import com.google.gson.Gson
 import com.reasonix.deepseek_reasonix_android.data.model.SseEvent
 import kotlinx.coroutines.channels.awaitClose
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit
  */
 class ReasonixSseClient(
     private val baseUrl: String,
+    private val credentials: Pair<String, String>? = null,
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -26,14 +28,21 @@ class ReasonixSseClient(
     private val gson = Gson()
     private var eventSource: EventSource? = null
 
+    /** Basic Auth 头；未配置凭据时为 null（向后兼容无认证直连场景） */
+    private val authHeader: String? = credentials?.let { (u, p) ->
+        "Basic " + Base64.encodeToString("$u:$p".toByteArray(), Base64.NO_WRAP)
+    }
+
     /**
      * 连接 SSE 并返回事件 Flow。
      * 调用方 collect 时自动连接，取消 collect 时自动断开。
      */
     fun connect(): Flow<SseEvent> = callbackFlow {
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url("$baseUrl/events")
             .header("Accept", "text/event-stream")
+        authHeader?.let { builder.header("Authorization", it) }
+        val request = builder
             .build()
 
         val listener = object : EventSourceListener() {

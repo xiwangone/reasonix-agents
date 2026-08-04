@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -52,13 +53,15 @@ private val Success  = Color(0xFF40A060)
  */
 @Composable
 fun ServerConfigScreen(
-    onConnect: (String) -> Unit
+    onConnect: (String, Pair<String, String>?) -> Unit
 ) {
     val context = LocalContext.current
     val saved = remember { ServerConfigStore.load(context) }
 
     var ipInput by remember { mutableStateOf(saved.ip) }
     var portInput by remember { mutableStateOf(saved.port) }
+    var usernameInput by remember { mutableStateOf(saved.username) }
+    var passwordInput by remember { mutableStateOf(saved.password) }
 
     val defaultIp = "127.0.0.1"
     val defaultPort = "8920"
@@ -234,6 +237,79 @@ fun ServerConfigScreen(
                     }
                 }
 
+                // ── 用户名（Basic Auth，可选）──
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Text(
+                        text = "用户",
+                        fontSize = 13.sp,
+                        color = Muted,
+                        modifier = Modifier.width(48.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Bg2)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        if (usernameInput.isEmpty()) {
+                            androidx.compose.material3.Text(
+                                text = "可选",
+                                fontSize = 14.sp,
+                                color = Muted2
+                            )
+                        }
+                        BasicTextField(
+                            value = usernameInput,
+                            onValueChange = { usernameInput = it },
+                            textStyle = TextStyle(
+                                color = Fg,
+                                fontSize = 14.sp
+                            ),
+                            cursorBrush = SolidColor(Accent),
+                            singleLine = true
+                        )
+                    }
+                }
+
+                // ── 密码（Basic Auth，可选）──
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Text(
+                        text = "密码",
+                        fontSize = 13.sp,
+                        color = Muted,
+                        modifier = Modifier.width(48.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Bg2)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        if (passwordInput.isEmpty()) {
+                            androidx.compose.material3.Text(
+                                text = "可选",
+                                fontSize = 14.sp,
+                                color = Muted2
+                            )
+                        }
+                        BasicTextField(
+                            value = passwordInput,
+                            onValueChange = { passwordInput = it },
+                            textStyle = TextStyle(
+                                color = Fg,
+                                fontSize = 14.sp
+                            ),
+                            cursorBrush = SolidColor(Accent),
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation()
+                        )
+                    }
+                }
+
                 // ── 预览 URL ──
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     androidx.compose.material3.Text(
@@ -271,8 +347,11 @@ fun ServerConfigScreen(
                             if (canConnect) Modifier.clickable {
                             val ip = resolvedIp
                             val port = resolvedPort
-                            ServerConfigStore.save(context, ip, port)
-                            onConnect(previewUrl)
+                            val creds = if (usernameInput.isNotBlank() && passwordInput.isNotBlank()) {
+                                usernameInput to passwordInput
+                            } else null
+                            ServerConfigStore.save(context, ip, port, usernameInput, passwordInput)
+                            onConnect(previewUrl, creds)
                         }
                             else Modifier
                         )

@@ -32,13 +32,14 @@ data class ChatUiState(
 )
 
 class ChatViewModel(
-    initialServerUrl: String = "http://127.0.0.1:8920"
+    initialServerUrl: String = "http://127.0.0.1:8920",
+    initialCredentials: Pair<String, String>? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState(serverUrl = initialServerUrl))
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
-    private var repository: ChatRepository = createRepository(initialServerUrl)
+    private var repository: ChatRepository = createRepository(initialServerUrl, initialCredentials)
     private var sseCollectionJob: Job? = null
 
     // 当前流的助手消息 builder（增量）
@@ -58,17 +59,17 @@ class ChatViewModel(
     // ── 服务器配置 ──
 
     /** 动态切换服务器地址，重建 API/SSE 客户端并重新加载数据。 */
-    fun configureServer(url: String) {
+    fun configureServer(url: String, credentials: Pair<String, String>? = null) {
         val normalized = url.trimEnd('/')
-        repository = createRepository(normalized)
+        repository = createRepository(normalized, credentials)
         _uiState.update { it.copy(serverUrl = normalized, messages = emptyList(), error = null) }
         loadInitialData()
     }
 
-    private fun createRepository(url: String): ChatRepository {
+    private fun createRepository(url: String, credentials: Pair<String, String>? = null): ChatRepository {
         return ChatRepository(
-            api = ReasonixApi(url),
-            sseClient = ReasonixSseClient(url)
+            api = ReasonixApi(url, credentials),
+            sseClient = ReasonixSseClient(url, credentials)
         )
     }
 

@@ -25,16 +25,18 @@ class MainActivity : ComponentActivity() {
             ) {
                 var serverConfigured by remember { mutableStateOf(false) }
                 var serverUrl by remember { mutableStateOf("http://127.0.0.1:8920") }
+                var serverCredentials by remember { mutableStateOf<Pair<String, String>?>(null) }
 
                 if (!serverConfigured) {
                     ServerConfigScreen(
-                        onConnect = { url ->
+                        onConnect = { url, credentials ->
                             serverUrl = url
+                            serverCredentials = credentials
                             serverConfigured = true
                         }
                     )
                 } else {
-                    ChatScreen(initialServerUrl = serverUrl)
+                    ChatScreen(initialServerUrl = serverUrl, initialCredentials = serverCredentials)
                 }
             }
         }

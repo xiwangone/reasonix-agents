@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken
 import com.reasonix.deepseek_reasonix_android.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.util.Base64
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -16,6 +17,7 @@ import java.util.concurrent.TimeUnit
  */
 class ReasonixApi(
     private val baseUrl: String,
+    private val credentials: Pair<String, String>? = null,
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
@@ -24,6 +26,11 @@ class ReasonixApi(
 ) {
     private val gson = Gson()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+
+    /** Basic Auth 头；未配置凭据时为 null（向后兼容无认证直连场景） */
+    private val authHeader: String? = credentials?.let { (u, p) ->
+        "Basic " + Base64.encodeToString("$u:$p".toByteArray(), Base64.NO_WRAP)
+    }
 
     // ── 发送消息 ──
     suspend fun submit(input: String): Boolean = withContext(Dispatchers.IO) {
@@ -152,8 +159,10 @@ class ReasonixApi(
     // ═══════════════════════════════════════════════
 
     private suspend fun get(path: String): String? {
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url("$baseUrl$path")
+        authHeader?.let { builder.header("Authorization", it) }
+        val request = builder
             .get()
             .build()
         return execute(request)
@@ -165,8 +174,10 @@ class ReasonixApi(
         } else {
             "{}".toRequestBody(jsonMediaType)
         }
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url("$baseUrl$path")
+        authHeader?.let { builder.header("Authorization", it) }
+        val request = builder
             .post(requestBody)
             .build()
         execute(request)

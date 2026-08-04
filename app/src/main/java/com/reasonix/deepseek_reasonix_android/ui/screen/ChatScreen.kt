@@ -70,13 +70,17 @@ private val Warning   = Color(0xFFE5B830)
 // ═══════════════════════════════════════════════
 
 @Composable
-fun ChatScreen(initialServerUrl: String = "http://127.0.0.1:8920", viewModel: ChatViewModel = viewModel()) {
+fun ChatScreen(
+    initialServerUrl: String = "http://127.0.0.1:8920",
+    initialCredentials: Pair<String, String>? = null,
+    viewModel: ChatViewModel = viewModel()
+) {
     val state by viewModel.uiState.collectAsState()
 
     // 首次启动时配置服务器地址
     LaunchedEffect(Unit) {
         if (state.serverUrl != initialServerUrl) {
-            viewModel.configureServer(initialServerUrl)
+            viewModel.configureServer(initialServerUrl, initialCredentials)
         }
     }
 
