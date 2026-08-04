@@ -44,26 +44,38 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+      - name: 固定签名构建 Release (overwrite-install)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          KEYSTORE="$HOME/reasonix.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
+          echo "storeFile=$KEYSTORE" >> local.properties
+          echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
+          echo "keyAlias=$KEY_ALIAS" >> local.properties
+          echo "keyPassword=$KEY_PASSWORD" >> local.properties
+          ./gradlew assembleRelease --stacktrace
 
       - name: Rename Debug APK
-        run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/DeepSeek-Reasonix-android.apk
+        run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Reasonix-Android-debug.apk
 
       - name: Rename Release APK
-        run: mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/DeepSeek-Reasonix-android-unsigned.apk
+        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Reasonix-Android-release.apk
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: DeepSeek-Reasonix-android
-          path: app/build/outputs/apk/debug/DeepSeek-Reasonix-android.apk
+          name: Reasonix-Android-debug
+          path: app/build/outputs/apk/debug/Reasonix-Android-debug.apk
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: DeepSeek-Reasonix-android-unsigned
-          path: app/build/outputs/apk/release/DeepSeek-Reasonix-android-unsigned.apk
+          name: Reasonix-Android-release
+          path: app/build/outputs/apk/release/Reasonix-Android-release.apk
 
       - name: Upload Build Reports (on failure)
         if: failure()
