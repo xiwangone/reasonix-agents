@@ -47,8 +47,8 @@ private val Success  = Color(0xFF40A060)
 
 /**
  * 启动服务器配置页面。
- * 用户输入 IP 和端口（协议固定 HTTP），点击连接后回调 [onConnect]。
- * 若留空，默认连接 http://127.0.0.1:8920。
+ * 用户输入 IP 和端口（协议可选 HTTP/HTTPS），点击连接后回调 [onConnect]。
+ * 若留空，默认连接 http://127.0.0.1:8920（HTTPS 时默认 443）。
  * 自动从本地存储加载上次配置并回填表单，连接时持久化。
  */
 @Composable
@@ -62,13 +62,14 @@ fun ServerConfigScreen(
     var portInput by remember { mutableStateOf(saved.port) }
     var usernameInput by remember { mutableStateOf(saved.username) }
     var passwordInput by remember { mutableStateOf(saved.password) }
+    var useHttps by remember { mutableStateOf(saved.useHttps) }
 
     val defaultIp = "127.0.0.1"
-    val defaultPort = "8920"
+    val defaultPort = if (useHttps) "443" else "8920"
 
     val resolvedIp = ipInput.ifBlank { defaultIp }
     val resolvedPort = portInput.ifBlank { defaultPort }
-    val previewUrl = "http://$resolvedIp:$resolvedPort"
+    val previewUrl = "${if (useHttps) "https" else "http"}://$resolvedIp:$resolvedPort"
 
     val canConnect = resolvedIp.isNotBlank() && resolvedPort.isNotBlank()
 
@@ -140,7 +141,7 @@ fun ServerConfigScreen(
                     color = Fg
                 )
 
-                // ── 协议（固定 HTTP） ──
+                // ── 协议（HTTP / HTTPS 切换） ──
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     androidx.compose.material3.Text(
                         text = "协议",
@@ -148,19 +149,25 @@ fun ServerConfigScreen(
                         color = Muted,
                         modifier = Modifier.width(48.dp)
                     )
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bg2)
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
-                    ) {
-                        androidx.compose.material3.Text(
-                            text = "HTTP",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Accent
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("HTTP" to false, "HTTPS" to true).forEach { (label, isHttps) ->
+                            val selected = useHttps == isHttps
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (selected) Accent.copy(alpha = 0.18f) else Bg2)
+                                    .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
+                                    .clickable { useHttps = isHttps }
+                                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                            ) {
+                                androidx.compose.material3.Text(
+                                    text = label,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (selected) Accent else Muted
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -350,7 +357,7 @@ fun ServerConfigScreen(
                             val creds = if (usernameInput.isNotBlank() && passwordInput.isNotBlank()) {
                                 usernameInput to passwordInput
                             } else null
-                            ServerConfigStore.save(context, ip, port, usernameInput, passwordInput)
+                            ServerConfigStore.save(context, ip, port, usernameInput, passwordInput, useHttps)
                             onConnect(previewUrl, creds)
                         }
                             else Modifier
