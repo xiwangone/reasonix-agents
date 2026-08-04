@@ -6,12 +6,16 @@
 
 **🤖 Reasonix 的 Android 原生客户端 · Kotlin + Jetpack Compose · 支持 Basic Auth / HTTPS**
 
+[![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-android?color=2ea44f&label=最新版本&logo=github)](https://github.com/xiwangone/reasonix-android/releases/latest)
 [![Build](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-android/actions/workflows/build.yml)
 [![Stars](https://img.shields.io/github/stars/xiwangone/reasonix-android?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/reasonix-android)
+[![Downloads](https://img.shields.io/github/downloads/xiwangone/reasonix-android/total?color=blue&label=下载量&logo=download)](https://github.com/xiwangone/reasonix-android/releases)
 [![License](https://img.shields.io/github/license/xiwangone/reasonix-android?color=ff69b4&label=许可)](LICENSE)
 [![Last Commit](https://img.shields.io/github/last-commit/xiwangone/reasonix-android?color=yellow&label=最近提交&logo=github)](https://github.com/xiwangone/reasonix-android/commits/master)
 
 [**English**](README_EN.md) | **简体中文**
+
+[![📥 下载 APK](https://img.shields.io/badge/📥-下载%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-android/releases/latest)
 
 </div>
 

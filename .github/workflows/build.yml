@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: '自定义 Release tag（默认取 versionName，如 1.0）'
+        required: false
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -64,6 +72,46 @@ jobs:
 
       - name: Rename Release APK
         run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Reasonix-Android-release.apk
+
+      - name: 创建/更新 Release（仅 workflow_dispatch）
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          # 动态读取 versionName 作为默认 tag，可用 workflow_dispatch 的 release_tag 覆盖
+          DEFAULT_TAG=$(grep 'versionName' app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          TAG="${RELEASE_TAG:-$DEFAULT_TAG}"
+          echo "Release TAG: $TAG"
+          # Release 不存在则创建，已存在则跳过创建
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
+            --title "🚀 Reasonix Android $TAG" \
+            --notes "## ✨ v$TAG
+
+            ### 📦 安装包
+            - \`Reasonix-Android-release.apk\`（固定签名 Release 版）
+            - \`Reasonix-Android-debug.apk\`（Debug 版）
+
+            ### 🔐 连接配置
+            - 协议：HTTP / HTTPS（HTTPS 默认端口 443）
+            - 认证：用户名/密码（Basic Auth，可选）
+            - 服务器：Reasonix 后端（DeepSeek-Reasonix 协议）
+
+            ### 🆕 更新内容
+            - 🔐 支持 Basic Auth 认证连接
+            - 🌐 支持 HTTP/HTTPS 协议切换
+            - 📱 Android 原生客户端（Kotlin + Compose）" || true
+          # 上传 APK 到 Release
+          cd app/build/outputs/apk/release
+          for apk in *.apk; do
+            gh release upload "$TAG" "$apk" --clobber
+            echo "Uploaded $apk"
+          done
+          cd ../../debug
+          for apk in *.apk; do
+            gh release upload "$TAG" "$apk" --clobber
+            echo "Uploaded $apk"
+          done
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
