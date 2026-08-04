@@ -23,6 +23,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.data.ServerConfigStore
+import com.reasonix.agents.data.api.ReasonixApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // ═══════════════════════════════════════════════
 // 调色板 — Reasonix 暗色主题
@@ -56,6 +61,8 @@ fun ServerConfigScreen(
     onConnect: (String, Pair<String, String>?) -> Unit
 ) {
     val context = LocalContext.current
+    var connecting by remember { mutableStateOf(false) }
+    var connectError by remember { mutableStateOf<String?>(null) }
     val saved = remember { ServerConfigStore.load(context) }
 
     var ipInput by remember { mutableStateOf(saved.ip) }
@@ -351,14 +358,32 @@ fun ServerConfigScreen(
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (canConnect) Accent else Panel2)
                         .then(
-                            if (canConnect) Modifier.clickable {
+                            if (canConnect && !connecting) Modifier.clickable {
                             val ip = resolvedIp
                             val port = resolvedPort
                             val creds = if (usernameInput.isNotBlank() && passwordInput.isNotBlank()) {
                                 usernameInput to passwordInput
                             } else null
-                            ServerConfigStore.save(context, ip, port, usernameInput, passwordInput, useHttps)
-                            onConnect(previewUrl, creds)
+                            connecting = true
+                            connectError = null
+                            CoroutineScope(Dispatchers.Main).launch {
+                                val ok = withContext(Dispatchers.IO) {
+                                    try {
+                                        val api = ReasonixApi(previewUrl, creds)
+                                        val status = api.getStatus()
+                                        status != null
+                                    } catch (e: Exception) {
+                                        false
+                                    }
+                                }
+                                connecting = false
+                                if (ok) {
+                                    ServerConfigStore.save(context, ip, port, usernameInput, passwordInput, useHttps)
+                                    onConnect(previewUrl, creds)
+                                } else {
+                                    connectError = "连接失败：无法访问服务器或认证失败。请检查地址/端口/用户名密码。\n提示：reasonix 默认端口 10002（HTTP）或 443（HTTPS）"
+                                }
+                            }
                         }
                             else Modifier
                         )
@@ -366,10 +391,20 @@ fun ServerConfigScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.material3.Text(
-                        text = "连接",
+                        text = if (connecting) "连接中…" else "连接",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (canConnect) Color.White else Muted
+                    )
+                }
+
+                // ── 连接错误提示 ──
+                connectError?.let { err ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.material3.Text(
+                        text = err,
+                        fontSize = 11.sp,
+                        color = Color(0xFFFF6B6B)
                     )
                 }
 
