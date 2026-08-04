@@ -38,7 +38,7 @@ private val success: Color @Composable get() = LocalPalette.current.success
 private val border: Color @Composable get() = LocalPalette.current.border
 private val bg2: Color @Composable get() = LocalPalette.current.bg2
 private val panel2: Color @Composable get() = LocalPalette.current.panel2
-private val userBubbleBg = accent   // #EA8800 橙底（高对比度）
+private val userBubbleBg: Color @Composable get() = LocalPalette.current.accent
 private val userBubbleFg = Color(0xFFFFFFFF)
 
 // ═══════════════════════════════════════════════
