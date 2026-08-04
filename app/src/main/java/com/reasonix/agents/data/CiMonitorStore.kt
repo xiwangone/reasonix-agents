@@ -1,13 +1,15 @@
 package com.reasonix.agents.data
 
 import android.content.Context
+import android.util.Log
 
 /**
  * CI 监控设置本地持久化（SharedPreferences）。
- * GitHub token 仅存本机，展示时脱敏。
+ * GitHub token 使用 [CredentialCrypto]（AES-GCM + AndroidKeyStore）加密存储，展示时脱敏。
  */
 object CiMonitorStore {
 
+    private const val TAG = "CiMonitorStore"
     private const val PREFS_NAME = "reasonix_ci_monitor"
     private const val KEY_ENABLED = "ci_enabled"            // 悬浮窗总开关
     private const val KEY_GITHUB_TOKEN = "github_token"      // 只存本机，不明文外传
@@ -25,20 +27,42 @@ object CiMonitorStore {
 
     fun load(context: Context): CiSettings {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val storedToken = prefs.getString(KEY_GITHUB_TOKEN, "") ?: ""
         return CiSettings(
             enabled = prefs.getBoolean(KEY_ENABLED, false),
-            githubToken = prefs.getString(KEY_GITHUB_TOKEN, "") ?: "",
+            // 旧版明文 → 读取后立即迁移为密文；密文解密失败则按空处理
+            githubToken = when {
+                storedToken.isEmpty() -> ""
+                CredentialCrypto.isEncrypted(storedToken) ->
+                    CredentialCrypto.decrypt(storedToken) ?: ""
+                else -> storedToken.also { plaintext ->
+                    // 迁移失败（如 KeyStore 异常）只保留内存明文，不落盘、不崩溃，下次 load 重试
+                    try {
+                        migratePlaintextToken(context, plaintext)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "token 加密迁移失败，下次加载重试", e)
+                    }
+                }
+            },
             owner = prefs.getString(KEY_OWNER, "xiwangone") ?: "xiwangone",
             repo = prefs.getString(KEY_REPO, "reasonix-agents") ?: "reasonix-agents",
             intervalMs = prefs.getLong(KEY_INTERVAL_MS, 60_000L)
         )
     }
 
+    /** 将旧版明文 token 原地加密迁移，避免继续明文留存。 */
+    private fun migratePlaintextToken(context: Context, plaintext: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_GITHUB_TOKEN, CredentialCrypto.encrypt(plaintext))
+            .apply()
+    }
+
     fun save(context: Context, s: CiSettings) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_ENABLED, s.enabled)
-            .putString(KEY_GITHUB_TOKEN, s.githubToken)
+            .putString(KEY_GITHUB_TOKEN, CredentialCrypto.encrypt(s.githubToken))
             .putString(KEY_OWNER, s.owner)
             .putString(KEY_REPO, s.repo)
             .putLong(KEY_INTERVAL_MS, s.intervalMs)

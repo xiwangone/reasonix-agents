@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+   Backup rules（API ≤ 30 生效，API 31+ 见 data_extraction_rules.xml）。
+   凭据（服务器连接密码 / CI GitHub token）加密后仍不允许备份到云端或新设备，
+   因为 AndroidKeyStore 密钥不随备份迁移，换机恢复后密文无法解密且存在泄漏面。
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="reasonix_server_config.xml"/>
+    <exclude domain="sharedpref" path="reasonix_ci_monitor.xml"/>
 </full-backup-content>

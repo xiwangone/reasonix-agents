@@ -1,19 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   Data extraction rules（API 31+ 生效）。
+   凭据（服务器连接密码 / CI GitHub token）所在的 SharedPreferences 文件一律排除，
+   不参与云备份与设备迁移。
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="sharedpref" path="reasonix_server_config.xml"/>
+        <exclude domain="sharedpref" path="reasonix_ci_monitor.xml"/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="reasonix_server_config.xml"/>
+        <exclude domain="sharedpref" path="reasonix_ci_monitor.xml"/>
     </device-transfer>
-    -->
 </data-extraction-rules>
