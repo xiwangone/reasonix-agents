@@ -5,12 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,6 +40,7 @@ private val success: Color @Composable get() = LocalPalette.current.success
 private val border: Color @Composable get() = LocalPalette.current.border
 private val bg2: Color @Composable get() = LocalPalette.current.bg2
 private val panel2: Color @Composable get() = LocalPalette.current.panel2
+private val userBubbleBg: Color @Composable get() = LocalPalette.current.accent
 private val userBubbleFg = Color(0xFFFFFFFF)
 
 // ═══════════════════════════════════════════════
@@ -78,40 +75,30 @@ fun UserMessageBubble(text: String, imagePath: String? = null) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End
     ) {
-        // 复制按钮（Material3 轻量 Surface + 图标）
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = panel2,
-            contentColor = muted,
+        // 复制按钮
+        IconButton(
+            onClick = { clipboardManager.setText(AnnotatedString(text)) },
             modifier = Modifier
                 .padding(end = 12.dp)
-                .size(30.dp)
+                .size(34.dp)
         ) {
-            IconButton(
-                onClick = { clipboardManager.setText(AnnotatedString(text)) },
-                modifier = Modifier.size(30.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ContentCopy,
-                    contentDescription = "复制",
-                    tint = muted,
-                    modifier = Modifier.size(15.dp)
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.ContentCopy,
+                contentDescription = "复制",
+                tint = muted,
+                modifier = Modifier.size(17.dp)
+            )
         }
 
-        // 气泡（第九批：Material3 Surface + elevation，圆角 18dp，主题 primary 色）
-        Surface(
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = userBubbleFg,
-            shape = RoundedCornerShape(18.dp),
-            shadowElevation = 2.dp,
-            modifier = Modifier.padding(start = 64.dp, top = 2.dp, bottom = 6.dp, end = 12.dp)
+        // 气泡
+        Box(
+            modifier = Modifier
+                .padding(start = 64.dp, top = 2.dp, bottom = 6.dp, end = 12.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(userBubbleBg)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalAlignment = Alignment.End
-            ) {
+            Column(horizontalAlignment = Alignment.End) {
                 // 图片（本地缓存文件，coil 异步加载；气泡 wrap-content，用固定宽度限宽）
                 if (imagePath != null) {
                     AsyncImage(
@@ -131,7 +118,7 @@ fun UserMessageBubble(text: String, imagePath: String? = null) {
                 if (text.isNotBlank()) {
                     Text(
                         text = text,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = userBubbleFg,
                         fontWeight = FontWeight.Medium,
                         fontSize = 15.sp,
                         lineHeight = 22.sp
@@ -161,49 +148,31 @@ fun AssistantMessageBubble(
             .fillMaxWidth()
             .padding(start = 4.dp, end = 16.dp, top = 2.dp, bottom = 6.dp)
     ) {
-        // 复制按钮（Material3 轻量 Surface + 图标）
+        // 复制按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = panel2,
-                contentColor = muted,
-                modifier = Modifier.size(30.dp)
+            IconButton(
+                onClick = { clipboardManager.setText(AnnotatedString(text)) },
+                modifier = Modifier.size(34.dp)
             ) {
-                IconButton(
-                    onClick = { clipboardManager.setText(AnnotatedString(text)) },
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "复制",
-                        tint = muted,
-                        modifier = Modifier.size(15.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = "复制",
+                    tint = muted,
+                    modifier = Modifier.size(17.dp)
+                )
             }
         }
 
-        // 助手正文气泡（第九批：对齐 RikkaHub 助手消息 surfaceContainerHigh 16dp
-        // 圆角容器风格；半透明 panel2 保持与 Markdown 代码块背景的层次区分）
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = panel2.copy(alpha = 0.38f),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp)
-        ) {
-            // Markdown 正文（Markwon 原生引擎：支持 HTML / 图片 / 表格 / 任务列表）
-            MarkdownRenderer(
-                markdown = text,
-                codeBackground = bg2,
-                codeTextColor = fg2,
-                linkColor = accent,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
-            )
-        }
+        // Markdown 正文（Markwon 原生引擎：支持 HTML / 图片 / 表格 / 任务列表）
+        MarkdownRenderer(
+            markdown = text,
+            codeBackground = bg2,
+            codeTextColor = fg2,
+            linkColor = accent
+        )
     }
 }
 
@@ -324,16 +293,15 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
         if (pct >= 1.0) "${pct.toInt()}%" else "%.1f%%".format(pct)
     } else null
 
-    // 卡片容器（第九批：Material3 Card，surfaceVariant 色 + 轻量 elevation）
-    Card(
+    // 卡片容器
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = bg2),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(bg2)
+            .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
         // ── 上排：费用 + 余额 ──
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -417,7 +385,6 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
                     fontFamily = FontFamily.Monospace
                 )
             }
-        }
         }
     }
 }

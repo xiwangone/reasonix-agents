@@ -10,10 +10,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -34,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,7 +86,6 @@ private val Warning: Color @Composable get() = LocalPalette.current.warning
 // ChatScreen — 主界面入口
 // ═══════════════════════════════════════════════
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     initialServerUrl: String = "http://127.0.0.1:8920",
@@ -224,149 +226,94 @@ fun ChatScreen(
     ) {
         // ── 主内容区 ──
         Column(modifier = Modifier.fillMaxSize()) {
-            // ── 顶部工具栏（第九批：Material3 TopAppBar 原生化）──
-            // 与 Web 版差异：Web 用「状态文本 + URL」工具条；原生版用
-            // TopAppBar + AssistChip 承载品牌 / 会话状态 / 模型选择。
-            TopAppBar(
-                modifier = Modifier.fillMaxWidth(),
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.toggleSidebar() }) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "打开会话列表",
-                            tint = Muted,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                },
-                title = {
-                    // 品牌（随主题渐变）+ 应用名；点击弹出「保存的配置」列表（批 C-1）
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+            // ── 顶部栏（批 A-2：左上品牌 logo / 右上 关于 + 设置 入口）──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 左侧：品牌 logo（随主题渐变）+ 应用名 + 连接状态点；点击弹出「保存的配置」列表（批 C-1）
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showConfigsDialog = true }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { showConfigsDialog = true }
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .size(26.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(brush = Brush.linearGradient(colors = listOf(Accent, Violet))),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(26.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(brush = Brush.linearGradient(colors = listOf(Accent, Violet))),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("R", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Reasonix",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Fg
-                        )
+                        Text("R", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
-                },
-                actions = {
-                    // ── 会话状态：Material3 AssistChip（彩色圆点 + 状态文字）──
-                    val (dotColor, statusText) = when {
-                        state.connectionState == ConnectionState.RECONNECTING -> Warning to "重连中"
-                        state.connectionState == ConnectionState.DISCONNECTED && state.isStreaming -> Danger to "断开"
-                        state.connectionState == ConnectionState.CONNECTED -> Success to "已连接"
-                        state.isStreaming -> Accent to "思考中"
-                        else -> Muted2 to "就绪"
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Reasonix",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Fg
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // 连接健康状态点（绿=已连接 / 黄=重连中 / 红=断开 / 灰=就绪）
+                    val dotColor = when {
+                        state.connectionState == ConnectionState.RECONNECTING -> Warning
+                        state.connectionState == ConnectionState.DISCONNECTED && state.isStreaming -> Danger
+                        state.connectionState == ConnectionState.CONNECTED -> Success
+                        else -> Muted2
                     }
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                text = statusText,
-                                fontSize = 11.sp,
-                                maxLines = 1
-                            )
-                        },
-                        leadingIcon = {
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(dotColor)
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = Panel2,
-                            labelColor = Muted
-                        ),
-                        border = AssistChipDefaults.assistChipBorder(
-                            enabled = true,
-                            borderColor = Border,
-                            borderWidth = 1.dp
-                        )
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(dotColor)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                // 模型选择器（批 C-3：按 key 分组选择模型）
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Panel2)
+                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        .clickable { showModelPicker = true }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = state.currentModel.ifEmpty { "选择模型" },
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = if (state.currentModel.isEmpty()) Muted2 else Fg2,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 120.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    // ── 模型选择器：Material3 AssistChip（批 C-3 分组选择）──
-                    AssistChip(
-                        onClick = { showModelPicker = true },
-                        label = {
-                            Text(
-                                text = state.currentModel.ifEmpty { "选择模型" },
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.widthIn(max = 120.dp)
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.SmartToy,
-                                contentDescription = null,
-                                tint = if (state.currentModel.isEmpty()) Muted2 else Accent,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        },
-                        trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = null,
-                                tint = Muted,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = Panel2,
-                            labelColor = if (state.currentModel.isEmpty()) Muted2 else Fg2
-                        ),
-                        border = AssistChipDefaults.assistChipBorder(
-                            enabled = true,
-                            borderColor = Border,
-                            borderWidth = 1.dp
-                        )
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(13.dp))
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                // 右侧：关于 + 设置入口
+                IconButton(onClick = onNavigateToAbout, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "关于",
+                        tint = Muted,
+                        modifier = Modifier.size(19.dp)
                     )
-                    // 右侧：关于 + 设置入口
-                    IconButton(onClick = onNavigateToAbout, modifier = Modifier.size(40.dp)) {
-                        Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = "关于",
-                            tint = Muted,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(40.dp)) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = "设置",
-                            tint = Muted,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Bg,
-                    titleContentColor = Fg,
-                    actionIconContentColor = Muted,
-                    navigationIconContentColor = Muted
-                )
-            )
+                }
+                IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "设置",
+                        tint = Muted,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
             // 欢迎页（无消息时） 或 消息列表
             if (state.messages.isEmpty() && !state.isStreaming) {
                 WelcomeScreen(
@@ -419,23 +366,15 @@ fun ChatScreen(
                 isStreaming = state.isStreaming,
                 planMode = state.planMode,
                 toolApprovalMode = state.toolApprovalMode,
-                // 第九批：SegmentedButton 单选语义（Auto/Plan/YOLO 互斥）
-                onSelectMode = { mode ->
-                    when (mode) {
-                        "auto" -> {
-                            viewModel.setToolApprovalMode("auto")
-                            if (state.planMode) viewModel.togglePlanMode()
-                        }
-                        "plan" -> {
-                            if (state.toolApprovalMode == "yolo") viewModel.setToolApprovalMode("auto")
-                            viewModel.togglePlanMode()
-                        }
-                        "yolo" -> {
-                            if (state.planMode) viewModel.togglePlanMode()
-                            viewModel.setToolApprovalMode("yolo")
-                        }
-                    }
+                onTogglePlan = { viewModel.togglePlanMode() },
+                onToggleBypass = {
+                    val newMode = if (state.toolApprovalMode == "yolo") "auto" else "yolo"
+                    viewModel.setToolApprovalMode(newMode)
                 },
+                onToggleAuto = { viewModel.setToolApprovalMode("auto") },
+                serverUrl = state.serverUrl,
+                onServerUrlChange = { viewModel.onServerUrlChange(it) },
+                connectionState = state.connectionState,
                 cumulativeCost = state.cumulativeCost,
                 cumulativeTokens = state.cumulativeTokens,
                 balance = state.status?.balance?.display,
@@ -507,8 +446,29 @@ fun ChatScreen(
                 onDismiss = {},
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = 140.dp)
+                    .padding(start = 16.dp, bottom = 100.dp)
                     .zIndex(8f)
+            )
+        }
+
+        // ── 侧边栏切换按钮（左侧 2/5 高度处） ──
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = maxHeight * 0.4f, start = 8.dp)
+                .zIndex(5f)
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Bg2.copy(alpha = 0.9f))
+                .border(1.dp, Border, CircleShape)
+                .clickable { viewModel.toggleSidebar() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (state.showSidebar) Icons.Default.Close else Icons.Default.Menu,
+                contentDescription = if (state.showSidebar) "Close sidebar" else "Open sidebar",
+                tint = if (state.showSidebar) Accent else Muted,
+                modifier = Modifier.size(26.dp)
             )
         }
 
@@ -1282,7 +1242,7 @@ private fun SessionRow(
 }
 
 // ═══════════════════════════════════════════════
-// Footer — 模式切换（SegmentedButton）+ 输入框 + 发送/图片按钮
+// Footer — 工具栏 + 输入框 + SlashMenu
 // ═══════════════════════════════════════════════
 
 @Composable
@@ -1294,8 +1254,12 @@ private fun Footer(
     isStreaming: Boolean,
     planMode: Boolean,
     toolApprovalMode: String,
-    // 第九批：单选模式选择（"auto" / "plan" / "yolo"，由调用方编排互斥逻辑）
-    onSelectMode: (String) -> Unit,
+    onTogglePlan: () -> Unit,
+    onToggleBypass: (() -> Unit)?,
+    onToggleAuto: (() -> Unit)?,
+    serverUrl: String,
+    onServerUrlChange: (String) -> Unit,
+    connectionState: ConnectionState,
     cumulativeCost: Double,
     cumulativeTokens: Long,
     balance: String?,
@@ -1303,79 +1267,72 @@ private fun Footer(
     imageProcessing: Boolean,
     onPickImage: () -> Unit
 ) {
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Bg)
             .border(1.dp, Border)
     ) {
-        // ── 模式切换 + 会话统计行（第九批：Material3 SegmentedButton 可见切换）──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
-                SegmentedButton(
-                    selected = toolApprovalMode == "auto" && !planMode,
-                    onClick = { onSelectMode("auto") },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = Accent.copy(alpha = 0.18f),
-                        activeContentColor = Accent,
-                        inactiveContainerColor = Bg2,
-                        inactiveContentColor = Muted
-                    ),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Auto", fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                }
-                SegmentedButton(
-                    selected = planMode && toolApprovalMode != "yolo",
-                    onClick = { onSelectMode("plan") },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = Accent.copy(alpha = 0.18f),
-                        activeContentColor = Accent,
-                        inactiveContainerColor = Bg2,
-                        inactiveContentColor = Muted
-                    ),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Plan", fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                }
-                SegmentedButton(
-                    selected = toolApprovalMode == "yolo",
-                    onClick = { onSelectMode("yolo") },
-                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = Danger.copy(alpha = 0.18f),
-                        activeContentColor = Danger,
-                        inactiveContainerColor = Bg2,
-                        inactiveContentColor = Muted
-                    ),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("YOLO", fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-                }
-            }
-
-            // ── 会话统计（tokens / 费用 / 余额，轻量展示）──
+            // ── 工具栏 ──
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f, fill = false)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (cumulativeTokens > 0) {
+                // Auto
+                ToolbarButton("Auto", active = toolApprovalMode == "auto", accent = false) { onToggleAuto?.invoke() }
+                // Plan
+                ToolbarButton("Plan", active = planMode, accent = false) { onTogglePlan() }
+                // YOLO
+                ToolbarButton("YOLO", active = toolApprovalMode == "yolo", danger = true) { onToggleBypass?.invoke() }
+
+                // 分隔
+                Box(modifier = Modifier.width(1.dp).height(16.dp).background(Border))
+
+                // 状态（连接健康度：绿=已连接 / 黄=重连中 / 红=流式中断开 / 灰=就绪）
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val (dotColor, statusText) = when {
+                        connectionState == ConnectionState.RECONNECTING -> Warning to "重连中…"
+                        connectionState == ConnectionState.DISCONNECTED && isStreaming -> Danger to "连接断开"
+                        isStreaming -> Accent to "思考中…"
+                        connectionState == ConnectionState.CONNECTED -> Success to "已连接"
+                        else -> Muted2 to "就绪"
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(dotColor)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
                     Text(
-                        text = "T:${fmtTok(cumulativeTokens)}",
+                        text = statusText,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = Muted2
+                        color = Muted
                     )
                 }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // turn info + balance
+                if (cumulativeTokens > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "T:${fmtTok(cumulativeTokens)}",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = Muted2
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
                 if (cumulativeCost > 0.0) {
                     Text(
                         text = fmtMoney(cumulativeCost),
@@ -1383,7 +1340,9 @@ private fun Footer(
                         fontFamily = FontFamily.Monospace,
                         color = Muted2
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
+
                 balance?.let { b ->
                     Text(
                         text = b,
@@ -1392,134 +1351,193 @@ private fun Footer(
                         color = Success,
                         fontWeight = FontWeight.Medium
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
-            }
-        }
 
-        // ── 输入行（第九批：Material3 OutlinedTextField + FilledIconButton）──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 输入区：Material3 OutlinedTextField（胶囊圆角）
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = onInputChange,
+                // 服务器地址
+                Text(
+                    text = serverUrl,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = Muted2
+                )
+            }
+
+            // ── 输入框（输入区 + 独立发送按钮）──
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester)
-                    .onKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyUp &&
-                            event.key == Key.Enter &&
-                            !event.isShiftPressed &&
-                            inputText.isNotBlank()
-                        ) {
-                            onSend()
-                            true
-                        } else false
-                    },
-                placeholder = {
-                    Text(
-                        text = "输入消息…  / 查看命令",
-                        color = Muted2,
-                        fontSize = 15.sp
-                    )
-                },
-                textStyle = TextStyle(
-                    color = Fg,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp
-                ),
-                cursorBrush = SolidColor(Accent),
-                singleLine = false,
-                maxLines = 5,
-                shape = RoundedCornerShape(20.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Accent,
-                    unfocusedBorderColor = BorderStr,
-                    focusedContainerColor = Card,
-                    unfocusedContainerColor = Card,
-                    focusedTextColor = Fg,
-                    unfocusedTextColor = Fg,
-                    cursorColor = Accent,
-                    focusedPlaceholderColor = Muted2,
-                    unfocusedPlaceholderColor = Muted2
-                )
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // 图片按钮（第六批：相册选择 + 本地 OCR；处理中显示进度）
-            OutlinedIconButton(
-                onClick = onPickImage,
-                enabled = !imageProcessing,
-                modifier = Modifier.size(44.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderStr),
-                colors = IconButtonDefaults.outlinedIconButtonColors(
-                    containerColor = Bg2,
-                    contentColor = Muted,
-                    disabledContainerColor = Bg2,
-                    disabledContentColor = Muted2
-                )
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (imageProcessing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = Accent
-                    )
+                // 输入区：独立背景/边框，整块可点击输入
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Card)
+                        .border(1.dp, BorderStr, RoundedCornerShape(14.dp))
+                        .padding(start = 14.dp, top = 2.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                Text(
+                    "›",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Accent,
+                    fontFamily = FontFamily.Monospace
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+
+                BasicTextField(
+                    value = inputText,
+                    onValueChange = onInputChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester)
+                        .padding(vertical = 10.dp)
+                        .onKeyEvent { event ->
+                            if (event.type == KeyEventType.KeyUp &&
+                                event.key == Key.Enter &&
+                                !event.isShiftPressed &&
+                                inputText.isNotBlank()
+                            ) {
+                                onSend()
+                                true
+                            } else false
+                        },
+                    textStyle = TextStyle(
+                        color = Fg,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp
+                    ),
+                    cursorBrush = SolidColor(Accent),
+                    singleLine = false,
+                    maxLines = 5,
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (inputText.isEmpty()) {
+                                Text(
+                                    "输入消息…  / 查看命令",
+                                    color = Muted2,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                )
+
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // 图片按钮（第六批：相册选择 + 本地 OCR；处理中显示进度）
+                IconButton(
+                    onClick = onPickImage,
+                    enabled = !imageProcessing,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(if (imageProcessing) Panel2 else Bg2)
+                            .border(1.dp, BorderStr, RoundedCornerShape(9.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (imageProcessing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(15.dp),
+                                strokeWidth = 2.dp,
+                                color = Accent
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = "发送图片",
+                                tint = Muted,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // 发送/停止按钮（独立于输入区）
+                if (isStreaming) {
+                    IconButton(
+                        onClick = onCancel,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Danger),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(Color.White)
+                            )
+                        }
+                    }
                 } else {
-                    Icon(
-                        Icons.Default.Image,
-                        contentDescription = "发送图片",
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // 发送 / 停止按钮（FilledIconButton）
-            if (isStreaming) {
-                FilledIconButton(
-                    onClick = onCancel,
-                    modifier = Modifier.size(44.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Danger,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.Stop,
-                        contentDescription = "停止",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            } else {
-                FilledIconButton(
-                    onClick = onSend,
-                    enabled = inputText.isNotBlank(),
-                    modifier = Modifier.size(44.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = Accent,
-                        contentColor = Color.White,
-                        disabledContainerColor = Panel2,
-                        disabledContentColor = Muted2
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.Send,
-                        contentDescription = "发送",
-                        modifier = Modifier.size(18.dp)
-                    )
+                    IconButton(
+                        onClick = onSend,
+                        enabled = inputText.isNotBlank(),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(
+                                    if (inputText.isNotBlank()) Accent else Panel2
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
+}
+
+@Composable
+private fun ToolbarButton(
+    label: String,
+    active: Boolean,
+    accent: Boolean = false,
+    danger: Boolean = false,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = when {
+            active && danger -> DangerS
+            active -> AccentS
+            else -> Bg2
+        },
+        border = if (active) null else androidx.compose.foundation.BorderStroke(1.dp, Border),
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick)
+    ) {
+        Text(
+            label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = when {
+                active && danger -> Danger
+                active -> Accent
+                else -> Muted
+            },
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+        )
     }
 }
 
