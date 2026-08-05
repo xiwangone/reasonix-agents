@@ -16,6 +16,7 @@
 [**English**](README_EN.md) | **简体中文**
 
 [![📥 下载 APK](https://img.shields.io/badge/📥-下载%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-agents/releases/latest)
+[![RikkaHub Agents 开发中](https://img.shields.io/badge/🤖-RikkaHub%20Agents%20开发中-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/rikkahub-agents)
 
 </div>
 
@@ -28,6 +29,7 @@
 | 🔵 **DeepSeek-Reasonix（协议上游）** | https://github.com/esengine/DeepSeek-Reasonix | **后端服务与协议定义，本客户端遵循其协议** |
 | 🟢 **DeepSeek-Reasonix-android（客户端原版）** | https://github.com/hxr66666/DeepSeek-Reasonix-android | **原版 Fork，本仓库基于此（MIT）** |
 | 🟡 **本仓库（AI 协助维护版）** | https://github.com/xiwangone/reasonix-agents | **AI 协助合并上游 + 编译** |
+| 🟣 **RikkaHub Agents（并列项目）** | https://github.com/xiwangone/rikkahub-agents | **Android 设备端 LLM 智能体 · 80+ 设备工具（开发中）** |
 
 > ### ⚠️ 使用须知
 >
