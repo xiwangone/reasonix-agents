@@ -44,7 +44,8 @@ object ImageOcr {
      * 采样解码本地图片（最长边不超过 [maxDim]，防 OOM）；失败返回 null。
      * 返回 ARGB_8888 位图（ML Kit 需要非硬件位图）。
      */
-    fun decodeSampledBitmap(path: String, maxDim: Int = 2048): Bitmap? = try {
+    fun decodeSampledBitmap(path: String, maxDim: Int = 2048): Bitmap? {
+        return try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(path, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
@@ -61,6 +62,7 @@ object ImageOcr {
         }
     } catch (e: Exception) {
         null
+    }
     }
 
     /**
