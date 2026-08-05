@@ -4,7 +4,7 @@
 
 # Reasonix Android
 
-**🤖 Native Android client for Reasonix · Kotlin + Jetpack Compose · Basic Auth / HTTPS support**
+**🤖 AI coding assistant client, iteratively maintained by AI** — connect to a self-deployed Reasonix server via SSE streaming, real-time reasoning & tool-call rendering, code anytime anywhere. More agent modes to explore. (Multi-server/model grouping supported, prompt system & more in development...)
 
 [![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-agents?color=2ea44f&label=Latest%20Release&logo=github)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 [![Build](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml)
@@ -17,7 +17,11 @@
 
 [![📥 Download APK](https://img.shields.io/badge/📥-Download%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 [![RikkaHub Agents (in development)](https://img.shields.io/badge/🤖-RikkaHub%20Agents%20in%20development-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/rikkahub-agents)
-**🤝 Related project: [RikkaHub Agents](https://github.com/xiwangone/rikkahub-agents)** — Android device-side LLM agent · 80+ device tools (in development)
+**🤝 Related project: [RikkaHub Agents](https://github.com/xiwangone/rikkahub-agents)** — On-device Agent tool, iteratively maintained by AI (80+ device tools, enable on demand)
+
+> <span style="color:red">**❗️❗️❗️ Note: RikkaHub Agents includes 80+ tools — enable on demand, avoid excessive resident usage!**</span>
+
+> <span style="color:red">**❗️❗️❗️ Note: Reasonix Agents requires self-deploying the Reasonix server (DeepSeek-Reasonix protocol) locally or on a server — no cloud hosting; bring your own server resources!**</span>
 
 </div>
 

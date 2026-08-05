@@ -4,7 +4,7 @@
 
 # Reasonix Android
 
-**🤖 Reasonix 的 Android 原生客户端 · Kotlin + Jetpack Compose · 支持 Basic Auth / HTTPS**
+**🤖 由 AI 维护迭代的 AI 编码助手客户端** —— 通过 SSE 流式连接自部署的 Reasonix 服务端，实时渲染推理过程与工具调用，随时随地完成编码任务。还有更多 Agent 体验模式待探索。（多服务器/模型分组已支持，提示词系统与更多能力开发中……）
 
 [![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-agents?color=2ea44f&label=最新版本&logo=github)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 [![Build](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml)
@@ -18,7 +18,12 @@
 [![📥 下载 APK](https://img.shields.io/badge/📥-下载%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 [![RikkaHub Agents 开发中](https://img.shields.io/badge/🤖-RikkaHub%20Agents%20开发中-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/rikkahub-agents)
 
-**🤝 相关项目：[RikkaHub Agents](https://github.com/xiwangone/rikkahub-agents)** — Android 设备端 LLM 智能体 · 80+ 设备工具（开发中）
+**🤝 相关项目：[RikkaHub Agents](https://github.com/xiwangone/rikkahub-agents)** — 由 AI 维护迭代的手机端 Agent 工具（80+ 设备工具，按需启用）
+
+> <span style="color:red">**❗️❗️❗️ 注：RikkaHub Agents 包含 80+ 工具，请按需启用，避免常驻过多增加消耗！！！**</span>
+
+> <span style="color:red">**❗️❗️❗️ 注：Reasonix Agents 需在本地或服务器自部署 Reasonix 服务端（DeepSeek-Reasonix 协议）使用，不支持云端托管，请自备服务资源！**</span>
+
 
 </div>
 
