@@ -74,6 +74,7 @@ import com.reasonix.agents.data.api.ConnectFailKind
 import com.reasonix.agents.data.api.ConnectResult
 import com.reasonix.agents.data.api.ReasonixApi
 import com.reasonix.agents.ui.theme.LocalPalette
+import com.reasonix.agents.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
