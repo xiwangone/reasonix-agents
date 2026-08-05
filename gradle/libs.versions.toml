@@ -65,7 +65,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
 picasso = { group = "com.squareup.picasso", name = "picasso", version.ref = "picasso" }
 
-// 本地 OCR（第六批：图片发送，中文 bundled 离线模型）
+# 本地 OCR（第六批：图片发送，中文 bundled 离线模型）
 mlkit-text-recognition-chinese = { group = "com.google.mlkit", name = "text-recognition-chinese", version.ref = "mlkitTextRecognition" }
 
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
