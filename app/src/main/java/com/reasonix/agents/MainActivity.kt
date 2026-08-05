@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -234,7 +235,7 @@ private fun ReasonixApp(
             }
             composable(Screens.FILES) {
                 FilesScreen(
-                    serverUrl = chatViewModel.uiState.collectAsState().value.serverUrl
+                    messages = chatViewModel.uiState.collectAsState().value.messages
                 )
             }
             composable(Screens.SETTINGS) {
