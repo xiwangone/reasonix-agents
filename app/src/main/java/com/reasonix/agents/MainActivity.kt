@@ -107,6 +107,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     // 主框架：底部 Tab 导航（Chat / Files / Settings）+ About 页
                     ReasonixApp(
+                        settings = settings,
                         initialServerUrl = serverUrl,
                         initialAuth = serverAuth,
                         onSettingsChanged = { newSettings ->
@@ -159,6 +160,7 @@ class MainActivity : ComponentActivity() {
  */
 @Composable
 private fun ReasonixApp(
+    settings: AppSettingsStore.Settings,
     initialServerUrl: String,
     initialAuth: AuthInfo?,
     onSettingsChanged: (AppSettingsStore.Settings) -> Unit,
@@ -230,6 +232,7 @@ private fun ReasonixApp(
                     initialAuth = initialAuth,
                     onNavigateToSettings = { navigateToTopLevel(Screens.SETTINGS) },
                     onNavigateToAbout = { navController.navigate(Screens.ABOUT) },
+                    onNavigateToServerConfig = { navController.navigate(Screens.SERVER_CONFIG) },
                     viewModel = chatViewModel
                 )
             }
@@ -276,6 +279,17 @@ private fun ReasonixApp(
             composable(Screens.ABOUT) {
                 AboutScreen(
                     onBack = { navController.popBackStack() }
+                )
+            }
+            // ── 服务器配置页（批 C-1：配置列表「新增配置」跳转新建；连接成功后切回 Chat 并应用）──
+            composable(Screens.SERVER_CONFIG) {
+                ServerConfigScreen(
+                    settings = settings,
+                    onSettingsChange = onSettingsChanged,
+                    onConnect = { url, auth ->
+                        navController.popBackStack()
+                        chatViewModel.configureServer(url, auth)
+                    }
                 )
             }
         }

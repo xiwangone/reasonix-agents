@@ -99,19 +99,20 @@ fun AboutScreen(
                 try {
                     val release = GitHubReleaseApi().checkLatest()
                     if (release == null || release.tagName.isBlank()) {
-                        "无法获取最新版本：仓库暂无 Release 或网络不可用"
+                        // 批 C-6：无更新提示「暂时没有更新」
+                        "暂时没有更新"
                     } else {
                         val cmp = GitHubReleaseApi.compareVersions(versionName, release.tagName)
+                        // 批 C-6：有更新保持弹窗提示下载
                         if (cmp > 0) {
                             "发现新版本 v${release.tagName}（当前 v$versionName）\n\n${release.name}\n\n点击「前往下载」跳转 Release 页面。"
-                        } else if (cmp == 0) {
-                            "已是最新版本 v$versionName"
                         } else {
-                            "当前版本 v$versionName 高于最新 Release（${release.tagName}）"
+                            "暂时没有更新"
                         }
                     }
                 } catch (e: Exception) {
-                    "检查更新失败：${e.message ?: "网络异常"}"
+                    // 批 C-6：网络错误提示「网络错误，请稍后重试」
+                    "网络错误，请稍后重试"
                 }
             }
             checking = false
@@ -209,20 +210,20 @@ fun AboutScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ── 本仓库 ──
-            SectionCard("本仓库（AI 协助维护版）") {
+            // ── 本项目（批 C-2：放上方区域）──
+            SectionCard("本项目（reasonix-agents）") {
                 AboutLink("github.com/xiwangone/reasonix-agents") {
                     openUrl("https://github.com/xiwangone/reasonix-agents")
                 }
                 Text(
-                    "❌ 非官方发布 · ❌ 非原版发布\n代码来源可信（MIT），由 AI 协助合并上游并持续编译",
+                    "Reasonix Agents · AI 协助维护版\n❌ 非官方发布 · ❌ 非原版发布\n代码来源可信（MIT），由 AI 协助合并上游并持续编译",
                     fontSize = 11.sp,
                     color = Muted2
                 )
             }
 
-            // ── RikkaHub Agents 并列项目 ──
-            SectionCard("并列项目：RikkaHub Agents") {
+            // ── 并列项目：RikkaHub Agents（批 C-2：与本项目同在上方区域）──
+            SectionCard("并列项目（RikkaHub Agents）") {
                 Text(
                     "另一款由 AI 协助维护的 Android 端 Agent 客户端（fork 自 RikkaHub 原版 Fork），" +
                         "提供 80+ 设备工具、工作流引擎、Telegram Bot、内置浏览器、SSH 等能力，" +
@@ -239,12 +240,8 @@ fun AboutScreen(
                 Text("上游：github.com/rikkahub/rikkahub · github.com/ExTV/rikkahub-agent", fontSize = 10.sp, color = Muted2)
             }
 
-            // ── 上游致谢 ──
-            SectionCard("上游致谢") {
-                AboutLink("基于原版 (MIT): github.com/hxr66666/DeepSeek-Reasonix-android") {
-                    openUrl("https://github.com/hxr66666/DeepSeek-Reasonix-android")
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+            // ── 上游项目（批 C-2：放下方区域，仅保留协议上游一个连接）──
+            SectionCard("上游项目") {
                 AboutLink("协议上游: github.com/esengine/DeepSeek-Reasonix") {
                     openUrl("https://github.com/esengine/DeepSeek-Reasonix")
                 }

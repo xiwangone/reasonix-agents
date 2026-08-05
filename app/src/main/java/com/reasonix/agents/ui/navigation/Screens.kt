@@ -36,6 +36,9 @@ object Screens {
     /** 关于页（批 A-6：设置页/侧边栏/顶栏多入口） */
     const val ABOUT = "about"
 
+    /** 服务器配置页（批 C-1：Chat 左上角「配置」→「新增配置」跳转新建） */
+    const val SERVER_CONFIG = "server_config"
+
     /** 起始目的地：Chat */
     val startDestination: String = CHAT
 

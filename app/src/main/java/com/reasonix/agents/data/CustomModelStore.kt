@@ -19,14 +19,23 @@ object CustomModelStore {
 
     private val gson = Gson()
 
-    /** provider：builtin=内置 / custom=自定义；compat：openai / deepseek / other */
+    /**
+     * provider：builtin=内置 / custom=自定义；compat：openai / deepseek / other。
+     * key：模型 key 兼容格式（如 "openai/deepseek-v4-flash"、"opencode-zen/deepseek-v4-flash-free"），
+     * 按 key 分组展示（批 C-3/C-4 模型按 key 分组）。
+     */
     data class CustomModel(
         val id: String = "",
         val name: String = "",
+        val key: String = "",
         val provider: String = "custom",
         val baseUrl: String = "",
         val compat: String = "openai"
-    )
+    ) {
+        /** 分组展示名：key 非空用 key，否则回退到 id/name。 */
+        val groupLabel: String
+            get() = key.ifBlank { id.ifBlank { name } }
+    }
 
     fun load(context: Context): List<CustomModel> {
         val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

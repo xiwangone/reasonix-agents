@@ -29,7 +29,11 @@ class GitHubReleaseApi(
         @SerializedName("published_at") val publishedAt: String = ""
     )
 
-    /** 查询指定仓库最新 Release；无 Release 或网络失败返回 null。 */
+    /**
+     * 查询指定仓库最新 Release。
+     * @return ReleaseInfo；仓库暂无 Release（HTTP 404）返回 null（= 无更新）。
+     * @throws Exception 网络错误 / 非 2xx（如 403 限流、5xx），由 UI 提示「网络错误，请稍后重试」。
+     */
     suspend fun checkLatest(repo: String = DEFAULT_REPO): ReleaseInfo? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url("https://api.github.com/repos/$repo/releases/latest")
@@ -37,15 +41,21 @@ class GitHubReleaseApi(
             .build()
         try {
             val resp = client.newCall(request).execute()
-            if (!resp.isSuccessful) {
+            // 404 = 仓库暂无 Release：视为「无更新」，不抛异常
+            if (resp.code == 404) {
                 resp.close()
                 return@withContext null
+            }
+            if (!resp.isSuccessful) {
+                resp.close()
+                throw java.io.IOException("HTTP ${resp.code}")
             }
             val body = resp.body?.string() ?: return@withContext null
             resp.close()
             gson.fromJson(body, ReleaseInfo::class.java)
         } catch (e: Exception) {
-            null
+            // 网络异常（DNS / 超时 / IO）向上抛出，由 UI 提示网络错误
+            throw e
         }
     }
 

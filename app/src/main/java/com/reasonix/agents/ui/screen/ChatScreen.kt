@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,7 +41,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.reasonix.agents.data.AuthInfo
+import com.reasonix.agents.data.CustomModelStore
+import com.reasonix.agents.data.ServerConfigStore
 import com.reasonix.agents.data.model.ConnectionState
+import com.reasonix.agents.data.model.ModelInfo
 import com.reasonix.agents.data.model.SessionInfo
 import com.reasonix.agents.data.model.StatusInfo
 import com.reasonix.agents.ui.components.*
@@ -83,6 +87,7 @@ fun ChatScreen(
     initialAuth: AuthInfo? = null,
     onNavigateToSettings: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
+    onNavigateToServerConfig: () -> Unit = {},
     viewModel: ChatViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -93,6 +98,10 @@ fun ChatScreen(
             viewModel.configureServer(initialServerUrl, initialAuth)
         }
     }
+
+    // ── 配置列表 / 模型分组选择 弹窗状态（批 C-1/C-3）──
+    var showConfigsDialog by remember { mutableStateOf(false) }
+    var showModelPicker by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
 
@@ -171,12 +180,12 @@ fun ChatScreen(
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 左侧：品牌 logo（随主题渐变）+ 应用名 + 连接状态点；点击进关于页
+                // 左侧：品牌 logo（随主题渐变）+ 应用名 + 连接状态点；点击弹出「保存的配置」列表（批 C-1）
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { onNavigateToAbout() }
+                        .clickable { showConfigsDialog = true }
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     Box(
@@ -209,6 +218,29 @@ fun ChatScreen(
                             .clip(CircleShape)
                             .background(dotColor)
                     )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                // 模型选择器（批 C-3：按 key 分组选择模型）
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Panel2)
+                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        .clickable { showModelPicker = true }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = state.currentModel.ifEmpty { "选择模型" },
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = if (state.currentModel.isEmpty()) Muted2 else Fg2,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 120.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(13.dp))
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 // 右侧：关于 + 设置入口
@@ -449,7 +481,233 @@ fun ChatScreen(
                 containerColor = Panel
             )
         }
+
+        // ── 保存的配置列表对话框（批 C-1：左上角「配置」入口）──
+        if (showConfigsDialog) {
+            SavedConfigsDialog(
+                profiles = ServerConfigStore.loadProfiles(context),
+                onSelect = { p ->
+                    showConfigsDialog = false
+                    val url = "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}"
+                    viewModel.configureServer(url, p.toAuth())
+                },
+                onAddNew = {
+                    showConfigsDialog = false
+                    onNavigateToServerConfig()
+                },
+                onDismiss = { showConfigsDialog = false }
+            )
+        }
+
+        // ── 模型分组选择对话框（批 C-3：按 key 分组）──
+        if (showModelPicker) {
+            ModelPickerDialog(
+                models = state.models,
+                customModels = state.customModels,
+                currentModel = state.currentModel,
+                onSelect = { model ->
+                    showModelPicker = false
+                    viewModel.setModel(model)
+                },
+                onDismiss = { showModelPicker = false }
+            )
+        }
     }
+}
+
+// ═══════════════════════════════════════════════
+// SavedConfigsDialog — 保存的配置列表（批 C-1）
+// ═══════════════════════════════════════════════
+
+@Composable
+private fun SavedConfigsDialog(
+    profiles: List<ServerConfigStore.ServerProfile>,
+    onSelect: (ServerConfigStore.ServerProfile) -> Unit,
+    onAddNew: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("保存的配置", color = Fg) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (profiles.isEmpty()) {
+                    Text(
+                        "暂无保存的配置，点击下方「新增配置」创建",
+                        fontSize = 13.sp,
+                        color = Muted2
+                    )
+                } else {
+                    profiles.forEach { p ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Panel)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                .clickable { onSelect(p) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = p.label,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Fg
+                                )
+                                Text(
+                                    text = "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}" +
+                                        if (p.authType != "NONE") " · ${p.authType}" else "",
+                                    fontSize = 11.sp,
+                                    color = Muted2
+                                )
+                            }
+                            Icon(
+                                Icons.Default.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = Muted2,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onAddNew) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("新增配置", color = Accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("关闭", color = Muted) }
+        },
+        containerColor = Panel
+    )
+}
+
+// ═══════════════════════════════════════════════
+// ModelPickerDialog — 模型按 key 分组选择（批 C-3/C-4）
+// ═══════════════════════════════════════════════
+
+/** 模型分组：label 为分组名，items 为 (显示名, 选择值) 列表。 */
+private data class ModelGroup(
+    val label: String,
+    val items: List<Pair<String, String>>
+)
+
+@Composable
+private fun ModelPickerDialog(
+    models: List<ModelInfo>,
+    customModels: List<CustomModelStore.CustomModel>,
+    currentModel: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // 分组：自定义模型按 key 分组（批 C-4）；服务端模型按 provider 分组
+    val groups = remember(models, customModels) {
+        val custom = customModels.groupBy { it.groupLabel }
+            .map { (key, list) -> ModelGroup(key, list.map { it.name to it.name }) }
+        val server = models.groupBy { it.provider.ifBlank { "服务器模型" } }
+            .map { (provider, list) ->
+                ModelGroup(provider, list.map { m -> (m.model.ifEmpty { m.ref }) to m.ref })
+            }
+        custom + server
+    }
+    var currentGroup by remember { mutableStateOf<ModelGroup?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (currentGroup != null) {
+                    TextButton(onClick = { currentGroup = null }, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
+                            tint = Muted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = currentGroup?.label ?: "选择模型（按 key 分组）",
+                    color = Fg,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        },
+        text = {
+            if (groups.isEmpty()) {
+                Text("暂无模型（可在设置页添加）", fontSize = 13.sp, color = Muted2)
+            } else if (currentGroup == null) {
+                // 第一层：分组列表
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    groups.forEach { g ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Panel)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                .clickable { currentGroup = g }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(g.label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Fg)
+                                Text("${g.items.size} 个模型", fontSize = 10.sp, color = Muted2)
+                            }
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Muted2, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            } else {
+                // 第二层：组内模型列表
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    currentGroup?.items?.forEach { (display, value) ->
+                        val selected = value == currentModel || display == currentModel
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (selected) AccentS else Panel)
+                                .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
+                                .clickable { onSelect(value) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = display,
+                                fontSize = 13.sp,
+                                color = if (selected) Accent else Fg,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (selected) {
+                                Icon(Icons.Default.Check, contentDescription = "当前模型", tint = Accent, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("关闭", color = Muted) }
+        },
+        containerColor = Panel
+    )
 }
 
 // ═══════════════════════════════════════════════

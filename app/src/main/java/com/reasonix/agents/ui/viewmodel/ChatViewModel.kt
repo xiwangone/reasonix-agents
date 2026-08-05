@@ -48,7 +48,13 @@ data class ChatUiState(
 class ChatViewModel(
     application: Application,
     initialServerUrl: String = "http://127.0.0.1:8920",
-    initialAuth: AuthInfo? = null
+    initialAuth: AuthInfo? = null,
+    /**
+     * 批 C-7：登录/连接成功进入主界面时默认新建会话。
+     * true（默认）：初始加载时先调用服务端 newSession，且不加载上次会话的 messages；
+     * false：恢复上次会话（切换服务器配置等场景保持原行为）。
+     */
+    private val freshSession: Boolean = true
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(ChatUiState(serverUrl = initialServerUrl))
@@ -77,7 +83,8 @@ class ChatViewModel(
     init {
         // 加载本地持久化的应用设置（主题/超时/重连等，批 A-2/B-11）
         _uiState.update { it.copy(settings = AppSettingsStore.load(getApplication())) }
-        loadInitialData()
+        // 批 C-7：登录/连接成功进入主界面时默认新建会话（不恢复上次会话）
+        loadInitialData(freshSession = freshSession)
         collectConnectionState()
     }
 
@@ -109,11 +116,20 @@ class ChatViewModel(
 
     // ── 初始化 ──
 
-    private fun loadInitialData() {
+    private fun loadInitialData(freshSession: Boolean = false) {
         viewModelScope.launch {
+            // 批 C-7：登录后新建会话——先让服务端切到新会话，再加载数据
+            if (freshSession) {
+                try {
+                    repository.newSession()
+                } catch (e: Exception) {
+                    // 新建失败不阻塞其余数据加载（服务端可能不支持）
+                }
+            }
             val sessions = repository.getSessions()
             val status = repository.getStatus()
-            val history = repository.getHistory()
+            // 批 C-7：新建会话时初始消息列表为空，不加载上次的 messages
+            val history = if (freshSession) emptyList() else repository.getHistory()
             val modelsResp = repository.getModels()
             val systemPrompt = repository.getSystemPrompt()
             val todos = repository.getTodos()

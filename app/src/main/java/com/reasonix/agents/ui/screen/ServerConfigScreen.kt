@@ -629,7 +629,7 @@ fun ServerConfigScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // ── 关于说明 ──
+                // ── 关于说明（批 C-2：与设置页关于页统一布局：本项目+并列项目上方、上游项目下方）──
                 Text(
                     text = "关于",
                     fontSize = 13.sp,
@@ -638,18 +638,31 @@ fun ServerConfigScreen(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Reasonix Agents · AI 协助维护版（非官方 / 非原版发布）",
-                    fontSize = 11.sp,
-                    color = Muted2
+                    text = "本项目（reasonix-agents）",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Fg2
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                LinkText("本仓库: github.com/xiwangone/reasonix-agents")
+                LinkText("Reasonix Agents · AI 协助维护版（非官方 / 非原版发布） — github.com/xiwangone/reasonix-agents")
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "并列项目（RikkaHub Agents）",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Fg2
+                )
                 Spacer(modifier = Modifier.height(4.dp))
-                LinkText("基于原版 (MIT): github.com/hxr66666/DeepSeek-Reasonix-android")
+                LinkText("RikkaHub Agents — github.com/xiwangone/rikkahub-agents")
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "上游项目",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Fg2
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 LinkText("协议上游: github.com/esengine/DeepSeek-Reasonix")
-                Spacer(modifier = Modifier.height(4.dp))
-                LinkText("并列项目: RikkaHub Agents — github.com/xiwangone/rikkahub-agents")
             }
         }
     }
@@ -942,7 +955,10 @@ private fun PasswordField(
 @Composable
 private fun LinkText(text: String) {
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
-    val url = text.substringAfter(": ").ifBlank { text }
+    // 批 C-2：优先提取文本中的 URL（http(s):// 或 github.com/... 形式），避免整段文本被当作链接
+    val url = Regex("https?://\\S+|[A-Za-z0-9][A-Za-z0-9.-]*\\.[A-Za-z]{2,}/\\S+")
+        .find(text)?.value
+        ?: text.substringAfter(": ").ifBlank { text }
     Text(
         text = text,
         fontSize = 11.sp,

@@ -18,6 +18,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
 import com.reasonix.agents.MainActivity
 import com.reasonix.agents.R
@@ -97,6 +98,9 @@ class CiMonitorService : Service() {
         super.onDestroy()
     }
 
+    /** dp → px（批 C-5：悬浮球尺寸按密度换算）。 */
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
     // ── 悬浮球 ──
 
     private fun addBubble() {
@@ -106,23 +110,21 @@ class CiMonitorService : Service() {
         val root = FrameLayout(this)
         root.setBackgroundColor(Color.TRANSPARENT)
 
-        // 状态圆点（外层）
+        // 状态圆点（外层；批 C-5：缩小 56 → 40dp）
         val dot = View(this)
-        dot.layoutParams = FrameLayout.LayoutParams(56, 56, Gravity.CENTER)
+        dot.layoutParams = FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER)
         dot.background = android.graphics.drawable.GradientDrawable().apply {
             shape = android.graphics.drawable.GradientDrawable.OVAL
             setColor(stateColor(currentState))
         }
         root.addView(dot)
 
-        // 状态文字（内层 "CI"）
-        val label = TextView(this)
-        label.text = "CI"
-        label.setTextColor(Color.WHITE)
-        label.textSize = 13f
-        label.gravity = Gravity.CENTER
-        label.layoutParams = FrameLayout.LayoutParams(56, 56, Gravity.CENTER)
-        root.addView(label)
+        // 内层 app 图标风格小图标（批 C-5：替换 "CI" 文字为 ic_stat_reasonix，与通知小图标一致）
+        val icon = ImageView(this)
+        icon.setImageResource(R.drawable.ic_stat_reasonix)
+        icon.layoutParams = FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
+        icon.alpha = 1f
+        root.addView(icon)
 
         // 详情文字（展开时显示）
         val detail = TextView(this)
@@ -307,7 +309,8 @@ class CiMonitorService : Service() {
         return builder
             .setContentTitle("CI 监控")
             .setContentText(text)
-            .setSmallIcon(R.drawable.ic_ci_monitor)
+            // 批 C-5：通知小图标与悬浮球统一为 app 图标风格（ic_stat_reasonix）
+            .setSmallIcon(R.drawable.ic_stat_reasonix)
             .setContentIntent(openPi)
             .addAction(0, "停止", stopPi)
             .setOngoing(true)

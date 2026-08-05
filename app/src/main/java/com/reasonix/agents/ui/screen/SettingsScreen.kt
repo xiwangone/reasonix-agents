@@ -77,6 +77,7 @@ private val Fg: Color @Composable get() = LocalPalette.current.fg
 private val Fg2: Color @Composable get() = LocalPalette.current.fg2
 private val Muted: Color @Composable get() = LocalPalette.current.muted
 private val Muted2: Color @Composable get() = LocalPalette.current.muted2
+private val Danger: Color @Composable get() = LocalPalette.current.danger
 
 /**
  * 设置页 — 登录后全量设置（批 A-5）。
@@ -127,17 +128,20 @@ fun SettingsScreen(
                 try {
                     val release = GitHubReleaseApi().checkLatest()
                     if (release == null || release.tagName.isBlank()) {
-                        "无法获取最新版本：仓库暂无 Release 或网络不可用"
+                        // 批 C-6：无更新提示「暂时没有更新」
+                        "暂时没有更新"
                     } else {
                         val cmp = GitHubReleaseApi.compareVersions(versionName, release.tagName)
-                        when {
-                            cmp > 0 -> "发现新版本 v${release.tagName}（当前 v$versionName）\n\n点击「前往下载」跳转 Release 页面。"
-                            cmp == 0 -> "已是最新版本 v$versionName"
-                            else -> "当前版本 v$versionName 高于最新 Release（${release.tagName}）"
+                        // 批 C-6：有更新保持弹窗提示下载
+                        if (cmp > 0) {
+                            "发现新版本 v${release.tagName}（当前 v$versionName）\n\n点击「前往下载」跳转 Release 页面。"
+                        } else {
+                            "暂时没有更新"
                         }
                     }
                 } catch (e: Exception) {
-                    "检查更新失败：${e.message ?: "网络异常"}"
+                    // 批 C-6：网络错误提示「网络错误，请稍后重试」
+                    "网络错误，请稍后重试"
                 }
             }
             checkingUpdate = false
@@ -586,17 +590,14 @@ fun SettingsScreen(
                 Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Muted2, modifier = Modifier.size(14.dp))
             }
             Spacer(modifier = Modifier.height(8.dp))
-            // 仓库链接（可点击跳转浏览器）
-            ClickableInfoRow("本仓库", "github.com/xiwangone/reasonix-agents") {
+            // 仓库链接（可点击跳转浏览器；批 C-2：上游只保留协议上游一个连接）
+            ClickableInfoRow("本项目", "github.com/xiwangone/reasonix-agents") {
                 uriHandler.openUri("https://github.com/xiwangone/reasonix-agents")
             }
             ClickableInfoRow("并列项目", "RikkaHub Agents · github.com/xiwangone/rikkahub-agents") {
                 uriHandler.openUri("https://github.com/xiwangone/rikkahub-agents")
             }
-            ClickableInfoRow("基于原版 (MIT)", "github.com/hxr66666/DeepSeek-Reasonix-android") {
-                uriHandler.openUri("https://github.com/hxr66666/DeepSeek-Reasonix-android")
-            }
-            ClickableInfoRow("协议上游", "github.com/esengine/DeepSeek-Reasonix") {
+            ClickableInfoRow("上游项目", "协议上游 · github.com/esengine/DeepSeek-Reasonix") {
                 uriHandler.openUri("https://github.com/esengine/DeepSeek-Reasonix")
             }
         }
@@ -732,19 +733,49 @@ private fun ModelDropdown(
     }
 }
 
-/** 添加模型弹窗（批 B-9）：名称 / provider（内置·自定义）/ base_url（自定义时）/ 兼容方式。 */
+/**
+ * 添加模型弹窗（批 B-9 + C-4）：模型名称 + key（provider/model 兼容格式）+ 其他必要字段。
+ * key 例如 "openai/deepseek-v4-flash"、"opencode-zen/deepseek-v4-flash-free"，保存后按 key 独立分组。
+ */
 @Composable
 private fun AddModelDialog(
     onAdd: (CustomModel) -> Unit,
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf("") }
+    var key by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("自定义") }
     var baseUrl by remember { mutableStateOf("") }
     var compat by remember { mutableStateOf("OpenAI") }
+    var keyError by remember { mutableStateOf<String?>(null) }
 
     val providerOptions = listOf("内置", "自定义")
     val compatOptions = listOf("OpenAI", "DeepSeek-Reasonix", "其他")
+
+    fun trySave() {
+        val nameTrim = name.trim()
+        val keyTrim = key.trim()
+        when {
+            nameTrim.isBlank() -> keyError = "请填写模型名称"
+            keyTrim.isBlank() -> keyError = "请填写 Key（provider/model 格式）"
+            !keyTrim.contains("/") -> keyError = "Key 需为 provider/model 格式，例如 openai/deepseek-v4-flash"
+            keyTrim.startsWith("/") || keyTrim.endsWith("/") -> keyError = "Key 格式不正确：provider 和 model 均不能为空"
+            else -> onAdd(
+                CustomModel(
+                    id = nameTrim,
+                    name = nameTrim,
+                    key = keyTrim,
+                    provider = if (provider == "内置") "builtin" else "custom",
+                    baseUrl = baseUrl.trim(),
+                    compat = when (compat) {
+                        "OpenAI" -> "openai"
+                        "DeepSeek-Reasonix" -> "deepseek"
+                        else -> "other"
+                    }
+                )
+            )
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -752,10 +783,10 @@ private fun AddModelDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // 模型名称
-                LabeledField("模型名称") {
+                LabeledField("模型名称（必填）") {
                     BasicTextField(
                         value = name,
-                        onValueChange = { name = it },
+                        onValueChange = { name = it; keyError = null },
                         textStyle = TextStyle(color = Fg, fontSize = 13.sp),
                         cursorBrush = SolidColor(Accent),
                         singleLine = true,
@@ -764,6 +795,27 @@ private fun AddModelDialog(
                             .background(Panel)
                             .border(1.dp, Border, RoundedCornerShape(6.dp))
                             .padding(horizontal = 10.dp, vertical = 8.dp)
+                    )
+                }
+                // Key（provider/model 兼容格式）
+                LabeledField("Key（provider/model，必填）") {
+                    BasicTextField(
+                        value = key,
+                        onValueChange = { key = it; keyError = null },
+                        textStyle = TextStyle(color = Fg, fontSize = 13.sp),
+                        cursorBrush = SolidColor(Accent),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Panel)
+                            .border(1.dp, if (keyError != null) Danger else Border, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                    )
+                    Text(
+                        text = "如 openai/deepseek-v4-flash 或 opencode-zen/deepseek-v4-flash-free，保存后按 key 独立分组",
+                        fontSize = 10.sp,
+                        color = Muted2,
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
                 // Provider
@@ -776,7 +828,7 @@ private fun AddModelDialog(
                 }
                 // base_url（自定义时）
                 if (provider == "自定义") {
-                    LabeledField("Base URL") {
+                    LabeledField("Base URL（可选）") {
                         BasicTextField(
                             value = baseUrl,
                             onValueChange = { baseUrl = it },
@@ -799,31 +851,24 @@ private fun AddModelDialog(
                         onSelect = { compat = it }
                     )
                 }
-                Text(
-                    text = "内置：由服务端模型管理；自定义：本地保存，用于第三方兼容服务",
-                    fontSize = 10.sp,
-                    color = Muted2
-                )
+                if (keyError != null) {
+                    Text(
+                        text = keyError.orEmpty(),
+                        fontSize = 11.sp,
+                        color = Danger,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                } else {
+                    Text(
+                        text = "内置：由服务端模型管理；自定义：本地保存，用于第三方兼容服务",
+                        fontSize = 10.sp,
+                        color = Muted2
+                    )
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                if (name.isNotBlank()) {
-                    onAdd(
-                        CustomModel(
-                            id = name,
-                            name = name.trim(),
-                            provider = if (provider == "内置") "builtin" else "custom",
-                            baseUrl = baseUrl.trim(),
-                            compat = when (compat) {
-                                "OpenAI" -> "openai"
-                                "DeepSeek-Reasonix" -> "deepseek"
-                                else -> "other"
-                            }
-                        )
-                    )
-                }
-            }) { Text("保存", color = Accent) }
+            TextButton(onClick = { trySave() }) { Text("保存", color = Accent) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("取消", color = Muted) }
