@@ -1,7 +1,6 @@
 package com.reasonix.agents.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,12 +9,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -62,52 +63,66 @@ fun ReasoningBlock(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 90f else 0f,
-        animationSpec = tween(durationMillis = 200),
-        label = "chevronRotation"
-    )
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // ── 切换按钮 ──
-        Row(
+        // ── 切换按钮（第九批：Material3 Surface 头部 + 图标切换）──
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = panel.copy(alpha = 0.65f),
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 4.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
-            Text(
-                text = "▶",
-                modifier = Modifier.rotate(rotation),
-                color = muted,
-                fontSize = 12.sp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "思考中…",
-                color = muted,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (expanded) {
+                        Icons.Filled.KeyboardArrowDown
+                    } else {
+                        Icons.Filled.KeyboardArrowRight
+                    },
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "思考过程",
+                    color = fg2,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                // 推理文本行数提示（轻量信息）
+                val lineCount = remember(text) { text.count { it == '\n' } + 1 }
+                Text(
+                    text = "${lineCount} 行",
+                    color = muted2,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
         }
 
-        // ── 展开面板 ──
+        // ── 展开面板（Material3 Surface 容器 + 内部滚动）──
         if (expanded) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Box(
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = panel2.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Column(
                     modifier = Modifier
-                        .width(2.dp)
-                        .height(280.dp)
-                        .background(border, RoundedCornerShape(1.dp))
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
                         .heightIn(max = 280.dp)
-                        .padding(start = 8.dp)
                         .verticalScroll(rememberScrollState())
-                        .padding(bottom = 8.dp)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
                 ) {
                     Text(
                         text = text,

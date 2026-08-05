@@ -14,6 +14,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -60,6 +61,8 @@ import com.reasonix.agents.ui.theme.LightPalette
 import com.reasonix.agents.ui.theme.LocalPalette
 import com.reasonix.agents.ui.theme.MaterialDarkPalette
 import com.reasonix.agents.ui.theme.MaterialLightPalette
+import com.reasonix.agents.ui.theme.Typography
+import com.reasonix.agents.ui.theme.paletteColorScheme
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
 import com.reasonix.agents.util.AppIconSwitcher
 import com.reasonix.agents.util.NotificationHelper
@@ -97,10 +100,17 @@ class MainActivity : ComponentActivity() {
             }
 
             CompositionLocalProvider(LocalPalette provides palette) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = palette.bg
+                // 第九批：MaterialTheme 与 LocalPalette 联动——Material3 原生组件
+                // （TopAppBar / SegmentedButton / OutlinedTextField 等）自动使用
+                // 当前主题预设的配色（primary=accent, surface=panel 等）。
+                MaterialTheme(
+                    colorScheme = paletteColorScheme(palette, dark),
+                    typography = Typography
                 ) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = palette.bg
+                    ) {
                 var serverConfigured by remember { mutableStateOf(false) }
                 var serverUrl by remember { mutableStateOf("http://127.0.0.1:8920") }
                 var serverAuth by remember { mutableStateOf<AuthInfo?>(null) }
@@ -179,8 +189,8 @@ class MainActivity : ComponentActivity() {
                             syncCiMonitor(context, newCi)
                         }
                     )
+                    }
                 }
-            }
             }
         }
     }
