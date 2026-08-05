@@ -1,6 +1,8 @@
 package com.reasonix.agents
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -10,7 +12,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -20,6 +21,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -27,9 +30,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.reasonix.agents.data.AppSettingsStore
+import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.CiMonitorStore
 import com.reasonix.agents.service.CiMonitorService
 import com.reasonix.agents.ui.navigation.Screens
+import com.reasonix.agents.ui.screen.AboutScreen
 import com.reasonix.agents.ui.screen.ChatScreen
 import com.reasonix.agents.ui.screen.FilesScreen
 import com.reasonix.agents.ui.screen.ServerConfigScreen
@@ -37,46 +42,72 @@ import com.reasonix.agents.ui.screen.SettingsScreen
 import com.reasonix.agents.ui.theme.DarkPalette
 import com.reasonix.agents.ui.theme.LightPalette
 import com.reasonix.agents.ui.theme.LocalPalette
+import com.reasonix.agents.ui.theme.MaterialDarkPalette
+import com.reasonix.agents.ui.theme.MaterialLightPalette
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
+import com.reasonix.agents.util.AppIconSwitcher
+import com.reasonix.agents.util.NotificationHelper
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 批 B-14：API 33+ 请求通知权限（任务完成提醒）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
+        }
+        NotificationHelper.ensureChannel(this)
         setContent {
-            val context = androidx.compose.ui.platform.LocalContext.current
+            val context = LocalContext.current
             var settings by remember { mutableStateOf(AppSettingsStore.load(context)) }
             var ciSettings by remember { mutableStateOf(CiMonitorStore.load(context)) }
             val systemDark = isSystemInDarkTheme()
-            val palette = when (settings.themeMode) {
-                1 -> LightPalette
-                2 -> DarkPalette
-                else -> if (systemDark) DarkPalette else LightPalette
+            // 批 A-2 主题预设体系：风格（品牌紫蓝/Material）× 明暗（跟随系统/浅/深）
+            val dark = when (settings.themeMode) {
+                AppSettingsStore.THEME_MODE_LIGHT -> false
+                AppSettingsStore.THEME_MODE_DARK -> true
+                else -> systemDark
+            }
+            val palette = when (settings.themePreset) {
+                AppSettingsStore.THEME_PRESET_MATERIAL -> if (dark) MaterialDarkPalette else MaterialLightPalette
+                else -> if (dark) DarkPalette else LightPalette
+            }
+            // 批 B-13：主题变化时切换 launcher 图标
+            LaunchedEffect(settings.themePreset, settings.themeMode) {
+                AppIconSwitcher.apply(context, settings.themePreset, settings.themeMode)
             }
 
             CompositionLocalProvider(LocalPalette provides palette) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = palette.bg
-            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = palette.bg
+                ) {
                 var serverConfigured by remember { mutableStateOf(false) }
                 var serverUrl by remember { mutableStateOf("http://127.0.0.1:8920") }
-                var serverCredentials by remember { mutableStateOf<Pair<String, String>?>(null) }
+                var serverAuth by remember { mutableStateOf<AuthInfo?>(null) }
 
                 if (!serverConfigured) {
-                    // 启动引导：未配置服务器时先进入 ServerConfigScreen
+                    // 启动引导：未配置服务器时先进入连接页（登录页，批 A-5 含主题/语言入口）
                     ServerConfigScreen(
-                        onConnect = { url, credentials ->
+                        settings = settings,
+                        onSettingsChange = { newSettings ->
+                            settings = newSettings
+                            AppSettingsStore.save(context, newSettings)
+                        },
+                        onConnect = { url, auth ->
                             serverUrl = url
-                            serverCredentials = credentials
+                            serverAuth = auth
                             serverConfigured = true
                         }
                     )
                 } else {
-                    // 主框架：底部 Tab 导航（Chat / Files / Settings）
+                    // 主框架：底部 Tab 导航（Chat / Files / Settings）+ About 页
                     ReasonixApp(
                         initialServerUrl = serverUrl,
-                        initialCredentials = serverCredentials,
+                        initialAuth = serverAuth,
                         onSettingsChanged = { newSettings ->
                             settings = newSettings
                             AppSettingsStore.save(context, newSettings)
@@ -128,11 +159,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun ReasonixApp(
     initialServerUrl: String,
-    initialCredentials: Pair<String, String>?,
+    initialAuth: AuthInfo?,
     onSettingsChanged: (AppSettingsStore.Settings) -> Unit,
     onCiSettingsChanged: (CiMonitorStore.CiSettings) -> Unit
 ) {
-    val chatViewModel: ChatViewModel = viewModel()
+    val context = LocalContext.current
+    val application = context.applicationContext as android.app.Application
+    val chatViewModel: ChatViewModel = viewModel(
+        factory = ChatViewModel.Factory(application, initialServerUrl, initialAuth)
+    )
     val navController = rememberNavController()
 
     val palette = LocalPalette.current
@@ -153,27 +188,30 @@ private fun ReasonixApp(
             val backStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = backStackEntry?.destination?.route
 
-            NavigationBar(containerColor = palette.bg2) {
-                Screens.tabs.forEach { tab ->
-                    val selected = currentRoute == tab.route
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = { navigateToTopLevel(tab.route) },
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.label
+            // About 页隐藏底部导航栏
+            if (currentRoute != Screens.ABOUT) {
+                NavigationBar(containerColor = palette.bg2) {
+                    Screens.tabs.forEach { tab ->
+                        val selected = currentRoute == tab.route
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { navigateToTopLevel(tab.route) },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                    contentDescription = tab.label
+                                )
+                            },
+                            label = { Text(tab.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = palette.accent,
+                                selectedTextColor = palette.fg,
+                                indicatorColor = palette.accent.copy(alpha = 0.16f),
+                                unselectedIconColor = palette.muted,
+                                unselectedTextColor = palette.muted
                             )
-                        },
-                        label = { Text(tab.label) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = palette.accent,
-                            selectedTextColor = palette.fg,
-                            indicatorColor = palette.accentS,
-                            unselectedIconColor = palette.muted,
-                            unselectedTextColor = palette.muted2
                         )
-                    )
+                    }
                 }
             }
         }
@@ -188,45 +226,55 @@ private fun ReasonixApp(
             composable(Screens.CHAT) {
                 ChatScreen(
                     initialServerUrl = initialServerUrl,
-                    initialCredentials = initialCredentials,
+                    initialAuth = initialAuth,
                     onNavigateToSettings = { navigateToTopLevel(Screens.SETTINGS) },
+                    onNavigateToAbout = { navController.navigate(Screens.ABOUT) },
                     viewModel = chatViewModel
                 )
             }
-
             composable(Screens.FILES) {
-                val state by chatViewModel.uiState.collectAsState()
-                FilesScreen(messages = state.messages)
+                FilesScreen(
+                    serverUrl = chatViewModel.uiState.collectAsState().value.serverUrl
+                )
             }
-
             composable(Screens.SETTINGS) {
                 val state by chatViewModel.uiState.collectAsState()
                 SettingsScreen(
                     serverUrl = state.serverUrl,
                     status = state.status,
                     models = state.models,
+                    customModels = state.customModels,
                     currentModel = state.currentModel,
                     systemPrompt = state.systemPrompt,
                     settings = state.settings,
                     ciSettings = state.ciSettings,
+                    onSettingsChange = { newSettings ->
+                        chatViewModel.updateSettings(newSettings)
+                        onSettingsChanged(newSettings)
+                    },
+                    onShowReasoningChange = { show ->
+                        chatViewModel.updateSettings(state.settings.copy(showReasoning = show))
+                        onSettingsChanged(state.settings.copy(showReasoning = show))
+                    },
+                    onShowTokensChange = { show ->
+                        chatViewModel.updateSettings(state.settings.copy(showTokens = show))
+                        onSettingsChanged(state.settings.copy(showTokens = show))
+                    },
                     onModelSelect = { model -> chatViewModel.setModel(model) },
+                    onRefreshModels = { chatViewModel.reloadModels() },
+                    onAddCustomModel = { model -> chatViewModel.addCustomModel(model) },
+                    onRemoveCustomModel = { id -> chatViewModel.removeCustomModel(id) },
                     onCiSettingsChange = { newCi ->
                         chatViewModel.updateCiSettings(newCi)
                         onCiSettingsChanged(newCi)
                     },
-                    onThemeModeChange = { mode ->
-                        chatViewModel.updateThemeMode(mode)
-                        onSettingsChanged(state.settings.copy(themeMode = mode))
-                    },
-                    onShowReasoningChange = { show ->
-                        chatViewModel.updateShowReasoning(show)
-                        onSettingsChanged(state.settings.copy(showReasoning = show))
-                    },
-                    onShowTokensChange = { show ->
-                        chatViewModel.updateShowTokens(show)
-                        onSettingsChanged(state.settings.copy(showTokens = show))
-                    },
+                    onOpenAbout = { navController.navigate(Screens.ABOUT) },
                     onClose = null
+                )
+            }
+            composable(Screens.ABOUT) {
+                AboutScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

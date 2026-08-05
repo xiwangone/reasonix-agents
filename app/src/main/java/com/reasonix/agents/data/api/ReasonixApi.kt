@@ -3,6 +3,8 @@ package com.reasonix.agents.data.api
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
+import com.reasonix.agents.data.AuthInfo
+import com.reasonix.agents.data.AuthType
 import com.reasonix.agents.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,26 +13,47 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
+
+/**
+ * 连接失败分类（批 A-1 错误分类提示）。
+ * 连接页据此展示 401→认证失败 / 超时→网络不可达 / SSL→证书异常 / 404→路径错误 等提示。
+ */
+enum class ConnectFailKind { AUTH, TIMEOUT, SSL, NOT_FOUND, NETWORK, SERVER, UNKNOWN }
+
+/** 连接诊断结果：OK 或带分类的失败原因。 */
+sealed class ConnectResult {
+    data object Ok : ConnectResult()
+    data class Fail(val kind: ConnectFailKind, val message: String) : ConnectResult()
+}
 
 /**
  * Reasonix REST API — 对应 index.html 中 fetch() 调用的所有后端接口。
  */
 class ReasonixApi(
     private val baseUrl: String,
-    private val credentials: Pair<String, String>? = null,
+    private val auth: AuthInfo? = null,
+    private val connectTimeoutSec: Int = 30,
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(120, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(120, TimeUnit.SECONDS)
+        .connectTimeout(connectTimeoutSec.toLong(), TimeUnit.SECONDS)
+        .readTimeout(connectTimeoutSec.toLong(), TimeUnit.SECONDS)
+        .writeTimeout(connectTimeoutSec.toLong(), TimeUnit.SECONDS)
         .build()
 ) {
     private val gson = Gson()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    /** Basic Auth 头；未配置凭据时为 null（向后兼容无认证直连场景） */
-    private val authHeader: String? = credentials?.let { (u, p) ->
-        "Basic " + Base64.encodeToString("$u:$p".toByteArray(), Base64.NO_WRAP)
+    /** Authorization 头：Basic（用户名:密码）或 Bearer（Token）；未配置认证时为 null。 */
+    private val authHeader: String? = when (auth?.type) {
+        AuthType.BASIC -> "Basic " + Base64.encodeToString(
+            "${auth.username}:${auth.password}".toByteArray(), Base64.NO_WRAP
+        )
+        AuthType.BEARER -> "Bearer ${auth.token}"
+        else -> null
     }
 
     // ── 发送消息 ──
@@ -63,6 +86,43 @@ class ReasonixApi(
             gson.fromJson(json, StatusInfo::class.java)
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /**
+     * 连接诊断（批 A-1）：请求 /status 并按失败类型分类，供连接页给出针对性提示。
+     * 分类：401/403→认证失败；超时→网络不可达；SSL→证书异常；404→路径错误；其余归网络/服务器/未知。
+     */
+    suspend fun diagnose(): ConnectResult = withContext(Dispatchers.IO) {
+        val builder = Request.Builder().url("$baseUrl/status")
+        authHeader?.let { builder.header("Authorization", it) }
+        try {
+            val response = client.newCall(builder.get().build()).execute()
+            val code = response.code
+            response.close()
+            when {
+                code in 200..299 -> ConnectResult.Ok
+                code == 401 || code == 403 ->
+                    ConnectResult.Fail(ConnectFailKind.AUTH, "认证失败（HTTP $code）：用户名/密码或 Token 不正确，请检查认证方式")
+                code == 404 ->
+                    ConnectResult.Fail(ConnectFailKind.NOT_FOUND, "路径错误（HTTP 404）：目标不是 Reasonix 服务，请确认端口（10002/443）与地址")
+                code in 500..599 ->
+                    ConnectResult.Fail(ConnectFailKind.SERVER, "服务器异常（HTTP $code）：服务端内部错误，请稍后重试")
+                else ->
+                    ConnectResult.Fail(ConnectFailKind.UNKNOWN, "连接失败（HTTP $code）")
+            }
+        } catch (e: SocketTimeoutException) {
+            ConnectResult.Fail(ConnectFailKind.TIMEOUT, "网络不可达：连接超时，请检查地址/端口/网络或增大连接超时")
+        } catch (e: SSLException) {
+            ConnectResult.Fail(ConnectFailKind.SSL, "证书异常：HTTPS 证书验证失败，请确认服务器证书有效")
+        } catch (e: UnknownHostException) {
+            ConnectResult.Fail(ConnectFailKind.NETWORK, "网络不可达：无法解析主机名，请检查地址是否正确")
+        } catch (e: ConnectException) {
+            ConnectResult.Fail(ConnectFailKind.NETWORK, "网络不可达：无法连接到服务器，请检查地址/端口/网络")
+        } catch (e: IOException) {
+            ConnectResult.Fail(ConnectFailKind.NETWORK, "网络不可达：${e.message ?: "连接中断"}")
+        } catch (e: Exception) {
+            ConnectResult.Fail(ConnectFailKind.UNKNOWN, "连接失败：${e.message ?: "未知错误"}")
         }
     }
 

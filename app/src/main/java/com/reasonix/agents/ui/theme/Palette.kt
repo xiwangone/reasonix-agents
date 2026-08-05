@@ -4,8 +4,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /**
- * 调色板：暗色（默认）/ 浅色两套。
- * 各 Screen 通过 LocalPalette 取色，支持主题切换。
+ * 调色板（批 A-2 主题预设体系）：两套风格 × 明/暗 = 4 套配色。
+ * - 品牌紫蓝（Reasonix Brand）：紫蓝渐变主色，默认主题
+ * - Material：Material 3 标准色系（蓝/紫）
+ * 各 Screen 通过 LocalPalette 取色，支持主题切换与跟随系统。
  */
 data class Palette(
     val bg: Color,
@@ -31,22 +33,26 @@ data class Palette(
     val warningS: Color
 )
 
+// ═══════════════════════════════════════════════
+// 品牌紫蓝（Reasonix Brand）— 默认主题
+// ═══════════════════════════════════════════════
+
 val DarkPalette = Palette(
-    bg = Color(0xFF1C1A1B),
-    bg2 = Color(0xFF222022),
-    panel = Color(0xFF2A2729),
-    panel2 = Color(0xFF2E2C2E),
-    card = Color(0xFF282528),
-    cardHover = Color(0xFF302E30),
-    border = Color(0xFF3D3938),
-    borderStr = Color(0xFF5A5452),
-    accent = Color(0xFFEA8800),
-    accentS = Color(0x26EA8800),
-    violet = Color(0xFF9B6FD8),
-    fg = Color(0xFFF5F2F0),
-    fg2 = Color(0xFFCCC5C0),
-    muted = Color(0xFF9E9896),
-    muted2 = Color(0xFF7A7270),
+    bg = Color(0xFF16131E),
+    bg2 = Color(0xFF1D1927),
+    panel = Color(0xFF241F30),
+    panel2 = Color(0xFF2A2438),
+    card = Color(0xFF211C2C),
+    cardHover = Color(0xFF2B2540),
+    border = Color(0xFF37304A),
+    borderStr = Color(0xFF51486B),
+    accent = Color(0xFF7C5CFC),
+    accentS = Color(0x2E7C5CFC),
+    violet = Color(0xFFA78BFA),
+    fg = Color(0xFFF4F2FA),
+    fg2 = Color(0xFFC9C2E0),
+    muted = Color(0xFF9B92B8),
+    muted2 = Color(0xFF77709B),
     danger = Color(0xFFE04636),
     dangerS = Color(0x29E04636),
     success = Color(0xFF40A060),
@@ -56,23 +62,75 @@ val DarkPalette = Palette(
 )
 
 val LightPalette = Palette(
-    bg = Color(0xFFF7F5F4),
-    bg2 = Color(0xFFF0EEEC),
-    panel = Color(0xFFE8E4E2),
-    panel2 = Color(0xFFDEDAD8),
+    bg = Color(0xFFF7F5FC),
+    bg2 = Color(0xFFEFEBF8),
+    panel = Color(0xFFE7E1F4),
+    panel2 = Color(0xFFDDD5EF),
     card = Color(0xFFFFFFFF),
-    cardHover = Color(0xFFF2F0EE),
-    border = Color(0xFFD0CBC8),
-    borderStr = Color(0xFFB0A8A4),
-    accent = Color(0xFFC96F00),
-    accentS = Color(0x26C96F00),
-    violet = Color(0xFF7A55B8),
-    fg = Color(0xFF1C1A1B),
-    fg2 = Color(0xFF3D3836),
-    muted = Color(0xFF6E6866),
-    muted2 = Color(0xFF9A9490),
+    cardHover = Color(0xFFF1EDFB),
+    border = Color(0xFFD2C9E8),
+    borderStr = Color(0xFFB3A6D9),
+    accent = Color(0xFF5B3DF0),
+    accentS = Color(0x1F5B3DF0),
+    violet = Color(0xFF8B5CF6),
+    fg = Color(0xFF1B1726),
+    fg2 = Color(0xFF403A52),
+    muted = Color(0xFF6E6684),
+    muted2 = Color(0xFF9A93AE),
     danger = Color(0xFFC03222),
     dangerS = Color(0x29C03222),
+    success = Color(0xFF2E7D46),
+    successS = Color(0x242E7D46),
+    warning = Color(0xFFB58A12),
+    warningS = Color(0x29B58A12)
+)
+
+// ═══════════════════════════════════════════════
+// Material 3 标准色系（备选主题）
+// ═══════════════════════════════════════════════
+
+val MaterialDarkPalette = Palette(
+    bg = Color(0xFF1C1B1F),
+    bg2 = Color(0xFF242329),
+    panel = Color(0xFF2B2A31),
+    panel2 = Color(0xFF313039),
+    card = Color(0xFF28272D),
+    cardHover = Color(0xFF33323A),
+    border = Color(0xFF4A4951),
+    borderStr = Color(0xFF6A6974),
+    accent = Color(0xFF8AB4F8),
+    accentS = Color(0x2E8AB4F8),
+    violet = Color(0xFFD0BCFF),
+    fg = Color(0xFFE6E1E5),
+    fg2 = Color(0xFFCAC4D0),
+    muted = Color(0xFFA19CA8),
+    muted2 = Color(0xFF7E7984),
+    danger = Color(0xFFF2B8B5),
+    dangerS = Color(0x29F2B8B5),
+    success = Color(0xFF81C995),
+    successS = Color(0x2481C995),
+    warning = Color(0xFFFDD663),
+    warningS = Color(0x29FDD663)
+)
+
+val MaterialLightPalette = Palette(
+    bg = Color(0xFFFDF8FD),
+    bg2 = Color(0xFFF4EFF4),
+    panel = Color(0xFFEAE5EA),
+    panel2 = Color(0xFFDFD9DF),
+    card = Color(0xFFFFFFFF),
+    cardHover = Color(0xFFF5EFF5),
+    border = Color(0xFFD6D0D6),
+    borderStr = Color(0xFFB6B0B6),
+    accent = Color(0xFF2962A0),
+    accentS = Color(0x1F2962A0),
+    violet = Color(0xFF6750A4),
+    fg = Color(0xFF1D1B20),
+    fg2 = Color(0xFF44464F),
+    muted = Color(0xFF76747C),
+    muted2 = Color(0xFF9C9AA2),
+    danger = Color(0xFFB3261E),
+    dangerS = Color(0x29B3261E),
     success = Color(0xFF2E7D46),
     successS = Color(0x242E7D46),
     warning = Color(0xFFB58A12),

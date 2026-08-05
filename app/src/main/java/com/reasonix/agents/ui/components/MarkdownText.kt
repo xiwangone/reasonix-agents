@@ -7,13 +7,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
@@ -25,6 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════════════
 //  Compose 原生 Markdown 渲染器  (表格 + 代码高亮)
@@ -116,16 +128,23 @@ fun MarkdownText(
 
                 is MdBlock.CodeBlock -> {
                     Spacer(modifier = Modifier.height(6.dp))
-                    // ── 语言标签 ──
-                    if (block.language.isNotEmpty()) {
-                        Text(
-                            text = block.language.uppercase(),
-                            color = secondaryColor,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier
-                                .padding(start = 12.dp, bottom = 2.dp)
-                        )
+                    // ── 语言标签 + 复制按钮（批 B-15）──
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (block.language.isNotEmpty()) {
+                            Text(
+                                text = block.language.uppercase(),
+                                color = secondaryColor,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        CodeCopyButton(code = block.code, iconColor = secondaryColor)
                     }
                     Box(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
@@ -986,4 +1005,35 @@ private fun parseBlocks(raw: String): List<MdBlock> {
     }
 
     return blocks
+}
+
+// ── 代码块复制按钮（批 B-15）──
+
+/**
+ * 代码块右上角复制按钮：点击复制整段代码到剪贴板，
+ * 短暂显示 ✓「已复制」后恢复。
+ */
+@Composable
+private fun CodeCopyButton(code: String, iconColor: Color) {
+    val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+    var copied by remember { mutableStateOf(false) }
+    IconButton(
+        onClick = {
+            clipboard.setText(AnnotatedString(code))
+            copied = true
+            scope.launch {
+                delay(1500)
+                copied = false
+            }
+        },
+        modifier = Modifier.size(24.dp)
+    ) {
+        Icon(
+            imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+            contentDescription = if (copied) "已复制" else "复制代码",
+            tint = if (copied) Color(0xFF40A060) else iconColor,
+            modifier = Modifier.size(13.dp)
+        )
+    }
 }

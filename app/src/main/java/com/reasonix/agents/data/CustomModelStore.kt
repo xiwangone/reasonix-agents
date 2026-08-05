@@ -1,0 +1,78 @@
+package com.reasonix.agents.data
+
+import android.content.Context
+import android.util.Log
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+
+/**
+ * 自定义模型本地存储（批 B-9 添加模型弹窗）。
+ * 用户在「添加模型」弹窗中录入的模型（provider 内置/自定义、base_url、兼容方式），
+ * 持久化到 SharedPreferences（JSON），与服务端 GET /models 返回的模型合并展示。
+ */
+object CustomModelStore {
+
+    private const val TAG = "CustomModelStore"
+    private const val PREFS_NAME = "reasonix_custom_models"
+    private const val KEY_MODELS = "models_json"
+    private const val KEY_CURRENT = "current_model"
+
+    private val gson = Gson()
+
+    /** provider：builtin=内置 / custom=自定义；compat：openai / deepseek / other */
+    data class CustomModel(
+        val id: String = "",
+        val name: String = "",
+        val provider: String = "custom",
+        val baseUrl: String = "",
+        val compat: String = "openai"
+    )
+
+    fun load(context: Context): List<CustomModel> {
+        val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_MODELS, "") ?: ""
+        if (raw.isBlank()) return emptyList()
+        return try {
+            val type = object : TypeToken<List<CustomModel>>() {}.type
+            gson.fromJson<List<CustomModel>>(raw, type) ?: emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "解析自定义模型失败", e)
+            emptyList()
+        }
+    }
+
+    fun save(context: Context, models: List<CustomModel>) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_MODELS, gson.toJson(models))
+            .apply()
+    }
+
+    /** 新增模型（id 去重，同名覆盖）；返回新列表。 */
+    fun add(context: Context, model: CustomModel): List<CustomModel> {
+        val models = load(context).toMutableList()
+        val id = model.id.ifBlank { model.name }
+        models.removeAll { it.id == id || (it.name == model.name && it.name.isNotBlank()) }
+        models.add(model.copy(id = id))
+        val result = models.toList()
+        save(context, result)
+        return result
+    }
+
+    /** 删除模型；返回新列表。 */
+    fun remove(context: Context, id: String): List<CustomModel> {
+        val result = load(context).filterNot { it.id == id }
+        save(context, result)
+        return result
+    }
+
+    /** 本地记忆的「当前模型」（自定义模型选中后记录，重开保留）。 */
+    fun getCurrent(context: Context): String =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_CURRENT, "") ?: ""
+
+    fun setCurrent(context: Context, model: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putString(KEY_CURRENT, model).apply()
+    }
+}

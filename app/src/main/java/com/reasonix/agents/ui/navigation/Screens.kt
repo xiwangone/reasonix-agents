@@ -33,6 +33,9 @@ object Screens {
     /** 设置页（从 Chat 内的全屏覆盖层迁入底部 Tab） */
     const val SETTINGS = "settings"
 
+    /** 关于页（批 A-6：设置页/侧边栏/顶栏多入口） */
+    const val ABOUT = "about"
+
     /** 起始目的地：Chat */
     val startDestination: String = CHAT
 

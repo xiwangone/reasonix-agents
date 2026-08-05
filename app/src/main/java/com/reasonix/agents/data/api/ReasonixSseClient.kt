@@ -2,6 +2,8 @@ package com.reasonix.agents.data.api
 
 import android.util.Base64
 import com.google.gson.Gson
+import com.reasonix.agents.data.AuthInfo
+import com.reasonix.agents.data.AuthType
 import com.reasonix.agents.data.model.ConnectionState
 import com.reasonix.agents.data.model.SseEvent
 import kotlinx.coroutines.channels.awaitClose
@@ -30,8 +32,9 @@ class SseHttpException(val code: Int, url: String) :
 /**
  * SSE 客户端 — 连接 /events 端点，实时接收服务端推送的消息流。
  *
- * 重连策略（批 2）：
- * - 网络层错误（连接超时 / DNS / 流中断）→ 指数退避自动重连（1s→2s→4s…上限 30s）
+ * 重连策略（批 2 + 批 B-11 可配置）：
+ * - 网络层错误（连接超时 / DNS / 流中断）→ 指数退避自动重连（1s→2s→4s…上限 [maxReconnectDelayMs]）；
+ *   [reconnectEnabled] 为 false 时关闭自动重连
  * - HTTP 层错误（404/401 等非 2xx）→ 不重连，抛出 [SseHttpException]
  * - 重连成功（onOpen）→ 状态回到 [ConnectionState.CONNECTED]，上层据此补拉 /history 增量
  *
@@ -39,7 +42,9 @@ class SseHttpException(val code: Int, url: String) :
  */
 class ReasonixSseClient(
     private val baseUrl: String,
-    private val credentials: Pair<String, String>? = null,
+    private val auth: AuthInfo? = null,
+    private val reconnectEnabled: Boolean = true,
+    private val maxReconnectDelayMs: Long = 30_000L,
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -52,9 +57,13 @@ class ReasonixSseClient(
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
-    /** Basic Auth 头；未配置凭据时为 null（向后兼容无认证直连场景） */
-    private val authHeader: String? = credentials?.let { (u, p) ->
-        "Basic " + Base64.encodeToString("$u:$p".toByteArray(), Base64.NO_WRAP)
+    /** Authorization 头：Basic（用户名:密码）或 Bearer（Token）；未配置认证时为 null。 */
+    private val authHeader: String? = when (auth?.type) {
+        AuthType.BASIC -> "Basic " + Base64.encodeToString(
+            "${auth.username}:${auth.password}".toByteArray(), Base64.NO_WRAP
+        )
+        AuthType.BEARER -> "Bearer ${auth.token}"
+        else -> null
     }
 
     /**
@@ -126,12 +135,13 @@ class ReasonixSseClient(
             _connectionState.value = ConnectionState.DISCONNECTED
         }
     }.retryWhen { cause, attempt ->
-        // HTTP 层错误（404/401 等）不重连；网络/流中断按指数退避重连，上限 30s
-        if (cause is SseHttpException) {
+        // HTTP 层错误（404/401 等）不重连；开关关闭时不重连；网络/流中断按指数退避重连
+        if (cause is SseHttpException || !reconnectEnabled) {
             false
         } else {
-            // attempt: 0→1s, 1→2s, 2→4s, 3→8s, 4→16s, ≥5→30s（封顶）
-            val delayMs = (1000L shl attempt.coerceAtMost(5L).toInt()).coerceAtMost(30_000L)
+            // attempt: 0→1s, 1→2s, 2→4s… 指数退避，封顶 maxReconnectDelayMs（默认 30s）
+            val delayMs = (1000L shl attempt.coerceAtMost(30L).toInt())
+                .coerceAtMost(maxReconnectDelayMs.coerceAtLeast(1000L))
             delay(delayMs)
             true
         }

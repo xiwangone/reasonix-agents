@@ -3,6 +3,8 @@ package com.reasonix.agents.ui.screen
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,9 +26,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -35,12 +39,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.model.ConnectionState
 import com.reasonix.agents.data.model.SessionInfo
 import com.reasonix.agents.data.model.StatusInfo
 import com.reasonix.agents.ui.components.*
 import com.reasonix.agents.ui.theme.LocalPalette
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
+import com.reasonix.agents.util.SessionExporter
 
 // ═══════════════════════════════════════════════
 // 调色板 — 匹配 index.html 的 Reasonix 暗色主题
@@ -74,8 +80,9 @@ private val Warning: Color @Composable get() = LocalPalette.current.warning
 @Composable
 fun ChatScreen(
     initialServerUrl: String = "http://127.0.0.1:8920",
-    initialCredentials: Pair<String, String>? = null,
+    initialAuth: AuthInfo? = null,
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {},
     viewModel: ChatViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -83,11 +90,37 @@ fun ChatScreen(
     // 首次启动时配置服务器地址
     LaunchedEffect(Unit) {
         if (state.serverUrl != initialServerUrl) {
-            viewModel.configureServer(initialServerUrl, initialCredentials)
+            viewModel.configureServer(initialServerUrl, initialAuth)
         }
     }
 
     val focusRequester = remember { FocusRequester() }
+
+    // ── 会话导出（批 B-16）──
+    val context = LocalContext.current
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exportFormat by remember { mutableStateOf("文本") }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("*/*")
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val content = if (exportFormat == "JSON") {
+            SessionExporter.buildJson(state.messages)
+        } else {
+            SessionExporter.buildText(state.messages)
+        }
+        val ok = SessionExporter.write(context, uri, content)
+        android.widget.Toast.makeText(
+            context,
+            if (ok) "会话已导出" else "导出失败",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    fun startExport(format: String) {
+        exportFormat = format
+        exportLauncher.launch(if (format == "JSON") "reasonix-会话.json" else "reasonix-会话.txt")
+    }
 
     // 全局键盘事件处理
     BoxWithConstraints(
@@ -131,6 +164,71 @@ fun ChatScreen(
     ) {
         // ── 主内容区 ──
         Column(modifier = Modifier.fillMaxSize()) {
+            // ── 顶部栏（批 A-2：左上品牌 logo / 右上 关于 + 设置 入口）──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 左侧：品牌 logo（随主题渐变）+ 应用名 + 连接状态点；点击进关于页
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onNavigateToAbout() }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(brush = Brush.linearGradient(colors = listOf(Accent, Violet))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("R", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Reasonix",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Fg
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // 连接健康状态点（绿=已连接 / 黄=重连中 / 红=断开 / 灰=就绪）
+                    val dotColor = when {
+                        state.connectionState == ConnectionState.RECONNECTING -> Warning
+                        state.connectionState == ConnectionState.DISCONNECTED && state.isStreaming -> Danger
+                        state.connectionState == ConnectionState.CONNECTED -> Success
+                        else -> Muted2
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(dotColor)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                // 右侧：关于 + 设置入口
+                IconButton(onClick = onNavigateToAbout, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "关于",
+                        tint = Muted,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+                IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "设置",
+                        tint = Muted,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
             // 欢迎页（无消息时） 或 消息列表
             if (state.messages.isEmpty() && !state.isStreaming) {
                 WelcomeScreen(
@@ -225,6 +323,8 @@ fun ChatScreen(
                 onFork = { viewModel.showRewindPicker() },
                 onStats = { viewModel.showStatsDialog() },
                 onSettings = onNavigateToSettings,
+                onExport = { viewModel.toggleSidebar(); showExportDialog = true },
+                onAbout = { viewModel.toggleSidebar(); onNavigateToAbout() },
                 modifier = Modifier.width(220.dp)
             )
         }
@@ -305,6 +405,50 @@ fun ChatScreen(
                 onDismiss = { viewModel.dismissStatsDialog() }
             )
         }
+
+        // ── 导出会话对话框（批 B-16）──
+        if (showExportDialog) {
+            AlertDialog(
+                onDismissRequest = { showExportDialog = false },
+                title = { Text("导出会话", color = Fg) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "当前会话共 ${state.messages.size} 条消息，选择导出格式：",
+                            fontSize = 13.sp,
+                            color = Fg2
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("文本" to "Markdown 风格可读文本", "JSON" to "结构化数据（便于程序处理）").forEach { (fmt, desc) ->
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (exportFormat == fmt) Accent.copy(alpha = 0.15f) else Panel2)
+                                        .border(1.dp, if (exportFormat == fmt) Accent else Border, RoundedCornerShape(8.dp))
+                                        .clickable { exportFormat = fmt }
+                                        .padding(10.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(fmt, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (exportFormat == fmt) Accent else Fg)
+                                    Text(desc, fontSize = 10.sp, color = Muted2)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showExportDialog = false
+                        startExport(exportFormat)
+                    }) { Text("导出", color = Accent) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showExportDialog = false }) { Text("取消", color = Muted) }
+                },
+                containerColor = Panel
+            )
+        }
     }
 }
 
@@ -326,6 +470,8 @@ private fun Sidebar(
     onFork: () -> Unit,
     onStats: () -> Unit,
     onSettings: () -> Unit,
+    onExport: () -> Unit,
+    onAbout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -377,6 +523,8 @@ private fun Sidebar(
             HorizontalDivider(color = Border, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
 
             SidebarItem("设置", onClick = onSettings)
+            SidebarItem("导出会话", onClick = onExport)
+            SidebarItem("关于", onClick = onAbout)
         }
 
         // ── 会话标签 ──

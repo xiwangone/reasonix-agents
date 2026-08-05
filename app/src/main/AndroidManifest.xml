@@ -20,18 +20,63 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ReasonixAgents">
+        <!-- 主 Activity：不含 LAUNCHER，由下方图标别名（批 B-13 主题图标包）提供桌面入口 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.ReasonixAgents">
+            android:theme="@style/Theme.ReasonixAgents" />
+
+        <!-- ── 主题图标包（批 B-13）：3 套 launcher 图标，主题切换时 setComponentEnabledSetting 切换 ── -->
+
+        <!-- 品牌紫蓝（默认） -->
+        <activity-alias
+            android:name=".LauncherBrand"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <!-- 品牌紫蓝 · 深色 -->
+        <activity-alias
+            android:name=".LauncherBrandDark"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_brand_dark"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_brand_dark"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Material 风格 -->
+        <activity-alias
+            android:name=".LauncherMaterial"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_material"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_material"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <service
             android:name=".service.CiMonitorService"

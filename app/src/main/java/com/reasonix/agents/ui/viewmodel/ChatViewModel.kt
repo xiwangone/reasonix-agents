@@ -1,12 +1,16 @@
 package com.reasonix.agents.ui.viewmodel
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.reasonix.agents.data.api.ReasonixApi
-import com.reasonix.agents.data.api.ReasonixSseClient
-import com.reasonix.agents.data.model.*
+import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.AppSettingsStore
+import com.reasonix.agents.data.CustomModelStore
+import com.reasonix.agents.data.model.*
 import com.reasonix.agents.data.repository.ChatRepository
+import com.reasonix.agents.util.NotificationHelper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,6 +35,7 @@ data class ChatUiState(
     val checkpoints: List<CheckpointInfo> = emptyList(),
     val showStatsDialog: Boolean = false,
     val settings: AppSettingsStore.Settings = AppSettingsStore.Settings(),
+    val customModels: List<CustomModelStore.CustomModel> = emptyList(),
     val ciSettings: com.reasonix.agents.data.CiMonitorStore.CiSettings = com.reasonix.agents.data.CiMonitorStore.CiSettings(),
     val cumulativeTokens: Long = 0,
     val cumulativeCost: Double = 0.0,
@@ -41,14 +46,18 @@ data class ChatUiState(
 )
 
 class ChatViewModel(
+    application: Application,
     initialServerUrl: String = "http://127.0.0.1:8920",
-    initialCredentials: Pair<String, String>? = null
-) : ViewModel() {
+    initialAuth: AuthInfo? = null
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(ChatUiState(serverUrl = initialServerUrl))
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
-    private var repository: ChatRepository = createRepository(initialServerUrl, initialCredentials)
+    /** 当前认证信息（重建 repository 时复用，批 A-4/B-12）。 */
+    private var currentAuth: AuthInfo? = initialAuth
+
+    private var repository: ChatRepository = createRepository(initialServerUrl, initialAuth)
     private var sseCollectionJob: Job? = null
     private var connectionStateJob: Job? = null
 
@@ -66,6 +75,8 @@ class ChatViewModel(
     private val doubleEscWindowMs: Long = 600
 
     init {
+        // 加载本地持久化的应用设置（主题/超时/重连等，批 A-2/B-11）
+        _uiState.update { it.copy(settings = AppSettingsStore.load(getApplication())) }
         loadInitialData()
         collectConnectionState()
     }
@@ -73,18 +84,26 @@ class ChatViewModel(
     // ── 服务器配置 ──
 
     /** 动态切换服务器地址，重建 API/SSE 客户端并重新加载数据。 */
-    fun configureServer(url: String, credentials: Pair<String, String>? = null) {
+    fun configureServer(url: String, auth: AuthInfo? = null) {
         val normalized = url.trimEnd('/')
-        repository = createRepository(normalized, credentials)
+        currentAuth = auth
+        repository = createRepository(normalized, auth)
         _uiState.update { it.copy(serverUrl = normalized, messages = emptyList(), error = null) }
         loadInitialData()
         collectConnectionState()
     }
 
-    private fun createRepository(url: String, credentials: Pair<String, String>? = null): ChatRepository {
+    /** 按当前设置（连接超时 / SSE 重连开关与退避上限，批 B-11）构建 repository。 */
+    private fun createRepository(url: String, auth: AuthInfo? = null): ChatRepository {
+        val s = _uiState.value.settings
         return ChatRepository(
-            api = ReasonixApi(url, credentials),
-            sseClient = ReasonixSseClient(url, credentials)
+            url,
+            ChatRepository.ConnectionConfig(
+                auth = auth,
+                connectTimeoutSec = s.connectTimeoutSec,
+                sseReconnectEnabled = s.sseReconnectEnabled,
+                sseReconnectMaxDelaySec = s.sseReconnectMaxDelaySec
+            )
         )
     }
 
@@ -111,7 +130,8 @@ class ChatViewModel(
                     systemPrompt = systemPrompt,
                     messages = historyItems,
                     planMode = status?.plan ?: false,
-                    toolApprovalMode = status?.toolApprovalMode ?: "auto"
+                    toolApprovalMode = status?.toolApprovalMode ?: "auto",
+                    customModels = CustomModelStore.load(getApplication())
                 )
             }
         }
@@ -119,6 +139,13 @@ class ChatViewModel(
 
     // ── 切换模型 ──
     fun setModel(model: String) {
+        val customNames = CustomModelStore.load(getApplication()).map { it.name }.toSet()
+        if (model in customNames) {
+            // 自定义模型（批 B-9）：本地记忆当前选择，服务端不识别故不 POST
+            CustomModelStore.setCurrent(getApplication(), model)
+            _uiState.update { it.copy(currentModel = model) }
+            return
+        }
         viewModelScope.launch {
             repository.setModel(model)
             // 刷新状态与模型列表
@@ -130,6 +157,22 @@ class ChatViewModel(
                     currentModel = modelsResp?.current ?: status?.label ?: model
                 )
             }
+        }
+    }
+
+    // ── 自定义模型管理（批 B-9）──
+
+    fun addCustomModel(model: CustomModelStore.CustomModel) {
+        CustomModelStore.add(getApplication(), model)
+        _uiState.update {
+            it.copy(customModels = CustomModelStore.load(getApplication()))
+        }
+    }
+
+    fun removeCustomModel(id: String) {
+        CustomModelStore.remove(getApplication(), id)
+        _uiState.update {
+            it.copy(customModels = CustomModelStore.load(getApplication()))
         }
     }
 
@@ -199,18 +242,20 @@ class ChatViewModel(
         _uiState.update { it.copy(serverUrl = url) }
     }
 
-    // ── 设置页 ──
+    // ── 设置页（批 A-2/A-5/B-11：全量设置，统一保存）──
 
-    fun updateThemeMode(mode: Int) {
-        _uiState.update { it.copy(settings = it.settings.copy(themeMode = mode)) }
-    }
-
-    fun updateShowReasoning(show: Boolean) {
-        _uiState.update { it.copy(settings = it.settings.copy(showReasoning = show)) }
-    }
-
-    fun updateShowTokens(show: Boolean) {
-        _uiState.update { it.copy(settings = it.settings.copy(showTokens = show)) }
+    /** 更新全部应用设置；连接相关参数（超时/重连）变化时重建 repository 使配置生效。 */
+    fun updateSettings(s: AppSettingsStore.Settings) {
+        val old = _uiState.value.settings
+        _uiState.update { it.copy(settings = s) }
+        AppSettingsStore.save(getApplication(), s)
+        val connectionChanged = old.connectTimeoutSec != s.connectTimeoutSec ||
+            old.sseReconnectEnabled != s.sseReconnectEnabled ||
+            old.sseReconnectMaxDelaySec != s.sseReconnectMaxDelaySec
+        if (connectionChanged && _uiState.value.serverUrl.isNotBlank()) {
+            repository = createRepository(_uiState.value.serverUrl, currentAuth)
+            collectConnectionState()
+        }
     }
 
     // ── 发送消息 ──
@@ -634,6 +679,17 @@ class ChatViewModel(
         pendingReasoning = null
         _uiState.update { it.copy(isStreaming = false) }
         sseCollectionJob?.cancel()
+        // 批 B-14：多步任务跑完 → 系统通知栏提醒
+        if (pendingToolCards.isNotEmpty()) {
+            val toolNames = pendingToolCards.values.map { it.name }.filter { it.isNotBlank() }.distinct()
+            val summary = when {
+                toolNames.isEmpty() -> "已完成一轮多步任务"
+                toolNames.size <= 3 -> "已完成 ${toolNames.size} 个工具步骤：${toolNames.joinToString("、")}"
+                else -> "已完成 ${toolNames.size} 个工具步骤（${toolNames.take(3).joinToString("、")} 等）"
+            }
+            NotificationHelper.notifyTaskDone(getApplication(), summary)
+        }
+        pendingToolCards.clear()
     }
 
     // ── 倒带 / 分叉 / 总结 ──
@@ -799,5 +855,20 @@ class ChatViewModel(
     override fun onCleared() {
         super.onCleared()
         repository.disconnectSse()
+    }
+
+    /**
+     * ViewModel 工厂（批 A-4/B-12）：注入 Application + 初始服务器地址 + 认证信息。
+     * 由 MainActivity 在 ReasonixApp 中创建 ChatViewModel 时使用。
+     */
+    class Factory(
+        private val app: Application,
+        private val serverUrl: String,
+        private val auth: AuthInfo?
+    ) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return ChatViewModel(app, serverUrl, auth) as T
+        }
     }
 }
