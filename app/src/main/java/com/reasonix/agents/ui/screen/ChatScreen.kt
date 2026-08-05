@@ -28,6 +28,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -1431,6 +1432,7 @@ private fun Footer(
                     fontSize = 15.sp,
                     lineHeight = 22.sp
                 ),
+                cursorBrush = SolidColor(Accent),
                 singleLine = false,
                 maxLines = 5,
                 shape = RoundedCornerShape(20.dp),
