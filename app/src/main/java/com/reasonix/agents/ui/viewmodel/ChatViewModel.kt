@@ -987,7 +987,7 @@ class ChatViewModel(
      */
     suspend fun exportBackup(password: String): BackupExportResult {
         return try {
-            val context = getApplication()
+            val context = getApplication<Application>()
             var profiles = ServerConfigStore.loadProfiles(context)
             // 从未保存过 profiles 时，把「上次连接配置」作为一套导出
             if (profiles.isEmpty()) {
@@ -1038,7 +1038,7 @@ class ChatViewModel(
         }
         val payload = (parsed as BackupManager.ParseResult.Ok).payload
         return try {
-            val context = getApplication()
+            val context = getApplication<Application>()
             var restored = 0
             // 恢复服务器配置（多套）+ 最近连接
             if (payload.serverConfigs.isNotEmpty()) {
