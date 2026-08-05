@@ -16,6 +16,8 @@
 [**简体中文**](README.md) | **English**
 
 [![📥 Download APK](https://img.shields.io/badge/📥-Download%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-agents/releases/latest)
+[![RikkaHub Agents (in development)](https://img.shields.io/badge/🤖-RikkaHub%20Agents%20in%20development-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/rikkahub-agents)
+**🤝 Related project: [RikkaHub Agents](https://github.com/xiwangone/rikkahub-agents)** — Android device-side LLM agent · 80+ device tools (in development)
 
 </div>
 
@@ -28,6 +30,7 @@
 | 🔵 **DeepSeek-Reasonix (Protocol Upstream)** | https://github.com/esengine/DeepSeek-Reasonix | **Backend service & protocol definition this client follows** |
 | 🟢 **DeepSeek-Reasonix-android (Original Client)** | https://github.com/hxr66666/DeepSeek-Reasonix-android | **Original fork this repo is based on (MIT)** |
 | 🟡 **This Repo (Independently Maintained)** | https://github.com/xiwangone/reasonix-agents | **Forked with credit to the original author; independently developed** |
+| 🟣 **RikkaHub Agents (sibling project)** | https://github.com/xiwangone/rikkahub-agents | **Android device-side LLM agent · 80+ device tools (in development)** |
 
 > ### ⚠️ Notice
 >

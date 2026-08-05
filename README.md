@@ -18,6 +18,8 @@
 [![📥 下载 APK](https://img.shields.io/badge/📥-下载%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 [![RikkaHub Agents 开发中](https://img.shields.io/badge/🤖-RikkaHub%20Agents%20开发中-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/rikkahub-agents)
 
+**🤝 相关项目：[RikkaHub Agents](https://github.com/xiwangone/rikkahub-agents)** — Android 设备端 LLM 智能体 · 80+ 设备工具（开发中）
+
 </div>
 
 ---
