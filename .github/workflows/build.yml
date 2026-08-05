@@ -55,9 +55,6 @@ jobs:
           chmod +x ktlint
           ./ktlint app/src/main/java 2>&1 | tail -30 || true
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
       - name: 固定签名构建 Release (overwrite-install)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -73,11 +70,11 @@ jobs:
           echo "keyPassword=$KEY_PASSWORD" >> local.properties
           ./gradlew assembleRelease --stacktrace
 
-      - name: Rename Debug APK
-        run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Reasonix-Android-debug.apk
-
-      - name: Rename Release APK
-        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/Reasonix-Android-release.apk
+      - name: Rename Release APKs（ABI 拆分版）
+        run: |
+          cd app/build/outputs/apk/release
+          mv app-arm64-v8a-release.apk Reasonix-Android-arm64-v8a-release.apk 2>/dev/null || true
+          mv app-universal-release.apk Reasonix-Android-universal-release.apk 2>/dev/null || true
 
       - name: 创建/更新 Release（仅 workflow_dispatch）
         if: github.event_name == 'workflow_dispatch'
@@ -95,8 +92,8 @@ jobs:
             --notes "## ✨ v$TAG
 
             ### 📦 安装包
-            - \`Reasonix-Android-release.apk\`（固定签名 Release 版）
-            - \`Reasonix-Android-debug.apk\`（Debug 版）
+            - \`Reasonix-Android-arm64-v8a-release.apk\`（arm64-v8a 固定签名版）
+            - \`Reasonix-Android-universal-release.apk\`（universal 全架构版）
 
             ### 🔐 连接配置
             - 协议：HTTP / HTTPS（HTTPS 默认端口 443）
@@ -113,17 +110,6 @@ jobs:
             gh release upload "$TAG" "$apk" --clobber
             echo "Uploaded $apk"
           done
-          cd ../debug
-          for apk in *.apk; do
-            gh release upload "$TAG" "$apk" --clobber
-            echo "Uploaded $apk"
-          done
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Reasonix-Android-debug
-          path: app/build/outputs/apk/debug/Reasonix-Android-debug.apk
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
