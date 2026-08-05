@@ -131,7 +131,7 @@ class ReasonixSseClient(
             false
         } else {
             // attempt: 0→1s, 1→2s, 2→4s, 3→8s, 4→16s, ≥5→30s（封顶）
-            val delayMs = (1000L shl attempt.coerceAtMost(5)).coerceAtMost(30_000L)
+            val delayMs = (1000L shl attempt.coerceAtMost(5L).toInt()).coerceAtMost(30_000L)
             delay(delayMs)
             true
         }

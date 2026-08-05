@@ -55,6 +55,18 @@ private val Fg: Color @Composable get() = LocalPalette.current.fg
 private val Fg2: Color @Composable get() = LocalPalette.current.fg2
 private val Muted: Color @Composable get() = LocalPalette.current.muted
 
+/**
+ * diff 高亮配色快照：在 @Composable 上下文读取颜色后传入，
+ * 供非 composable 的渲染逻辑（highlightDiff/appendNodes/fallbackHighlight）使用。
+ */
+private data class DiffHighlightColors(
+    val deleted: Color,
+    val inserted: Color,
+    val coord: Color,
+    val bold: Color,
+    val unchanged: Color,
+)
+
 /** diff 行类型（与 Prism diff grammar 的 token 对应） */
 enum class DiffLineType { CONTEXT, ADD, DELETE, HEADER }
 
@@ -237,7 +249,14 @@ fun DiffCard(
     val delCount = diff.lines().count { it.startsWith("-") && !it.startsWith("---") }
     var expanded by remember { mutableStateOf(lineCount <= DIFF_FOLD_LIMIT) }
 
-    val highlighted = remember(diff) { highlightDiff(diff) }
+    val highlightColors = DiffHighlightColors(
+        deleted = Danger,
+        inserted = Success,
+        coord = Accent,
+        bold = Warning,
+        unchanged = Fg2,
+    )
+    val highlighted = remember(diff, highlightColors) { highlightDiff(diff, highlightColors) }
 
     Column(
         modifier = modifier
@@ -315,47 +334,48 @@ fun DiffCard(
  * 用 Prism4j diff 语法高亮整块 diff（token alias/type → 颜色）。
  * 高亮失败时兜底按行首字符着色（- 红 / + 绿 / @@ 橙 / --- +++ 蓝紫 / 其他灰）。
  */
-private fun highlightDiff(text: String): AnnotatedString {
+private fun highlightDiff(text: String, colors: DiffHighlightColors): AnnotatedString {
     return try {
         val prism4j = Prism4j(DefaultGrammarLocator())
         val grammar = DefaultGrammarLocator().grammar(prism4j, "diff")
-            ?: return fallbackHighlight(text)
+            ?: return fallbackHighlight(text, colors)
         val nodes = prism4j.tokenize(text, grammar)
-        if (nodes.isEmpty()) return fallbackHighlight(text)
+        if (nodes.isEmpty()) return fallbackHighlight(text, colors)
         buildAnnotatedString {
-            appendNodes(nodes)
+            appendNodes(nodes, colors)
         }
     } catch (e: Exception) {
-        fallbackHighlight(text)
+        fallbackHighlight(text, colors)
     }
 }
 
 /** 递归渲染 Prism tokenize 节点树：Syntax 按类型着色，Text 直接追加 */
 private fun androidx.compose.ui.text.AnnotatedString.Builder.appendNodes(
-    nodes: List<io.noties.prism4j.Prism4j.Node>
+    nodes: List<io.noties.prism4j.Prism4j.Node>,
+    colors: DiffHighlightColors
 ) {
     nodes.forEach { node ->
         if (node.isSyntax) {
             val syntax = node as io.noties.prism4j.Prism4j.Syntax
             val color = when {
-                syntax.alias() == "deleted" -> Danger
-                syntax.alias() == "inserted" -> Success
-                syntax.type() == "coord" -> Accent
-                syntax.alias() == "bold" -> Warning
-                syntax.type() == "unchanged" -> Fg2
+                syntax.alias() == "deleted" -> colors.deleted
+                syntax.alias() == "inserted" -> colors.inserted
+                syntax.type() == "coord" -> colors.coord
+                syntax.alias() == "bold" -> colors.bold
+                syntax.type() == "unchanged" -> colors.unchanged
                 else -> null
             }
             if (color != null) {
                 withStyle(SpanStyle(color = color)) {
                     if (syntax.children().isNotEmpty()) {
-                        appendNodes(syntax.children())
+                        appendNodes(syntax.children(), colors)
                     } else {
                         append(syntax.matchedString())
                     }
                 }
             } else {
                 if (syntax.children().isNotEmpty()) {
-                    appendNodes(syntax.children())
+                    appendNodes(syntax.children(), colors)
                 } else {
                     append(syntax.matchedString())
                 }
@@ -367,14 +387,14 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendNodes(
 }
 
 /** 兜底：无 Prism 高亮时按行首字符着色 */
-private fun fallbackHighlight(text: String): AnnotatedString = buildAnnotatedString {
+private fun fallbackHighlight(text: String, colors: DiffHighlightColors): AnnotatedString = buildAnnotatedString {
     text.lines().forEach { line ->
         val color = when {
-            line.startsWith("+++") || line.startsWith("---") -> Accent
-            line.startsWith("@@") -> Warning
-            line.startsWith("+") -> Success
-            line.startsWith("-") -> Danger
-            else -> Fg2
+            line.startsWith("+++") || line.startsWith("---") -> colors.coord
+            line.startsWith("@@") -> colors.bold
+            line.startsWith("+") -> colors.inserted
+            line.startsWith("-") -> colors.deleted
+            else -> colors.unchanged
         }
         withStyle(SpanStyle(color = color)) { append(line) }
         append('\n')
