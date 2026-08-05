@@ -27,10 +27,10 @@
 
 | Project | Link | Description |
 |------|------|------|
-| 🔵 **DeepSeek-Reasonix (Protocol Upstream)** | https://github.com/esengine/DeepSeek-Reasonix | **Backend service & protocol definition this client follows** |
-| 🟢 **DeepSeek-Reasonix-android (Original Client)** | https://github.com/hxr66666/DeepSeek-Reasonix-android | **Original fork this repo is based on (MIT)** |
 | 🟡 **This Repo (Independently Maintained)** | https://github.com/xiwangone/reasonix-agents | **Forked with credit to the original author; independently developed** |
 | 🟣 **RikkaHub Agents (sibling project)** | https://github.com/xiwangone/rikkahub-agents | **Android device-side LLM agent · 80+ device tools (in development)** |
+| 🔵 **DeepSeek-Reasonix (Protocol Upstream)** | https://github.com/esengine/DeepSeek-Reasonix | **Backend service & protocol definition this client follows** |
+| 🟢 **DeepSeek-Reasonix-android (Original Client)** | https://github.com/hxr66666/DeepSeek-Reasonix-android | **Original fork this repo is based on (MIT)** |
 
 > ### ⚠️ Notice
 >
