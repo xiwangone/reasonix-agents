@@ -350,6 +350,7 @@ fun ChatScreen(
                     viewModel.toggleSidebar()
                 },
                 onDeleteSession = { viewModel.deleteSession(it) },
+                onDeleteSessions = { viewModel.deleteSessions(it) },
                 onCompact = { viewModel.compactConversation() },
                 onRewind = { viewModel.showRewindPicker() },
                 onFork = { viewModel.showRewindPicker() },
@@ -486,6 +487,7 @@ fun ChatScreen(
         if (showConfigsDialog) {
             SavedConfigsDialog(
                 profiles = ServerConfigStore.loadProfiles(context),
+                currentServerUrl = state.serverUrl,
                 onSelect = { p ->
                     showConfigsDialog = false
                     val url = "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}"
@@ -522,10 +524,15 @@ fun ChatScreen(
 @Composable
 private fun SavedConfigsDialog(
     profiles: List<ServerConfigStore.ServerProfile>,
+    currentServerUrl: String,
     onSelect: (ServerConfigStore.ServerProfile) -> Unit,
     onAddNew: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    // 第五批 E-4：按协议分组展示（HTTP / HTTPS），当前连接高亮并标记「当前」
+    val grouped = profiles.groupBy { if (it.useHttps) "HTTPS" else "HTTP" }
+    val groupOrder = listOf("HTTP", "HTTPS")
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("保存的配置", color = Fg) },
@@ -541,37 +548,60 @@ private fun SavedConfigsDialog(
                         color = Muted2
                     )
                 } else {
-                    profiles.forEach { p ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Panel)
-                                .border(1.dp, Border, RoundedCornerShape(8.dp))
-                                .clickable { onSelect(p) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = p.label,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Fg
-                                )
-                                Text(
-                                    text = "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}" +
-                                        if (p.authType != "NONE") " · ${p.authType}" else "",
-                                    fontSize = 11.sp,
-                                    color = Muted2
+                    groupOrder.forEach { group ->
+                        val items = grouped[group].orEmpty()
+                        if (items.isEmpty()) return@forEach
+                        // 分组标题
+                        Text(
+                            group,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.4.sp,
+                            color = Muted,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                        items.forEach { p ->
+                            val isCurrent = currentServerUrl ==
+                                "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}"
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isCurrent) AccentS else Panel)
+                                    .border(1.dp, if (isCurrent) Accent.copy(alpha = 0.6f) else Border, RoundedCornerShape(8.dp))
+                                    .clickable { onSelect(p) }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = p.label,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Fg
+                                    )
+                                    Text(
+                                        text = "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}" +
+                                            if (p.authType != "NONE") " · ${p.authType}" else "",
+                                        fontSize = 11.sp,
+                                        color = Muted2
+                                    )
+                                }
+                                if (isCurrent) {
+                                    Text(
+                                        "当前",
+                                        fontSize = 10.sp,
+                                        color = Accent,
+                                        modifier = Modifier.padding(end = 4.dp)
+                                    )
+                                }
+                                Icon(
+                                    Icons.Default.KeyboardArrowRight,
+                                    contentDescription = "切换",
+                                    tint = if (isCurrent) Accent else Muted2,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
-                            Icon(
-                                Icons.Default.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = Muted2,
-                                modifier = Modifier.size(18.dp)
-                            )
                         }
                     }
                 }
@@ -723,6 +753,7 @@ private fun Sidebar(
     onNewSession: () -> Unit,
     onSelectSession: (String) -> Unit,
     onDeleteSession: (String) -> Unit,
+    onDeleteSessions: (List<String>) -> Unit,
     onCompact: () -> Unit,
     onRewind: () -> Unit,
     onFork: () -> Unit,
@@ -732,6 +763,28 @@ private fun Sidebar(
     onAbout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 第五批 E-2：会话多选模式——长按进入，支持全选 / 批量删除 / 单条删除
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedNames by remember { mutableStateOf(setOf<String>()) }
+
+    // 会话列表刷新后清理已不存在的选中项；列表清空时退出多选
+    LaunchedEffect(sessions) {
+        val valid = sessions.map { it.name }.toSet()
+        selectedNames = selectedNames.filter { it in valid }.toSet()
+        if (sessions.isEmpty()) {
+            selectionMode = false
+            selectedNames = emptySet()
+        }
+    }
+
+    // 长按会话：进入多选模式并选中该项
+    val enterSelection: (String) -> Unit = { name ->
+        selectionMode = true
+        selectedNames = selectedNames + name
+    }
+
+    val allSelected = sessions.isNotEmpty() && selectedNames.size == sessions.size
+
     Column(
         modifier = modifier
             .fillMaxHeight()
@@ -795,6 +848,47 @@ private fun Sidebar(
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
         )
 
+        // ── 多选操作栏（第五批 E-2）：已选 N 项 + 全选 + 批量删除 + 退出 ──
+        if (selectionMode) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(AccentS)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "已选 ${selectedNames.size} 项",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Accent,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = {
+                    selectedNames = if (allSelected) emptySet() else sessions.map { it.name }.toSet()
+                }) {
+                    Text(if (allSelected) "取消全选" else "全选", fontSize = 12.sp, color = Accent)
+                }
+                TextButton(onClick = {
+                    if (selectedNames.isNotEmpty()) {
+                        onDeleteSessions(selectedNames.toList())
+                        selectedNames = emptySet()
+                        selectionMode = false
+                    }
+                }) {
+                    Text("删除", fontSize = 12.sp, color = Danger)
+                }
+                TextButton(onClick = {
+                    selectionMode = false
+                    selectedNames = emptySet()
+                }) {
+                    Text("退出", fontSize = 12.sp, color = Muted)
+                }
+            }
+        }
+
         // ── 会话列表 ──
         Column(
             modifier = Modifier
@@ -815,7 +909,17 @@ private fun Sidebar(
                     SessionRow(
                         session = session,
                         isStreaming = isStreaming,
+                        selectionMode = selectionMode,
+                        selected = session.name in selectedNames,
                         onSelect = { onSelectSession(session.path) },
+                        onToggleSelect = {
+                            selectedNames = if (session.name in selectedNames) {
+                                selectedNames - session.name
+                            } else {
+                                selectedNames + session.name
+                            }
+                        },
+                        onLongPress = { enterSelection(session.name) },
                         onDelete = { onDeleteSession(session.name) }
                     )
                 }
@@ -960,46 +1064,97 @@ private fun SidebarItem(label: String, onClick: () -> Unit, accent: Boolean = fa
     }
 }
 
+/**
+ * 会话行（第五批 E-2 重构）。
+ *
+ * - 修复删除按钮 bug：原实现用 Text("×") + 顺序错误的 modifier（padding 在 clickable 之前），
+ *   可点击区域极小且与父级 combinedClickable 冲突导致「点击无法删除」；
+ *   改为多选模式下常显的 IconButton（独立消费点击事件，可点击区域充足）。
+ * - 长按进入多选模式并选中该项；多选模式下点击切换选中，点击删除按钮单条删除；
+ *   普通模式下点击切换会话（当前会话与流式期间不可切换）。
+ */
 @Composable
 private fun SessionRow(
     session: SessionInfo,
     isStreaming: Boolean,
+    selectionMode: Boolean,
+    selected: Boolean,
     onSelect: () -> Unit,
+    onToggleSelect: () -> Unit,
+    onLongPress: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var showDelete by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(6.dp))
-            .background(if (session.current) AccentS else Card)
-            .combinedClickable(
-                onClick = { if (!isStreaming && !session.current) onSelect() },
-                onLongClick = { showDelete = !showDelete }
+            .background(
+                when {
+                    selected -> AccentS
+                    session.current && !selectionMode -> AccentS
+                    else -> Card
+                }
             )
-            .padding(horizontal = 8.dp, vertical = 7.dp),
+            .combinedClickable(
+                onClick = {
+                    if (selectionMode) {
+                        onToggleSelect()
+                    } else if (!isStreaming && !session.current) {
+                        onSelect()
+                    }
+                },
+                onLongClick = onLongPress
+            )
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // 多选模式：勾选指示器
+        if (selectionMode) {
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) Accent else CardHover)
+                    .border(1.dp, if (selected) Accent else Border, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
         Text(
             text = session.title ?: session.name.take(30),
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = if (session.current) Accent else Fg2,
+            color = if (selected || (session.current && !selectionMode)) Accent else Fg2,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        if (showDelete) {
-            Text(
-                "×",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Danger,
+
+        // 多选模式：单条删除按钮（IconButton 修复点击区域，独立消费点击）
+        if (selectionMode) {
+            IconButton(
+                onClick = onDelete,
                 modifier = Modifier
-                    .padding(start = 6.dp)
-                    .clickable { onDelete(); showDelete = false }
-            )
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(6.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "删除会话",
+                    tint = Danger,
+                    modifier = Modifier.size(15.dp)
+                )
+            }
         }
     }
 }

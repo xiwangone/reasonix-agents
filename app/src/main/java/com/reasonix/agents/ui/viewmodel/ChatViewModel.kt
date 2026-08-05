@@ -1,14 +1,18 @@
 package com.reasonix.agents.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.AppSettingsStore
+import com.reasonix.agents.data.BackupManager
+import com.reasonix.agents.data.CliIntegrationStore
 import com.reasonix.agents.data.CustomModelStore
 import com.reasonix.agents.data.PromptStore
+import com.reasonix.agents.data.ServerConfigStore
 import com.reasonix.agents.data.model.*
 import com.reasonix.agents.data.repository.ChatRepository
 import com.reasonix.agents.util.NotificationHelper
@@ -40,12 +44,28 @@ data class ChatUiState(
     val customPrompts: List<PromptStore.CustomPrompt> = emptyList(),
     val currentPromptId: String = "",
     val ciSettings: com.reasonix.agents.data.CiMonitorStore.CiSettings = com.reasonix.agents.data.CiMonitorStore.CiSettings(),
+    val cliSettings: com.reasonix.agents.data.CliIntegrationStore.CliSettings = com.reasonix.agents.data.CliIntegrationStore.CliSettings(),
     val cumulativeTokens: Long = 0,
     val cumulativeCost: Double = 0.0,
     val cumulativeCacheHit: Long = 0,
     val cumulativeCacheMiss: Long = 0,
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val error: String? = null
+)
+
+/** 备份导出结果（第五批 E-1）：json 为生成的备份文件内容，失败时 error 非空。 */
+data class BackupExportResult(
+    val json: String? = null,
+    val sessionCount: Int = 0,
+    val serverCount: Int = 0,
+    val error: String? = null
+)
+
+/** 备份导入结果（第五批 E-1）：success=false 时 message 为失败原因（含凭据解密失败提示）。 */
+data class BackupImportResult(
+    val success: Boolean,
+    val message: String,
+    val restoredSettings: AppSettingsStore.Settings? = null
 )
 
 class ChatViewModel(
@@ -93,6 +113,8 @@ class ChatViewModel(
                 currentPromptId = PromptStore.getCurrentId(getApplication())
             )
         }
+        // 第五批 E-3：加载 CLI 集成设置（默认关闭）
+        _uiState.update { it.copy(cliSettings = CliIntegrationStore.load(getApplication())) }
         // 批 C-7：登录/连接成功进入主界面时默认新建会话（不恢复上次会话）
         loadInitialData(freshSession = freshSession)
         collectConnectionState()
@@ -327,6 +349,33 @@ class ChatViewModel(
         }
     }
 
+    // ── CLI 集成（第五批 E-3）──
+
+    /** 更新 CLI 集成设置（开关/工具/工作目录/超时），立即持久化。 */
+    fun updateCliSettings(s: CliIntegrationStore.CliSettings) {
+        _uiState.update { it.copy(cliSettings = s) }
+        CliIntegrationStore.save(getApplication(), s)
+    }
+
+    /**
+     * 构建 CLI 集成注入指令（提示词层）。开关关闭时返回 null。
+     * 按所选工具列出可用的部署 CLI 包装脚本（aide-wrap.sh / oc-wrap.sh）。
+     */
+    private fun cliInstruction(): String? {
+        val s = _uiState.value.cliSettings
+        if (!s.enabled) return null
+        val scripts = when (s.tool) {
+            CliIntegrationStore.TOOL_AIDER -> "aide-wrap.sh"
+            CliIntegrationStore.TOOL_OPENCODE -> "oc-wrap.sh"
+            else -> "aide-wrap.sh / oc-wrap.sh"
+        }
+        return buildString {
+            append("你可使用部署的 CLI 工具（$scripts）完成任务。")
+            append("工作目录：${s.workdir.ifBlank { "/tmp" }}；调用超时：${s.timeoutSec}s。")
+            append("如需执行，请通过可用的 shell 工具调用对应包装脚本。")
+        }
+    }
+
     // ── 发送消息 ──
 
     fun sendMessage() {
@@ -359,7 +408,10 @@ class ChatViewModel(
         // 提交消息 → 启动 SSE 监听
         // 第四批：选中用户提示词时，附加在系统提示词之后注入会话上下文
         val promptContent = activePromptContent()
-        val effectiveInput = if (promptContent.isNotBlank()) "$promptContent\n\n$text" else text
+        // 第五批 E-3：CLI 集成开启时，注入部署 CLI 工具可用性指令（提示词层）
+        val cliInstruction = cliInstruction()
+        val effectiveInput = listOfNotNull(promptContent, cliInstruction, text)
+            .joinToString("\n\n")
         viewModelScope.launch {
             try {
                 repository.submit(effectiveInput)
@@ -908,6 +960,180 @@ class ChatViewModel(
             repository.deleteSession(name)
             loadInitialData()
         }
+    }
+
+    /** 批量删除会话（第五批 E-2：多选模式全选后批量删除）。 */
+    fun deleteSessions(names: List<String>) {
+        if (names.isEmpty()) return
+        viewModelScope.launch {
+            names.forEach { name ->
+                try {
+                    repository.deleteSession(name)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "删除会话失败: $name", e)
+                }
+            }
+            loadInitialData()
+        }
+    }
+
+    // ── 备份导入导出（第五批 E-1）──
+
+    /**
+     * 导出备份：收集服务器配置（多套）+ 主题设置 + 自定义模型 + 全部会话历史，构建单文件 JSON。
+     * 会话历史需遍历服务端各会话（resume + history），完成后恢复原会话并刷新界面。
+     */
+    suspend fun exportBackup(password: String): BackupExportResult {
+        return try {
+            val context = getApplication()
+            var profiles = ServerConfigStore.loadProfiles(context)
+            // 从未保存过 profiles 时，把「上次连接配置」作为一套导出
+            if (profiles.isEmpty()) {
+                val last = ServerConfigStore.load(context)
+                if (last.ip.isNotBlank()) {
+                    profiles = listOf(
+                        ServerConfigStore.ServerProfile(
+                            name = last.ip,
+                            ip = last.ip,
+                            port = last.port,
+                            useHttps = last.useHttps,
+                            authType = last.authType,
+                            username = last.username,
+                            password = last.password,
+                            token = last.token
+                        )
+                    )
+                }
+            }
+            val sessions = collectAllSessionHistories()
+            val payload = BackupManager.BackupPayload(
+                settings = AppSettingsStore.load(context),
+                customModels = CustomModelStore.load(context),
+                serverConfigs = profiles,
+                sessions = sessions
+            )
+            BackupExportResult(
+                json = BackupManager.buildJson(payload, password),
+                sessionCount = sessions.size,
+                serverCount = profiles.size
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "导出备份失败", e)
+            BackupExportResult(error = "导出失败：${e.message ?: "未知错误"}")
+        }
+    }
+
+    /**
+     * 导入备份：解析 JSON → 恢复服务器配置（凭据解密）/主题设置/自定义模型/会话历史。
+     * 凭据解密失败（密码错误 / 换机密钥不可用）会在 message 中明确提示。
+     */
+    fun importBackup(json: String, password: String): BackupImportResult {
+        val parsed = BackupManager.parse(json, password)
+        if (parsed is BackupManager.ParseResult.Err) {
+            return BackupImportResult(success = false, message = parsed.message)
+        }
+        val payload = (parsed as BackupManager.ParseResult.Ok).payload
+        return try {
+            val context = getApplication()
+            var restored = 0
+            // 恢复服务器配置（多套）+ 最近连接
+            if (payload.serverConfigs.isNotEmpty()) {
+                ServerConfigStore.saveProfiles(context, payload.serverConfigs)
+                ServerConfigStore.saveLast(context, payload.serverConfigs.last())
+                restored++
+            }
+            // 恢复主题设置
+            AppSettingsStore.save(context, payload.settings)
+            _uiState.update { it.copy(settings = payload.settings) }
+            restored++
+            // 恢复自定义模型列表
+            if (payload.customModels.isNotEmpty()) {
+                CustomModelStore.save(context, payload.customModels)
+                _uiState.update { it.copy(customModels = payload.customModels) }
+                restored++
+            }
+            // 恢复会话历史：本地存档 + 将备份中首个会话加载到聊天界面
+            if (payload.sessions.isNotEmpty()) {
+                BackupManager.saveSessions(context, payload.sessions)
+                val first = payload.sessions.first()
+                val history = first.messages.map { m ->
+                    HistoryMessage(
+                        role = m.role,
+                        content = m.content,
+                        reasoning = m.reasoning,
+                        toolCalls = m.toolCalls?.map { tc ->
+                            ToolCallPayload(id = tc.id, name = tc.name, arguments = tc.arguments)
+                        }
+                    )
+                }
+                _uiState.update { it.copy(messages = buildHistoryItems(history)) }
+                restored++
+            }
+            val warning = parsed.warning?.let { "\n$it" } ?: ""
+            BackupImportResult(
+                success = true,
+                message = "导入成功：已恢复 $restored 项（服务器配置/主题/模型/会话）$warning",
+                restoredSettings = payload.settings
+            )
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "导入备份失败", e)
+            BackupImportResult(success = false, message = "恢复失败：${e.message ?: "未知错误"}")
+        }
+    }
+
+    /**
+     * 遍历服务端全部会话并抓取各自历史（备份用）。
+     * 完成后恢复原当前会话并刷新界面数据，避免切换会话影响聊天页。
+     */
+    private suspend fun collectAllSessionHistories(): List<BackupManager.BackupSession> {
+        val sessions = repository.getSessions()
+        if (sessions.isEmpty()) return emptyList()
+        val currentPath = sessions.firstOrNull { it.current }?.path
+        val result = mutableListOf<BackupManager.BackupSession>()
+        sessions.forEach { s ->
+            try {
+                if (!s.current) repository.resumeSession(s.path)
+                val history = repository.getHistory()
+                result.add(
+                    BackupManager.BackupSession(
+                        name = s.name,
+                        path = s.path,
+                        title = s.title,
+                        turns = s.turns,
+                        messages = history.map { m ->
+                            BackupManager.BackupMessage(
+                                role = m.role,
+                                content = m.content,
+                                reasoning = m.reasoning,
+                                toolCalls = m.toolCalls?.map { tc ->
+                                    BackupManager.BackupToolCall(tc.id, tc.name, tc.arguments)
+                                }
+                            )
+                        }
+                    )
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "收集会话历史失败: ${s.name}", e)
+            }
+        }
+        // 恢复原当前会话并刷新
+        if (currentPath != null) {
+            try {
+                repository.resumeSession(currentPath)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "恢复当前会话失败", e)
+            }
+        }
+        loadInitialData()
+        return result
     }
 
     fun compactConversation() {

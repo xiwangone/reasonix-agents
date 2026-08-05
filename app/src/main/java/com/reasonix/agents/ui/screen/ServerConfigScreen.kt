@@ -119,25 +119,41 @@ private val Warning: Color @Composable get() = LocalPalette.current.warning
 fun ServerConfigScreen(
     settings: AppSettingsStore.Settings,
     onSettingsChange: (AppSettingsStore.Settings) -> Unit,
-    onConnect: (String, AuthInfo?) -> Unit
+    onConnect: (String, AuthInfo?) -> Unit,
+    /**
+     * 第五批 E-4：首次启动引导页选择的预填配置（如「使用示例服务器」）。
+     * 非空时覆盖「上次连接配置」自动回填，作为表单初始值。
+     */
+    prefillProfile: ServerProfile? = null
 ) {
     val context = LocalContext.current
     var connecting by remember { mutableStateOf(false) }
     var connectError by remember { mutableStateOf<String?>(null) }
     val saved = remember { ServerConfigStore.load(context) }
+    // 预填优先级：引导页选择（ServerProfile）> 上次连接配置（Config 转 ServerProfile）
+    val initial: ServerProfile = prefillProfile ?: ServerProfile(
+        name = saved.ip.ifBlank { "上次连接" },
+        ip = saved.ip,
+        port = saved.port,
+        useHttps = saved.useHttps,
+        authType = saved.authType,
+        username = saved.username,
+        password = saved.password,
+        token = saved.token
+    )
 
     val profileFocusRequester = remember { FocusRequester() }
     val addressFocusRequester = remember { FocusRequester() }
     val portFocusRequester = remember { FocusRequester() }
     val userFocusRequester = remember { FocusRequester() }
 
-    var ipInput by remember { mutableStateOf(saved.ip) }
-    var portInput by remember { mutableStateOf(saved.port) }
-    var useHttps by remember { mutableStateOf(saved.useHttps) }
-    var authType by remember { mutableStateOf(AuthType.from(saved.authType)) }
-    var usernameInput by remember { mutableStateOf(saved.username) }
-    var passwordInput by remember { mutableStateOf(saved.password) }
-    var tokenInput by remember { mutableStateOf(saved.token) }
+    var ipInput by remember { mutableStateOf(initial.ip) }
+    var portInput by remember { mutableStateOf(initial.port) }
+    var useHttps by remember { mutableStateOf(initial.useHttps) }
+    var authType by remember { mutableStateOf(AuthType.from(initial.authType)) }
+    var usernameInput by remember { mutableStateOf(initial.username) }
+    var passwordInput by remember { mutableStateOf(initial.password) }
+    var tokenInput by remember { mutableStateOf(initial.token) }
     var passwordVisible by remember { mutableStateOf(false) }
     var tokenVisible by remember { mutableStateOf(false) }
 
@@ -706,7 +722,7 @@ fun ServerConfigScreen(
 
 /** 顶部快捷设置：主题预设 / 明暗 / 语言 循环切换（批 A-2/A-5，全局生效）。 */
 @Composable
-private fun ThemeQuickToggle(
+internal fun ThemeQuickToggle(
     settings: AppSettingsStore.Settings,
     onSettingsChange: (AppSettingsStore.Settings) -> Unit
 ) {

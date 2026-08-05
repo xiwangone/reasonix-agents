@@ -22,10 +22,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -94,6 +96,9 @@ fun SettingsScreen(
     onOpenNetwork: () -> Unit = {},
     onOpenServerInfo: () -> Unit = {},
     onOpenCi: () -> Unit = {},
+    onOpenBackup: () -> Unit = {},
+    onOpenCli: () -> Unit = {},
+    onOpenDeploy: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     onClose: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -416,12 +421,22 @@ fun SettingsScreen(
             SettingEntry(Icons.Default.Visibility, "显示", "推理过程 / Token 费用开关", onClick = onOpenDisplay)
             Spacer(modifier = Modifier.height(6.dp))
             SettingEntry(Icons.Default.Wifi, "网络", "连接超时 / SSE 断线重连", onClick = onOpenNetwork)
+            Spacer(modifier = Modifier.height(6.dp))
+            SettingEntry(Icons.Default.Build, "CLI 集成", "启用 reasonix 调用部署 CLI（aide-wrap.sh / oc-wrap.sh）", onClick = onOpenCli)
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // ── 服务器 ──
             SectionTitle("服务器")
             SettingEntry(Icons.Default.Dns, "服务器信息", "地址 / 标签 / 计划模式 / 工具审批 / 余额", onClick = onOpenServerInfo)
+            Spacer(modifier = Modifier.height(6.dp))
+            SettingEntry(Icons.Default.OpenInNew, "部署自己的服务", "查看部署说明（GitHub README）", onClick = onOpenDeploy)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── 数据（第五批 E-1）──
+            SectionTitle("数据")
+            SettingEntry(Icons.Default.Lock, "备份与恢复", "导出 / 导入单文件备份（配置加密 + 会话历史）", onClick = onOpenBackup)
 
             Spacer(modifier = Modifier.height(16.dp))
 

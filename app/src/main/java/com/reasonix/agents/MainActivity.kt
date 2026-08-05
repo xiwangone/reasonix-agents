@@ -33,13 +33,19 @@ import androidx.navigation.compose.rememberNavController
 import com.reasonix.agents.data.AppSettingsStore
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.CiMonitorStore
+import com.reasonix.agents.data.ServerConfigStore
 import com.reasonix.agents.service.CiMonitorService
 import com.reasonix.agents.ui.navigation.Screens
 import com.reasonix.agents.ui.screen.AboutScreen
 import com.reasonix.agents.ui.screen.ChatScreen
+import com.reasonix.agents.ui.screen.EXAMPLE_SERVER_IP
+import com.reasonix.agents.ui.screen.EXAMPLE_SERVER_PORT
 import com.reasonix.agents.ui.screen.FilesScreen
+import com.reasonix.agents.ui.screen.FirstLaunchScreen
 import com.reasonix.agents.ui.screen.ServerConfigScreen
+import com.reasonix.agents.ui.screen.SettingsBackupScreen
 import com.reasonix.agents.ui.screen.SettingsCiScreen
+import com.reasonix.agents.ui.screen.SettingsCliScreen
 import com.reasonix.agents.ui.screen.SettingsDisplayScreen
 import com.reasonix.agents.ui.screen.SettingsModelScreen
 import com.reasonix.agents.ui.screen.SettingsNetworkScreen
@@ -96,20 +102,55 @@ class MainActivity : ComponentActivity() {
                 var serverUrl by remember { mutableStateOf("http://127.0.0.1:8920") }
                 var serverAuth by remember { mutableStateOf<AuthInfo?>(null) }
 
+                // 第五批 E-4：首次启动引导页——没有任何已保存服务器配置时展示
+                // 「配置自己的服务器 / 使用示例服务器」两个并列选项，默认不强制使用示例
+                val hasSavedServer = remember {
+                    val appContext = context.applicationContext
+                    ServerConfigStore.load(appContext).ip.isNotBlank() ||
+                        ServerConfigStore.loadProfiles(appContext).isNotEmpty()
+                }
+                var showFirstLaunch by remember { mutableStateOf(!hasSavedServer) }
+                var prefillProfile by remember { mutableStateOf<ServerConfigStore.ServerProfile?>(null) }
+
                 if (!serverConfigured) {
-                    // 启动引导：未配置服务器时先进入连接页（登录页，批 A-5 含主题/语言入口）
-                    ServerConfigScreen(
-                        settings = settings,
-                        onSettingsChange = { newSettings ->
-                            settings = newSettings
-                            AppSettingsStore.save(context, newSettings)
-                        },
-                        onConnect = { url, auth ->
-                            serverUrl = url
-                            serverAuth = auth
-                            serverConfigured = true
-                        }
-                    )
+                    if (showFirstLaunch) {
+                        FirstLaunchScreen(
+                            settings = settings,
+                            onSettingsChange = { newSettings ->
+                                settings = newSettings
+                                AppSettingsStore.save(context, newSettings)
+                            },
+                            onConfigureOwn = {
+                                prefillProfile = null
+                                showFirstLaunch = false
+                            },
+                            onUseExample = {
+                                // 预填示例服务器（本地默认部署地址），进入连接页可修改
+                                prefillProfile = ServerConfigStore.ServerProfile(
+                                    name = "示例服务器",
+                                    ip = EXAMPLE_SERVER_IP,
+                                    port = EXAMPLE_SERVER_PORT,
+                                    useHttps = false
+                                )
+                                showFirstLaunch = false
+                            }
+                        )
+                    } else {
+                        // 启动引导：未配置服务器时先进入连接页（登录页，批 A-5 含主题/语言入口）
+                        ServerConfigScreen(
+                            settings = settings,
+                            onSettingsChange = { newSettings ->
+                                settings = newSettings
+                                AppSettingsStore.save(context, newSettings)
+                            },
+                            prefillProfile = prefillProfile,
+                            onConnect = { url, auth ->
+                                serverUrl = url
+                                serverAuth = auth
+                                serverConfigured = true
+                            }
+                        )
+                    }
                 } else {
                     // 主框架：底部 Tab 导航（Chat / Files / Settings）+ About 页
                     ReasonixApp(
@@ -262,6 +303,16 @@ private fun ReasonixApp(
                     onOpenNetwork = { navController.navigate(Screens.SETTINGS_NETWORK) },
                     onOpenServerInfo = { navController.navigate(Screens.SETTINGS_SERVER) },
                     onOpenCi = { navController.navigate(Screens.SETTINGS_CI) },
+                    onOpenBackup = { navController.navigate(Screens.SETTINGS_BACKUP) },
+                    onOpenCli = { navController.navigate(Screens.SETTINGS_CLI) },
+                    onOpenDeploy = {
+                        // 部署自己的服务：AndroidBrowserIntent 打开仓库 README 部署说明
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/xiwangone/reasonix-agents#快速开始")
+                        )
+                        context.startActivity(intent)
+                    },
                     onOpenAbout = { navController.navigate(Screens.ABOUT) },
                     onClose = null
                 )
@@ -333,6 +384,28 @@ private fun ReasonixApp(
                     onCiSettingsChange = { newCi ->
                         chatViewModel.updateCiSettings(newCi)
                         onCiSettingsChanged(newCi)
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            // ── 设置二级界面（第五批）──
+            composable(Screens.SETTINGS_BACKUP) {
+                SettingsBackupScreen(
+                    onBack = { navController.popBackStack() },
+                    onSettingsRestored = { newSettings ->
+                        // 导入恢复主题等设置后同步到顶层，使主题立即生效
+                        chatViewModel.updateSettings(newSettings)
+                        onSettingsChanged(newSettings)
+                    },
+                    viewModel = chatViewModel
+                )
+            }
+            composable(Screens.SETTINGS_CLI) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsCliScreen(
+                    cliSettings = state.cliSettings,
+                    onCliSettingsChange = { newCli ->
+                        chatViewModel.updateCliSettings(newCli)
                     },
                     onBack = { navController.popBackStack() }
                 )

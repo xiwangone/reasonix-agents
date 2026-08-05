@@ -47,6 +47,10 @@ object Screens {
     const val SETTINGS_SERVER = "settings_server"
     const val SETTINGS_CI = "settings_ci"
 
+    /** 设置二级界面（第五批）：备份与恢复 / CLI 集成 */
+    const val SETTINGS_BACKUP = "settings_backup"
+    const val SETTINGS_CLI = "settings_cli"
+
     /** 起始目的地：Chat */
     val startDestination: String = CHAT
 
