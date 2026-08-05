@@ -78,6 +78,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 
 // ═══════════════════════════════════════════════
 // 调色板 — 从 LocalPalette 读取（支持主题切换）
@@ -204,25 +207,15 @@ fun ServerConfigScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ── Logo（随主题渐变）──
-            Box(
+            // ── Logo（品牌图标，随主题）──
+            Image(
+                painter = painterResource(R.drawable.logo),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(13.dp))
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Accent, Violet)
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "R",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 

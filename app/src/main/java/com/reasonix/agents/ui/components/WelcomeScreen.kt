@@ -19,6 +19,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.ui.theme.LocalPalette
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 
 // ═══════════════════════════════════════════════
 // 调色板
@@ -58,25 +61,15 @@ fun WelcomeScreen(
                 .padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ── Logo ──
-            Box(
+            // ── Logo（品牌图标）──
+            Image(
+                painter = painterResource(R.drawable.logo),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(13.dp))
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(Accent, Violet)
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "R",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
