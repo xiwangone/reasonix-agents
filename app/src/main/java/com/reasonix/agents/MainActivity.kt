@@ -63,6 +63,8 @@ import com.reasonix.agents.ui.theme.MaterialLightPalette
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
 import com.reasonix.agents.util.AppIconSwitcher
 import com.reasonix.agents.util.NotificationHelper
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
