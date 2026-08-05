@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "DeepSeek-Reasonix-android"
+rootProject.name = "reasonix-agents"
 include(":app")
