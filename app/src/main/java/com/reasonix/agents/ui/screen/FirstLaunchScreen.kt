@@ -68,6 +68,7 @@ fun FirstLaunchScreen(
     onSettingsChange: (AppSettingsStore.Settings) -> Unit,
     onConfigureOwn: () -> Unit,
     onUseExample: () -> Unit,
+    onOpenDeployDocs: () -> Unit = {},
 ) {
     Box(
         modifier =
@@ -148,6 +149,28 @@ fun FirstLaunchScreen(
                 textAlign = TextAlign.Center,
                 lineHeight = 16.sp,
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 批七：部署说明链接 —— AndroidBrowserIntent 打开 GitHub README（含部署教程章节）
+            Box(
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Accent.copy(alpha = 0.08f))
+                        .border(1.dp, Accent.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .clickable(onClick = onOpenDeployDocs)
+                        .padding(horizontal = 18.dp, vertical = 11.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "📖 查看部署说明（GitHub README）→",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Accent,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }

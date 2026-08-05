@@ -54,6 +54,9 @@ object Screens {
     /** 设置二级界面（第六批）：系统提示词（服务端只读展示） */
     const val SETTINGS_SYSTEM_PROMPT = "settings_system_prompt"
 
+    /** 设置二级界面（批七）：提示词（自定义提示词，查看/添加/保存/切换/删除） */
+    const val SETTINGS_PROMPT = "settings_prompt"
+
     /** 起始目的地：Chat */
     val startDestination: String = CHAT
 

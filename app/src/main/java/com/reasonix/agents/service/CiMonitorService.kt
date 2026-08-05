@@ -18,7 +18,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.TextView
 import com.reasonix.agents.MainActivity
 import com.reasonix.agents.R
@@ -32,9 +31,10 @@ import kotlinx.coroutines.launch
 
 /**
  * CI 监控悬浮球服务（系统级悬浮窗）。
- * 定时轮询 GitHub Actions 最新一次运行，用颜色表示状态：
- *   运行中=橙 成功=绿 失败=红 排队=蓝 取消=灰 未知=暗灰
- * 支持拖动、点击展开/收起详情、手动刷新。
+ * 定时轮询 GitHub Actions 最新一次运行：
+ * - 空闲状态显示 24dp 状态圆点（红=失败 / 绿=成功 / 黄=运行中）；
+ * - 点击展开 180×44dp 半透明黑底圆角面板，展示「CI: 运行中/成功/失败」+ 上次构建时间；
+ * - 再点击缩回圆点；支持拖动（位置保持），长按停止服务。
  */
 class CiMonitorService : Service() {
 
@@ -45,7 +45,7 @@ class CiMonitorService : Service() {
     private var expanded = false
     private var currentState = "unknown"
     private var lastRunText = "—"
-    private var lastError: String? = null
+    private var lastRunTimeText = "—"
 
     private var initialX = 0
     private var initialY = 0
@@ -104,42 +104,52 @@ class CiMonitorService : Service() {
     // ── 悬浮球 ──
 
     private fun addBubble() {
-        val settings = CiMonitorStore.load(this)
         if (bubble != null) return
 
         val root = FrameLayout(this)
         root.setBackgroundColor(Color.TRANSPARENT)
 
-        // 状态圆点（外层；批 C-5：缩小 56 → 40dp）
+        // 状态圆点（空闲态，批七：24dp 小圆，红=失败 / 绿=成功 / 黄=运行中）
         val dot = View(this)
-        dot.layoutParams = FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER)
+        dot.layoutParams = FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
         dot.background = android.graphics.drawable.GradientDrawable().apply {
             shape = android.graphics.drawable.GradientDrawable.OVAL
             setColor(stateColor(currentState))
         }
         root.addView(dot)
 
-        // 内层 app 图标风格小图标（批 C-5：替换 "CI" 文字为 ic_stat_reasonix，与通知小图标一致）
-        val icon = ImageView(this)
-        icon.setImageResource(R.drawable.ic_stat_reasonix)
-        icon.layoutParams = FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
-        icon.alpha = 1f
-        root.addView(icon)
-
-        // 详情文字（展开时显示）
-        val detail = TextView(this)
-        detail.text = lastRunText
-        detail.setTextColor(Color.WHITE)
-        detail.textSize = 11f
-        detail.gravity = Gravity.CENTER
-        detail.layoutParams = FrameLayout.LayoutParams(
+        // 展开面板（点击后，批七：180×44dp 黑底半透明 alpha=0.6 + 圆角 10dp）
+        val panel = FrameLayout(this)
+        panel.layoutParams = FrameLayout.LayoutParams(dp(180), dp(44), Gravity.CENTER)
+        panel.background = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = dp(10).toFloat()
+            // Color.BLACK.copy(alpha = 0.6f) → 0x99 000000
+            setColor(Color.argb(153, 0, 0, 0))
+        }
+        val stateText = TextView(this)
+        stateText.text = statusLine()
+        stateText.setTextColor(Color.WHITE)
+        stateText.textSize = 13f
+        stateText.gravity = Gravity.CENTER
+        stateText.layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        )
+        panel.addView(stateText)
+        val timeText = TextView(this)
+        timeText.text = "上次构建: $lastRunTimeText"
+        timeText.setTextColor(Color.argb(210, 255, 255, 255))
+        timeText.textSize = 10f
+        timeText.gravity = Gravity.CENTER
+        timeText.layoutParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT,
             Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
         )
-        detail.visibility = if (expanded) View.VISIBLE else View.GONE
-        detail.setPadding(0, 4, 0, 0)
-        root.addView(detail)
+        panel.addView(timeText)
+        panel.visibility = View.GONE
+        root.addView(panel)
 
         root.setOnClickListener { toggleExpand() }
         root.setOnLongClickListener {
@@ -193,20 +203,26 @@ class CiMonitorService : Service() {
     private fun toggleExpand() {
         expanded = !expanded
         bubble?.let { b ->
-            // 更新详情可见性：重建详情文本
-            val detail = b.getChildAt(2) as TextView
-            detail.text = detailText()
-            detail.visibility = if (expanded) View.VISIBLE else View.GONE
+            // 圆点（child 0）与展开面板（child 1）互斥显示
+            b.getChildAt(0).visibility = if (expanded) View.GONE else View.VISIBLE
+            val panel = b.getChildAt(1) as FrameLayout
+            panel.visibility = if (expanded) View.VISIBLE else View.GONE
+            if (expanded) {
+                (panel.getChildAt(0) as TextView).text = statusLine()
+                (panel.getChildAt(1) as TextView).text = "上次构建: $lastRunTimeText"
+            }
         }
     }
 
     // ── 状态与刷新 ──
 
-    private fun detailText(): String = buildString {
-        append(lastRunText)
-        if (expanded) {
-            lastError?.let { append("\n").append(it) }
-        }
+    /** 展开面板状态文字：「CI: 运行中/成功/失败」（批七）。 */
+    private fun statusLine(): String = "CI: " + when (currentState) {
+        "success" -> "成功"
+        "failure" -> "失败"
+        "cancelled" -> "已取消"
+        "running", "queued" -> "运行中"
+        else -> "未知"
     }
 
     private fun scheduleRefresh(delayMs: Long) {
@@ -218,7 +234,7 @@ class CiMonitorService : Service() {
         if (s.githubToken.isBlank()) {
             currentState = "unknown"
             lastRunText = "未配置 token"
-            lastError = "请在设置中填写 GitHub Token"
+            lastRunTimeText = "—"
             updateBubble()
             return
         }
@@ -228,13 +244,26 @@ class CiMonitorService : Service() {
             if (run == null) {
                 currentState = "unknown"
                 lastRunText = "查询失败"
-                lastError = "无法获取 CI 状态（token/仓库错误或网络）"
+                lastRunTimeText = "—"
             } else {
                 currentState = run.state
                 lastRunText = runLabel(run)
-                lastError = null
+                lastRunTimeText = formatRunTime(run.createdAt)
             }
             updateBubble()
+        }
+    }
+
+    /** 上次构建时间：GitHub ISO8601（UTC）→ 本地时区 "MM-dd HH:mm"。 */
+    private fun formatRunTime(iso: String): String {
+        if (iso.isBlank()) return "—"
+        return try {
+            val inFmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US)
+            inFmt.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            val outFmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US)
+            inFmt.parse(iso)?.let { outFmt.format(it) } ?: "—"
+        } catch (e: Exception) {
+            "—"
         }
     }
 
@@ -255,10 +284,10 @@ class CiMonitorService : Service() {
         bubble?.let { b ->
             val dot = b.getChildAt(0) as View
             (dot.background as? android.graphics.drawable.GradientDrawable)?.setColor(stateColor(currentState))
-            val detail = b.getChildAt(2) as TextView
-            detail.text = detailText()
             if (expanded) {
-                detail.visibility = View.VISIBLE
+                val panel = b.getChildAt(1) as FrameLayout
+                (panel.getChildAt(0) as TextView).text = statusLine()
+                (panel.getChildAt(1) as TextView).text = "上次构建: $lastRunTimeText"
             }
         }
         // 更新通知
@@ -266,13 +295,13 @@ class CiMonitorService : Service() {
         runCatching { nm.notify(NOTIF_ID, buildNotification("CI: $lastRunText")) }
     }
 
+    /** 三色状态映射（批七）：绿=成功 红=失败 黄=运行中；排队归运行中、取消归失败；未知为灰。 */
     private fun stateColor(state: String): Int = when (state) {
-        "success" -> Color.rgb(64, 160, 96)     // 绿
-        "failure" -> Color.rgb(224, 70, 54)     // 红
-        "running" -> Color.rgb(234, 136, 0)     // 橙
-        "queued" -> Color.rgb(59, 130, 246)     // 蓝
-        "cancelled" -> Color.rgb(154, 152, 150) // 灰
-        else -> Color.rgb(90, 84, 82)           // 暗灰
+        "success" -> Color.rgb(64, 160, 96)      // 绿
+        "failure" -> Color.rgb(224, 70, 54)      // 红
+        "cancelled" -> Color.rgb(224, 70, 54)    // 红（已取消归失败色）
+        "running", "queued" -> Color.rgb(230, 190, 40) // 黄
+        else -> Color.rgb(140, 140, 140)         // 灰（未知/未配置）
     }
 
     // ── 通知 ──

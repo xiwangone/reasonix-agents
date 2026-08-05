@@ -414,9 +414,7 @@ fun ChatScreen(
                 onRewind = { viewModel.showRewindPicker() },
                 onFork = { viewModel.showRewindPicker() },
                 onStats = { viewModel.showStatsDialog() },
-                onSettings = onNavigateToSettings,
                 onExport = { viewModel.toggleSidebar(); showExportDialog = true },
-                onAbout = { viewModel.toggleSidebar(); onNavigateToAbout() },
                 modifier = Modifier.width(220.dp)
             )
         }
@@ -842,9 +840,7 @@ private fun Sidebar(
     onRewind: () -> Unit,
     onFork: () -> Unit,
     onStats: () -> Unit,
-    onSettings: () -> Unit,
     onExport: () -> Unit,
-    onAbout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // 第五批 E-2：会话多选模式——长按进入，支持全选 / 批量删除 / 单条删除
@@ -917,9 +913,8 @@ private fun Sidebar(
             Spacer(modifier = Modifier.height(2.dp))
             HorizontalDivider(color = Border, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
 
-            SidebarItem("设置", onClick = onSettings)
+            // 批七：侧边栏不再重复「设置 / 关于」入口（底部导航已有「设置」，关于保留设置页入口）
             SidebarItem("导出会话", onClick = onExport)
-            SidebarItem("关于", onClick = onAbout)
         }
 
         // ── 会话标签 ──
@@ -1133,15 +1128,17 @@ private fun SidebarItem(label: String, onClick: () -> Unit, accent: Boolean = fa
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(if (accent) Accent else Card)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            // 批七：加大 padding，扩大点击热区
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             label,
-            fontSize = 13.sp,
+            // 批七：字号 13 → 15sp，提升可读性与点击体验
+            fontSize = 15.sp,
             fontWeight = if (accent) FontWeight.Medium else FontWeight.Normal,
             color = if (accent) Color.White else Fg2
         )
@@ -1216,7 +1213,8 @@ private fun SessionRow(
 
         Text(
             text = session.title ?: session.name.take(30),
-            fontSize = 12.sp,
+            // 批七：会话行字号 12 → 14sp
+            fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             color = if (selected || (session.current && !selectionMode)) Accent else Fg2,
             maxLines = 1,

@@ -49,6 +49,7 @@ import com.reasonix.agents.ui.screen.SettingsCliScreen
 import com.reasonix.agents.ui.screen.SettingsDisplayScreen
 import com.reasonix.agents.ui.screen.SettingsModelScreen
 import com.reasonix.agents.ui.screen.SettingsNetworkScreen
+import com.reasonix.agents.ui.screen.SettingsPromptScreen
 import com.reasonix.agents.ui.screen.SettingsScreen
 import com.reasonix.agents.ui.screen.SettingsServerScreen
 import com.reasonix.agents.ui.screen.SettingsSystemPromptScreen
@@ -134,6 +135,15 @@ class MainActivity : ComponentActivity() {
                                     useHttps = false
                                 )
                                 showFirstLaunch = false
+                            },
+                            // 批七：部署说明链接 —— AndroidBrowserIntent 打开仓库 README（含部署教程章节）
+                            onOpenDeployDocs = {
+                                context.startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse("https://github.com/xiwangone/reasonix-agents")
+                                    )
+                                )
                             }
                         )
                     } else {
@@ -290,13 +300,8 @@ private fun ReasonixApp(
                 )
             }
             composable(Screens.SETTINGS) {
-                val state by chatViewModel.uiState.collectAsState()
                 SettingsScreen(
-                    customPrompts = state.customPrompts,
-                    currentPromptId = state.currentPromptId,
-                    onAddPrompt = { content, select -> chatViewModel.addPrompt(content, select) },
-                    onRemovePrompt = { id -> chatViewModel.removePrompt(id) },
-                    onSetCurrentPrompt = { id -> chatViewModel.setCurrentPrompt(id) },
+                    onOpenPrompt = { navController.navigate(Screens.SETTINGS_PROMPT) },
                     onOpenSystemPrompt = { navController.navigate(Screens.SETTINGS_SYSTEM_PROMPT) },
                     onOpenTheme = { navController.navigate(Screens.SETTINGS_THEME) },
                     onOpenModel = { navController.navigate(Screens.SETTINGS_MODEL) },
@@ -416,6 +421,18 @@ private fun ReasonixApp(
                 val state by chatViewModel.uiState.collectAsState()
                 SettingsSystemPromptScreen(
                     systemPrompt = state.systemPrompt,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            // ── 设置二级界面（批七）：提示词（自定义提示词，查看/添加/保存/切换/删除）──
+            composable(Screens.SETTINGS_PROMPT) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsPromptScreen(
+                    customPrompts = state.customPrompts,
+                    currentPromptId = state.currentPromptId,
+                    onAddPrompt = { content, select -> chatViewModel.addPrompt(content, select) },
+                    onRemovePrompt = { id -> chatViewModel.removePrompt(id) },
+                    onSetCurrentPrompt = { id -> chatViewModel.setCurrentPrompt(id) },
                     onBack = { navController.popBackStack() }
                 )
             }
