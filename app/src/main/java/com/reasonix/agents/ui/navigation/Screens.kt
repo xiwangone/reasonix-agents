@@ -39,6 +39,14 @@ object Screens {
     /** 服务器配置页（批 C-1：Chat 左上角「配置」→「新增配置」跳转新建） */
     const val SERVER_CONFIG = "server_config"
 
+    /** 设置二级界面（第四批：设置组件化，点击设置入口进入） */
+    const val SETTINGS_THEME = "settings_theme"
+    const val SETTINGS_MODEL = "settings_model"
+    const val SETTINGS_DISPLAY = "settings_display"
+    const val SETTINGS_NETWORK = "settings_network"
+    const val SETTINGS_SERVER = "settings_server"
+    const val SETTINGS_CI = "settings_ci"
+
     /** 起始目的地：Chat */
     val startDestination: String = CHAT
 

@@ -39,7 +39,13 @@ import com.reasonix.agents.ui.screen.AboutScreen
 import com.reasonix.agents.ui.screen.ChatScreen
 import com.reasonix.agents.ui.screen.FilesScreen
 import com.reasonix.agents.ui.screen.ServerConfigScreen
+import com.reasonix.agents.ui.screen.SettingsCiScreen
+import com.reasonix.agents.ui.screen.SettingsDisplayScreen
+import com.reasonix.agents.ui.screen.SettingsModelScreen
+import com.reasonix.agents.ui.screen.SettingsNetworkScreen
 import com.reasonix.agents.ui.screen.SettingsScreen
+import com.reasonix.agents.ui.screen.SettingsServerScreen
+import com.reasonix.agents.ui.screen.SettingsThemeScreen
 import com.reasonix.agents.ui.theme.DarkPalette
 import com.reasonix.agents.ui.theme.LightPalette
 import com.reasonix.agents.ui.theme.LocalPalette
@@ -191,8 +197,8 @@ private fun ReasonixApp(
             val backStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = backStackEntry?.destination?.route
 
-            // About 页隐藏底部导航栏
-            if (currentRoute != Screens.ABOUT) {
+            // About 页与设置二级界面隐藏底部导航栏（第四批：设置组件化）
+            if (currentRoute != Screens.ABOUT && currentRoute?.startsWith("settings_") != true) {
                 NavigationBar(containerColor = palette.bg2) {
                     Screens.tabs.forEach { tab ->
                         val selected = currentRoute == tab.route
@@ -244,40 +250,90 @@ private fun ReasonixApp(
             composable(Screens.SETTINGS) {
                 val state by chatViewModel.uiState.collectAsState()
                 SettingsScreen(
-                    serverUrl = state.serverUrl,
-                    status = state.status,
-                    models = state.models,
-                    customModels = state.customModels,
-                    currentModel = state.currentModel,
                     systemPrompt = state.systemPrompt,
-                    settings = state.settings,
-                    ciSettings = state.ciSettings,
-                    onSettingsChange = { newSettings ->
-                        chatViewModel.updateSettings(newSettings)
-                        onSettingsChanged(newSettings)
-                    },
-                    onShowReasoningChange = { show ->
-                        chatViewModel.updateSettings(state.settings.copy(showReasoning = show))
-                        onSettingsChanged(state.settings.copy(showReasoning = show))
-                    },
-                    onShowTokensChange = { show ->
-                        chatViewModel.updateSettings(state.settings.copy(showTokens = show))
-                        onSettingsChanged(state.settings.copy(showTokens = show))
-                    },
-                    onModelSelect = { model -> chatViewModel.setModel(model) },
-                    onRefreshModels = { chatViewModel.reloadModels() },
-                    onAddCustomModel = { model -> chatViewModel.addCustomModel(model) },
-                    onRemoveCustomModel = { id -> chatViewModel.removeCustomModel(id) },
-                    onCiSettingsChange = { newCi ->
-                        chatViewModel.updateCiSettings(newCi)
-                        onCiSettingsChanged(newCi)
-                    },
+                    customPrompts = state.customPrompts,
+                    currentPromptId = state.currentPromptId,
+                    onAddPrompt = { content, select -> chatViewModel.addPrompt(content, select) },
+                    onRemovePrompt = { id -> chatViewModel.removePrompt(id) },
+                    onSetCurrentPrompt = { id -> chatViewModel.setCurrentPrompt(id) },
+                    onOpenTheme = { navController.navigate(Screens.SETTINGS_THEME) },
+                    onOpenModel = { navController.navigate(Screens.SETTINGS_MODEL) },
+                    onOpenDisplay = { navController.navigate(Screens.SETTINGS_DISPLAY) },
+                    onOpenNetwork = { navController.navigate(Screens.SETTINGS_NETWORK) },
+                    onOpenServerInfo = { navController.navigate(Screens.SETTINGS_SERVER) },
+                    onOpenCi = { navController.navigate(Screens.SETTINGS_CI) },
                     onOpenAbout = { navController.navigate(Screens.ABOUT) },
                     onClose = null
                 )
             }
             composable(Screens.ABOUT) {
                 AboutScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            // ── 设置二级界面（第四批：设置组件化）──
+            composable(Screens.SETTINGS_THEME) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsThemeScreen(
+                    settings = state.settings,
+                    onSettingsChange = { newSettings ->
+                        chatViewModel.updateSettings(newSettings)
+                        onSettingsChanged(newSettings)
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screens.SETTINGS_MODEL) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsModelScreen(
+                    models = state.models,
+                    customModels = state.customModels,
+                    currentModel = state.currentModel,
+                    onModelSelect = { model -> chatViewModel.setModel(model) },
+                    onRefreshModels = { chatViewModel.reloadModels() },
+                    onAddCustomModel = { model -> chatViewModel.addCustomModel(model) },
+                    onRemoveCustomModel = { id -> chatViewModel.removeCustomModel(id) },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screens.SETTINGS_DISPLAY) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsDisplayScreen(
+                    settings = state.settings,
+                    onSettingsChange = { newSettings ->
+                        chatViewModel.updateSettings(newSettings)
+                        onSettingsChanged(newSettings)
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screens.SETTINGS_NETWORK) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsNetworkScreen(
+                    settings = state.settings,
+                    onSettingsChange = { newSettings ->
+                        chatViewModel.updateSettings(newSettings)
+                        onSettingsChanged(newSettings)
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screens.SETTINGS_SERVER) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsServerScreen(
+                    serverUrl = state.serverUrl,
+                    status = state.status,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screens.SETTINGS_CI) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsCiScreen(
+                    ciSettings = state.ciSettings,
+                    onCiSettingsChange = { newCi ->
+                        chatViewModel.updateCiSettings(newCi)
+                        onCiSettingsChanged(newCi)
+                    },
                     onBack = { navController.popBackStack() }
                 )
             }

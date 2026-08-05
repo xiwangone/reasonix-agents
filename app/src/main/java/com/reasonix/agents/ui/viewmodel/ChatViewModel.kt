@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.AppSettingsStore
 import com.reasonix.agents.data.CustomModelStore
+import com.reasonix.agents.data.PromptStore
 import com.reasonix.agents.data.model.*
 import com.reasonix.agents.data.repository.ChatRepository
 import com.reasonix.agents.util.NotificationHelper
@@ -36,6 +37,8 @@ data class ChatUiState(
     val showStatsDialog: Boolean = false,
     val settings: AppSettingsStore.Settings = AppSettingsStore.Settings(),
     val customModels: List<CustomModelStore.CustomModel> = emptyList(),
+    val customPrompts: List<PromptStore.CustomPrompt> = emptyList(),
+    val currentPromptId: String = "",
     val ciSettings: com.reasonix.agents.data.CiMonitorStore.CiSettings = com.reasonix.agents.data.CiMonitorStore.CiSettings(),
     val cumulativeTokens: Long = 0,
     val cumulativeCost: Double = 0.0,
@@ -83,6 +86,13 @@ class ChatViewModel(
     init {
         // 加载本地持久化的应用设置（主题/超时/重连等，批 A-2/B-11）
         _uiState.update { it.copy(settings = AppSettingsStore.load(getApplication())) }
+        // 第四批：加载用户自定义提示词与当前选中项
+        _uiState.update {
+            it.copy(
+                customPrompts = PromptStore.load(getApplication()),
+                currentPromptId = PromptStore.getCurrentId(getApplication())
+            )
+        }
         // 批 C-7：登录/连接成功进入主界面时默认新建会话（不恢复上次会话）
         loadInitialData(freshSession = freshSession)
         collectConnectionState()
@@ -191,6 +201,49 @@ class ChatViewModel(
             it.copy(customModels = CustomModelStore.load(getApplication()))
         }
     }
+
+    // ── 自定义提示词管理（第四批：提示词功能）──
+
+    /** 添加一条用户提示词；select=true 时保存并立即选中生效。 */
+    fun addPrompt(content: String, select: Boolean = false) {
+        val trimmed = content.trim()
+        if (trimmed.isBlank()) return
+        if (_uiState.value.customPrompts.size >= PromptStore.MAX_PROMPTS) return
+        val id = java.util.UUID.randomUUID().toString()
+        val updated = PromptStore.add(
+            getApplication(),
+            PromptStore.CustomPrompt(id = id, content = trimmed, createdAt = System.currentTimeMillis())
+        )
+        var currentId = _uiState.value.currentPromptId
+        if (select) {
+            currentId = id
+            PromptStore.setCurrentId(getApplication(), id)
+        }
+        _uiState.update { it.copy(customPrompts = updated, currentPromptId = currentId) }
+    }
+
+    /** 删除提示词；若删除的是当前选中项则同步清除选中状态。 */
+    fun removePrompt(id: String) {
+        val updated = PromptStore.remove(getApplication(), id)
+        val currentId = if (_uiState.value.currentPromptId == id) "" else _uiState.value.currentPromptId
+        if (currentId != _uiState.value.currentPromptId) {
+            PromptStore.setCurrentId(getApplication(), currentId)
+        }
+        _uiState.update { it.copy(customPrompts = updated, currentPromptId = currentId) }
+    }
+
+    /** 切换选中/取消选中某条提示词（单选：选中一条时其它自动取消）。 */
+    fun setCurrentPrompt(id: String) {
+        val currentId = if (_uiState.value.currentPromptId == id) "" else id
+        PromptStore.setCurrentId(getApplication(), currentId)
+        _uiState.update { it.copy(currentPromptId = currentId) }
+    }
+
+    /** 当前选中的提示词内容（发送消息时注入会话上下文）。 */
+    fun activePromptContent(): String =
+        _uiState.value.customPrompts
+            .firstOrNull { it.id == _uiState.value.currentPromptId }
+            ?.content?.trim() ?: ""
 
     // ── 更新 CI 监控设置 ──
     fun updateCiSettings(s: com.reasonix.agents.data.CiMonitorStore.CiSettings) {
@@ -304,9 +357,12 @@ class ChatViewModel(
         pendingToolCards.clear()
 
         // 提交消息 → 启动 SSE 监听
+        // 第四批：选中用户提示词时，附加在系统提示词之后注入会话上下文
+        val promptContent = activePromptContent()
+        val effectiveInput = if (promptContent.isNotBlank()) "$promptContent\n\n$text" else text
         viewModelScope.launch {
             try {
-                repository.submit(text)
+                repository.submit(effectiveInput)
                 startSseCollection()
             } catch (e: CancellationException) {
                 throw e
