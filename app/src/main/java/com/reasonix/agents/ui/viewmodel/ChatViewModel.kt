@@ -425,6 +425,49 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * 发送图片消息（第六批：本地 OCR 优先）。
+     *
+     * - [ocrText]：OCR 识别文本，作为消息内容发送（图片+文字展示在消息中）；
+     *   识别失败选择「发送原图」时传空字符串，服务端侧用「[图片]」占位，本地消息展示图片。
+     * - [imagePath]：本地缓存图片文件路径，仅用于本地消息展示（不发送给服务端）。
+     */
+    fun sendImageMessage(ocrText: String, imagePath: String?) {
+        val text = ocrText.trim()
+        _uiState.update {
+            it.copy(
+                isStreaming = true,
+                error = null
+            )
+        }
+
+        // 添加用户消息（图片 + OCR 文字）
+        appendMessage(ChatItem.UserMessage(text, imagePath))
+
+        // 初始化流式缓冲区
+        currentAssistantMsgIndex = null
+        pendingContent = StringBuilder()
+        pendingReasoning = StringBuilder()
+        pendingToolCards.clear()
+
+        // 提交消息 → 启动 SSE 监听（复用 sendMessage 的提示词/CLI 注入逻辑）
+        val promptContent = activePromptContent()
+        val cliInstruction = cliInstruction()
+        val effectiveInput = listOfNotNull(promptContent, cliInstruction, text.ifBlank { "[图片]" })
+            .joinToString("\n\n")
+        viewModelScope.launch {
+            try {
+                repository.submit(effectiveInput)
+                startSseCollection()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                appendMessage(ChatItem.ErrorMessage("提交失败: ${e.message}"))
+                _uiState.update { it.copy(isStreaming = false) }
+            }
+        }
+    }
+
     /** 解析并执行斜杠命令。返回 true 表示已处理（不发往服务器）。 */
     private fun parseSlashCommand(text: String): Boolean {
         val cmd = text.trim()

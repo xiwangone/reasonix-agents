@@ -80,7 +80,7 @@ private fun ChatItemRow(
     onAskSubmit: ((List<Map<String, String>>) -> Unit)?
 ) {
     when (item) {
-        is ChatItem.UserMessage -> UserMessageBubble(item.content)
+        is ChatItem.UserMessage -> UserMessageBubble(item.content, item.imagePath)
 
         is ChatItem.AssistantMessage -> {
             Column(modifier = Modifier.fillMaxWidth()) {

@@ -79,17 +79,18 @@ private val Danger: Color @Composable get() = LocalPalette.current.danger
 /**
  * 设置页（第四批：设置组件化）。
  *
- * - 保留「系统提示词」（后端只读）与「提示词」（用户自定义，含添加/保存/切换/删除，上限 10 条）区块；
+ * - 系统提示词（后端只读）已移入二级界面「系统提示词」（第六批：新会话静默化，不再弹出展示页）；
+ * - 保留「提示词」（用户自定义，含添加/保存/切换/删除，上限 10 条）区块；
  * - 其余已有设置项按功能分组归入二级界面：主题 / 模型 / 显示 / 网络 / 服务器信息 / CI 监控 / 关于。
  */
 @Composable
 fun SettingsScreen(
-    systemPrompt: String? = null,
     customPrompts: List<PromptStore.CustomPrompt> = emptyList(),
     currentPromptId: String = "",
     onAddPrompt: (String, Boolean) -> Unit = { _, _ -> },
     onRemovePrompt: (String) -> Unit = {},
     onSetCurrentPrompt: (String) -> Unit = {},
+    onOpenSystemPrompt: () -> Unit = {},
     onOpenTheme: () -> Unit = {},
     onOpenModel: () -> Unit = {},
     onOpenDisplay: () -> Unit = {},
@@ -229,37 +230,6 @@ fun SettingsScreen(
                         Text("关闭", fontSize = 13.sp, color = Muted)
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ── 系统提示词（只读）──
-            SectionTitle("系统提示词")
-            if (systemPrompt.isNullOrBlank()) {
-                InfoRow("提示词", "—")
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 220.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Panel)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = systemPrompt,
-                        fontSize = 12.sp,
-                        color = Fg2,
-                        lineHeight = 18.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "只读：服务端不支持修改系统提示词",
-                    fontSize = 11.sp,
-                    color = Muted2
-                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -414,6 +384,14 @@ fun SettingsScreen(
 
             // ── 常规设置（第四批：设置组件化，点击进入二级界面）──
             SectionTitle("常规")
+            // 第六批：系统提示词移入二级页面（只读展示完整内容）
+            SettingEntry(
+                Icons.Default.Info,
+                "系统提示词",
+                "服务端系统提示词（只读，完整查看）",
+                onClick = onOpenSystemPrompt
+            )
+            Spacer(modifier = Modifier.height(6.dp))
             SettingEntry(Icons.Default.Palette, "主题", "配色风格 / 明暗模式 / 语言", onClick = onOpenTheme)
             Spacer(modifier = Modifier.height(6.dp))
             SettingEntry(Icons.Default.List, "模型", "模型切换 / 添加 / 删除自定义模型", onClick = onOpenModel)

@@ -198,7 +198,14 @@ data class CheckpointInfo(
 // ── UI 消息模型 ──
 
 sealed class ChatItem {
-    data class UserMessage(val content: String) : ChatItem()
+    /**
+     * 用户消息。第六批：图片发送——[imagePath] 为本地缓存图片文件路径
+     * （OCR 识别文本作为 [content] 发送；发送原图时 [content] 为空、仅展示图片）。
+     */
+    data class UserMessage(
+        val content: String,
+        val imagePath: String? = null
+    ) : ChatItem()
 
     data class AssistantMessage(
         val content: String = "",

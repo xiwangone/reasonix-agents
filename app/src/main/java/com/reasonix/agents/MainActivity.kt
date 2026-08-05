@@ -51,6 +51,7 @@ import com.reasonix.agents.ui.screen.SettingsModelScreen
 import com.reasonix.agents.ui.screen.SettingsNetworkScreen
 import com.reasonix.agents.ui.screen.SettingsScreen
 import com.reasonix.agents.ui.screen.SettingsServerScreen
+import com.reasonix.agents.ui.screen.SettingsSystemPromptScreen
 import com.reasonix.agents.ui.screen.SettingsThemeScreen
 import com.reasonix.agents.ui.theme.DarkPalette
 import com.reasonix.agents.ui.theme.LightPalette
@@ -291,12 +292,12 @@ private fun ReasonixApp(
             composable(Screens.SETTINGS) {
                 val state by chatViewModel.uiState.collectAsState()
                 SettingsScreen(
-                    systemPrompt = state.systemPrompt,
                     customPrompts = state.customPrompts,
                     currentPromptId = state.currentPromptId,
                     onAddPrompt = { content, select -> chatViewModel.addPrompt(content, select) },
                     onRemovePrompt = { id -> chatViewModel.removePrompt(id) },
                     onSetCurrentPrompt = { id -> chatViewModel.setCurrentPrompt(id) },
+                    onOpenSystemPrompt = { navController.navigate(Screens.SETTINGS_SYSTEM_PROMPT) },
                     onOpenTheme = { navController.navigate(Screens.SETTINGS_THEME) },
                     onOpenModel = { navController.navigate(Screens.SETTINGS_MODEL) },
                     onOpenDisplay = { navController.navigate(Screens.SETTINGS_DISPLAY) },
@@ -407,6 +408,14 @@ private fun ReasonixApp(
                     onCliSettingsChange = { newCli ->
                         chatViewModel.updateCliSettings(newCli)
                     },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            // ── 设置二级界面（第六批）：系统提示词（只读）──
+            composable(Screens.SETTINGS_SYSTEM_PROMPT) {
+                val state by chatViewModel.uiState.collectAsState()
+                SettingsSystemPromptScreen(
+                    systemPrompt = state.systemPrompt,
                     onBack = { navController.popBackStack() }
                 )
             }

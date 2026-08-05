@@ -115,6 +115,7 @@ dependencies {
 
     // 图片加载库（Markwon image 插件需要）
     implementation(libs.coil)
+    implementation(libs.coil.compose)
     implementation(libs.glide) {
         exclude(group = "com.google.guava", module = "listenablefuture")
     }
@@ -123,6 +124,8 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.core.ktx)
+    // 本地 OCR（第六批：图片发送，中文 bundled 离线模型，无需联网下载）
+    implementation(libs.mlkit.text.recognition.chinese)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

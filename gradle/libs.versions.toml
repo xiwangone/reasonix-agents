@@ -21,6 +21,7 @@ prism4j = "2.0.0"
 coil = "2.7.0"
 glide = "4.16.0"
 picasso = "2.8"
+mlkitTextRecognition = "16.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -60,8 +61,12 @@ markwon-image-glide = { group = "io.noties.markwon", name = "image-glide", versi
 markwon-image-picasso = { group = "io.noties.markwon", name = "image-picasso", version.ref = "markwon" }
 markwon-simple-ext = { group = "io.noties.markwon", name = "simple-ext", version.ref = "markwon" }
 coil = { group = "io.coil-kt", name = "coil", version.ref = "coil" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
 picasso = { group = "com.squareup.picasso", name = "picasso", version.ref = "picasso" }
+
+// 本地 OCR（第六批：图片发送，中文 bundled 离线模型）
+mlkit-text-recognition-chinese = { group = "com.google.mlkit", name = "text-recognition-chinese", version.ref = "mlkitTextRecognition" }
 
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }

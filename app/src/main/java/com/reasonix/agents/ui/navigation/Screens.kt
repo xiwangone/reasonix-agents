@@ -51,6 +51,9 @@ object Screens {
     const val SETTINGS_BACKUP = "settings_backup"
     const val SETTINGS_CLI = "settings_cli"
 
+    /** 设置二级界面（第六批）：系统提示词（服务端只读展示） */
+    const val SETTINGS_SYSTEM_PROMPT = "settings_system_prompt"
+
     /** 起始目的地：Chat */
     val startDestination: String = CHAT
 

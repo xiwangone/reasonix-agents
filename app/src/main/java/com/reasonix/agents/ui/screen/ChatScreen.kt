@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -50,7 +51,11 @@ import com.reasonix.agents.data.model.StatusInfo
 import com.reasonix.agents.ui.components.*
 import com.reasonix.agents.ui.theme.LocalPalette
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
+import com.reasonix.agents.util.ImageOcr
 import com.reasonix.agents.util.SessionExporter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // ═══════════════════════════════════════════════
 // 调色板 — 匹配 index.html 的 Reasonix 暗色主题
@@ -129,6 +134,54 @@ fun ChatScreen(
     fun startExport(format: String) {
         exportFormat = format
         exportLauncher.launch(if (format == "JSON") "reasonix-会话.json" else "reasonix-会话.txt")
+    }
+
+    // ── 发送图片（第六批：相册选择 + 本地 OCR 优先）──
+    val scope = rememberCoroutineScope()
+    var imageProcessing by remember { mutableStateOf(false) }
+    // OCR 失败后待确认的本地图片路径（弹窗询问是否发送原图）
+    var ocrFailedPath by remember { mutableStateOf<String?>(null) }
+
+    // 相册选择：PickVisualMedia（Android 13+ Photo Picker，低版本自动回退系统选择器）
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            imageProcessing = true
+            // ① 拷贝到内部存储（避免选择器 Uri 权限失效）
+            val saved = withContext(Dispatchers.IO) {
+                ImageOcr.copyToInternal(context, uri)
+            }
+            if (saved == null) {
+                imageProcessing = false
+                android.widget.Toast.makeText(context, "图片读取失败", android.widget.Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            // ② 采样解码（防 OOM）
+            val bitmap = withContext(Dispatchers.IO) {
+                ImageOcr.decodeSampledBitmap(saved)
+            }
+            if (bitmap == null) {
+                imageProcessing = false
+                android.widget.Toast.makeText(context, "图片读取失败", android.widget.Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            // ③ 本地 OCR（ML Kit 中文识别）
+            val ocrText = withContext(Dispatchers.IO) {
+                ImageOcr.recognize(context, bitmap)
+            }
+            imageProcessing = false
+            if (ocrText.isNullOrBlank()) {
+                // 识别失败：提示，可选发送原图（无文字）
+                android.widget.Toast.makeText(context, "图片识别失败", android.widget.Toast.LENGTH_SHORT).show()
+                ocrFailedPath = saved
+            } else {
+                // 识别成功：识别文本作为消息发送（图片+文字展示在消息中）
+                android.widget.Toast.makeText(context, "识别成功，正在发送…", android.widget.Toast.LENGTH_SHORT).show()
+                viewModel.sendImageMessage(ocrText, saved)
+            }
+        }
     }
 
     // 全局键盘事件处理
@@ -325,7 +378,13 @@ fun ChatScreen(
                 cumulativeCost = state.cumulativeCost,
                 cumulativeTokens = state.cumulativeTokens,
                 balance = state.status?.balance?.display,
-                focusRequester = focusRequester
+                focusRequester = focusRequester,
+                imageProcessing = imageProcessing,
+                onPickImage = {
+                    pickImageLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
             )
         }
 
@@ -478,6 +537,31 @@ fun ChatScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showExportDialog = false }) { Text("取消", color = Muted) }
+                },
+                containerColor = Panel
+            )
+        }
+
+        // ── 图片识别失败对话框（第六批：可选发送原图，无文字）──
+        ocrFailedPath?.let { failedPath ->
+            AlertDialog(
+                onDismissRequest = { ocrFailedPath = null },
+                title = { Text("图片识别失败", color = Fg) },
+                text = {
+                    Text(
+                        "未能识别图片中的文字，是否发送原始图片（无文字）？",
+                        fontSize = 13.sp,
+                        color = Fg2
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        ocrFailedPath = null
+                        viewModel.sendImageMessage("", failedPath)
+                    }) { Text("发送原图", color = Accent) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { ocrFailedPath = null }) { Text("取消", color = Muted) }
                 },
                 containerColor = Panel
             )
@@ -1181,7 +1265,9 @@ private fun Footer(
     cumulativeCost: Double,
     cumulativeTokens: Long,
     balance: String?,
-    focusRequester: FocusRequester
+    focusRequester: FocusRequester,
+    imageProcessing: Boolean,
+    onPickImage: () -> Unit
 ) {
     val scrollState = rememberScrollState()
 
@@ -1347,6 +1433,39 @@ private fun Footer(
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
+
+                // 图片按钮（第六批：相册选择 + 本地 OCR；处理中显示进度）
+                IconButton(
+                    onClick = onPickImage,
+                    enabled = !imageProcessing,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(if (imageProcessing) Panel2 else Bg2)
+                            .border(1.dp, BorderStr, RoundedCornerShape(9.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (imageProcessing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(15.dp),
+                                strokeWidth = 2.dp,
+                                color = Accent
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = "发送图片",
+                                tint = Muted,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
 
                 // 发送/停止按钮（独立于输入区）
                 if (isStreaming) {

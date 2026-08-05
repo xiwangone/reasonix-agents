@@ -20,8 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.reasonix.agents.data.model.UsagePayload
 import com.reasonix.agents.ui.theme.LocalPalette
+import java.io.File
 
 // ═══════════════════════════════════════════════
 // 调色板（与深色主题对齐）
@@ -63,9 +65,10 @@ private fun fmtCost(costUsd: Double?, cost: Double?): String? {
 
 /**
  * 用户消息气泡：右对齐，橙底白字圆角气泡，顶部带有复制按钮。
+ * 第六批：图片发送——[imagePath] 非空时在文字上方展示本地图片（OCR 识别文字）。
  */
 @Composable
-fun UserMessageBubble(text: String) {
+fun UserMessageBubble(text: String, imagePath: String? = null) {
     val clipboardManager = LocalClipboardManager.current
 
     Column(
@@ -95,13 +98,33 @@ fun UserMessageBubble(text: String) {
                 .background(userBubbleBg)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            Text(
-                text = text,
-                color = userBubbleFg,
-                fontWeight = FontWeight.Medium,
-                fontSize = 15.sp,
-                lineHeight = 22.sp
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                // 图片（本地缓存文件，coil 异步加载；气泡 wrap-content，用固定宽度限宽）
+                if (imagePath != null) {
+                    AsyncImage(
+                        model = File(imagePath),
+                        contentDescription = "发送的图片",
+                        modifier = Modifier
+                            .width(240.dp)
+                            .heightIn(max = 260.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x22000000))
+                    )
+                    if (text.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+                // 文字（OCR 识别文本；发送原图时为空）
+                if (text.isNotBlank()) {
+                    Text(
+                        text = text,
+                        color = userBubbleFg,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp
+                    )
+                }
+            }
         }
     }
 }
