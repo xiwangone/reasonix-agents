@@ -49,6 +49,12 @@ jobs:
       - name: Grant gradlew execute permission
         run: chmod +x gradlew
 
+      - name: Ktlint 静态检查（不阻断，输出风格报告）
+        run: |
+          curl -sSLO https://github.com/pinterest/ktlint/releases/latest/download/ktlint
+          chmod +x ktlint
+          ./ktlint app/src/main/java 2>&1 | tail -30 || true
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
@@ -133,3 +139,18 @@ jobs:
           path: |
             app/build/reports/
             **/build/reports/
+
+      - name: Telegram 构建通知
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" = "success" ]; then EMOJI="✅"; else EMOJI="❌"; fi
+          MSG="${EMOJI} Reasonix Agents 构建 ${STATUS}"
+          URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${MSG}
+          ${URL}" || true
