@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  网络安全配置（批 5 收紧）：默认禁止明文流量（cleartext「明文」），
+  仅对可信地址白名单放行 HTTP：
+    - localhost / 127.0.0.1        本机直连（Termux / 局域网内 serve）
+    - 10.0.2.2                      Android 模拟器访问宿主机
+    - *.ts.net                      Tailscale MagicDNS（推荐远程直连方式）
+  其他地址（公网 IP / 任意局域网 IP）的明文 HTTP 将被系统拒绝，请改用 HTTPS。
+-->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true" />
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">ts.net</domain>
+    </domain-config>
 </network-security-config>

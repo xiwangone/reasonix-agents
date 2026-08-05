@@ -178,7 +178,7 @@ fun ToolCard(
                 enter = expandVertically(),
                 exit = shrinkVertically()
             ) {
-                ToolBody(status = status, output = output, err = err, truncated = truncated)
+                ToolBody(status = status, args = args, output = output, err = err, truncated = truncated)
             }
         }
     }
@@ -280,6 +280,7 @@ private fun SpinningLoaderIcon(
 @Composable
 private fun ToolBody(
     status: ToolStatus,
+    args: String?,
     output: String?,
     err: String?,
     truncated: Boolean
@@ -289,12 +290,13 @@ private fun ToolBody(
         else             -> output.orEmpty()
     }
 
-    if (bodyText.isBlank()) return
+    if (bodyText.isBlank() && args.isNullOrBlank()) return
 
-    val displayText = if (bodyText.length > TOOL_BODY_MAX_CHARS) {
-        bodyText.take(TOOL_BODY_MAX_CHARS) + "\n…"
+    // diff 识别：args（search/replace 意图）优先，output（apply_patch 结果）次之
+    val diffResult = if (status != ToolStatus.ERROR) {
+        remember(args, bodyText) { DiffParser.parse(args, bodyText) }
     } else {
-        bodyText
+        null
     }
 
     val bodyBg = when (status) {
@@ -319,13 +321,23 @@ private fun ToolBody(
             )
         }
 
-        Text(
-            text = displayText,
-            color = Fg2,
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace,
-            lineHeight = 18.sp
-        )
+        if (diffResult != null) {
+            // Patch diff 渲染
+            DiffCard(result = diffResult)
+        } else {
+            val displayText = if (bodyText.length > TOOL_BODY_MAX_CHARS) {
+                bodyText.take(TOOL_BODY_MAX_CHARS) + "\n…"
+            } else {
+                bodyText
+            }
+            Text(
+                text = displayText,
+                color = Fg2,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                lineHeight = 18.sp
+            )
+        }
     }
 }
 

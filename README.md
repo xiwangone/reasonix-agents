@@ -59,7 +59,7 @@
 
 [DeepSeek-Reasonix](https://github.com/esengine/DeepSeek-Reasonix) 的 **Android 原生客户端**，基于 Web 前端协议完整重写，使用 **Kotlin + Jetpack Compose + Markwon** 构建。非 WebView 套壳，Compose 声明式布局自动适配移动端。
 
-**特色**：SSE 流式对话、推理过程实时渲染、工具调用卡片、Rewind 回退、Slash 命令、中英双语。
+**特色**：底部 Tab 导航、SSE 流式对话 + 断线自动重连、推理过程实时渲染、工具调用卡片 + Patch diff 渲染、Todo 任务面板、Rewind 回退、Slash 命令、中英双语。
 
 ---
 
@@ -67,7 +67,12 @@
 
 | 模块 | 说明 |
 |------|------|
+| 🗂️ **底部 Tab 导航** | Chat / Files / Settings 三页签，切换保留各页状态（navigation「导航」方案见 [docs/开发方案.md](docs/开发方案.md)） |
 | 💬 **AI 对话** | 完整的 SSE 流式通信，支持实时渲染推理过程、工具调用卡片、费用统计 |
+| 🔄 **SSE 自动重连** | 网络抖动指数退避自动重连（1s→30s），HTTP 层错误不重连；顶栏绿/黄/红连接状态点 |
+| ✅ **Todo 面板** | 会话任务进度面板：进度条、完成划线、进行中高亮，随事件自动刷新 |
+| 📝 **Patch diff 渲染** | 工具卡内嵌 diff 视图：SEARCH/REPLACE、apply_patch、unified diff 自动识别，红绿着色 + 折叠 |
+| 📁 **文件浏览** | 从会话工具事件聚合文件清单（树形 + 状态着色 + 内容预览）；完整版依赖上游 /file API（见 [docs/upstream-file-api-request.md](docs/upstream-file-api-request.md)） |
 | 📝 **Markdown 渲染** | Markwon 原生引擎，支持代码高亮（Prism4j）、表格、图片、HTML、任务列表 |
 | 🧠 **推理展示** | 可折叠的 reasoning block，展示 AI 思考过程 |
 | 🔧 **工具卡片** | 实时展示工具调用——名称、参数、输出，支持折叠展开 |
@@ -75,9 +80,10 @@
 | 📦 **会话管理** | 新建 / 恢复 / 切换会话，会话列表 |
 | ⌨️ **Slash 命令** | `/compact` `/new` `/resume` `/rewind` `/model` `/mcp` `/help` 等 |
 | 🔐 **Basic Auth** | 连接支持用户名/密码认证（可选填，兼容无认证直连） |
-| 🌐 **HTTP/HTTPS** | 协议可切换，HTTPS 默认端口 443 |
+| 🌐 **HTTP/HTTPS** | 协议可切换，HTTPS 默认端口 443；明文 HTTP 仅限本机/模拟器/Tailscale 白名单 |
 | 🔑 **凭据回填** | 服务器地址/凭据持久化，下次启动自动回填 |
 | 🔒 **密码遮蔽** | 密码输入框 `PasswordVisualTransformation` 遮蔽，防窥屏 |
+| 🛡️ **网络安全收紧** | 默认禁用明文流量，仅白名单放行 localhost / 10.0.2.2 / *.ts.net |
 | 📥 **自动发行** | GitHub Releases 一键发布：手动触发 CI 自动构建 + 上传 APK |
 | 🌙 **暗色主题** | Material 3 暗色主题，与 Web 端一致的 OKLCH 色彩 |
 | 🌐 **国际化** | 中 / 英双语 |
@@ -89,7 +95,10 @@
 原生 Compose 界面，暗色主题，自动适配移动端：
 
 - **服务器配置页**：协议（HTTP/HTTPS）切换、地址/端口输入、用户名/密码（可选）、连接预览
-- **聊天页**：流式消息、推理折叠、工具卡片、会话管理、Slash 命令、Rewind
+- **底部 Tab**：聊天 / 文件 / 设置三页签，切换保留各页状态
+- **聊天页**：流式消息、推理折叠、工具卡片（含 Patch diff）、Todo 面板、会话管理、Slash 命令、Rewind、连接状态指示
+- **文件页**：会话文件清单（树形 + 状态着色 + 内容预览）
+- **设置页**：主题、模型、显示选项、服务器信息、CI 监控、关于
 
 ---
 

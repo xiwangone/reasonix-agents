@@ -4,6 +4,7 @@ import com.reasonix.agents.data.api.ReasonixApi
 import com.reasonix.agents.data.api.ReasonixSseClient
 import com.reasonix.agents.data.model.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * 仓库层 — 将 API、SSE 客户端整合为统一的聊天数据源。
@@ -20,6 +21,9 @@ class ChatRepository(
     // ── SSE 事件流 ──
     fun sseEvents(): Flow<SseEvent> = sseClient.connect()
 
+    /** SSE 连接状态（Connected/Reconnecting/Disconnected），驱动顶栏状态点 */
+    fun sseConnectionState(): StateFlow<ConnectionState> = sseClient.connectionState
+
     fun disconnectSse() = sseClient.disconnect()
 
     // ── REST 接口 ──
@@ -29,6 +33,8 @@ class ChatRepository(
     suspend fun cancel() = api.cancel()
 
     suspend fun getHistory(): List<HistoryMessage> = api.getHistory()
+
+    suspend fun getTodos(): List<TodoItem> = api.getTodos()
 
     suspend fun getStatus(): StatusInfo? = api.getStatus()
     suspend fun getModels(): ModelsResponse? = api.getModels()

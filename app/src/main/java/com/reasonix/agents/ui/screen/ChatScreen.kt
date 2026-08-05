@@ -35,10 +35,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.reasonix.agents.data.model.ConnectionState
 import com.reasonix.agents.data.model.SessionInfo
 import com.reasonix.agents.data.model.StatusInfo
 import com.reasonix.agents.ui.components.*
-import com.reasonix.agents.ui.screen.SettingsScreen
 import com.reasonix.agents.ui.theme.LocalPalette
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
 
@@ -75,8 +75,7 @@ private val Warning: Color @Composable get() = LocalPalette.current.warning
 fun ChatScreen(
     initialServerUrl: String = "http://127.0.0.1:8920",
     initialCredentials: Pair<String, String>? = null,
-    onSettingsChanged: (com.reasonix.agents.data.AppSettingsStore.Settings) -> Unit = {},
-    onCiSettingsChanged: (com.reasonix.agents.data.CiMonitorStore.CiSettings) -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     viewModel: ChatViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -142,6 +141,14 @@ fun ChatScreen(
                     modifier = Modifier.weight(1f)
                 )
             } else {
+            // Todo 面板：有任务时显示在消息列表上方
+            if (state.todos.isNotEmpty()) {
+                TodoPanel(
+                    todos = state.todos,
+                    onRefresh = { viewModel.loadTodos() },
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
             MessageList(
                 items = state.messages,
                 modifier = Modifier.weight(1f),
@@ -184,7 +191,7 @@ fun ChatScreen(
                 onToggleAuto = { viewModel.setToolApprovalMode("auto") },
                 serverUrl = state.serverUrl,
                 onServerUrlChange = { viewModel.onServerUrlChange(it) },
-                isConnected = state.error == null,
+                connectionState = state.connectionState,
                 cumulativeCost = state.cumulativeCost,
                 cumulativeTokens = state.cumulativeTokens,
                 balance = state.status?.balance?.display,
@@ -217,40 +224,8 @@ fun ChatScreen(
                 onRewind = { viewModel.showRewindPicker() },
                 onFork = { viewModel.showRewindPicker() },
                 onStats = { viewModel.showStatsDialog() },
-                onSettings = { viewModel.toggleSettings() },
+                onSettings = onNavigateToSettings,
                 modifier = Modifier.width(220.dp)
-            )
-        }
-
-        // ── 设置页覆盖层 ──
-        if (state.showSettings) {
-            SettingsScreen(
-                serverUrl = state.serverUrl,
-                status = state.status,
-                models = state.models,
-                currentModel = state.currentModel,
-                systemPrompt = state.systemPrompt,
-                settings = state.settings,
-                ciSettings = state.ciSettings,
-                onModelSelect = { model -> viewModel.setModel(model) },
-                onCiSettingsChange = { newCi ->
-                    viewModel.updateCiSettings(newCi)
-                    onCiSettingsChanged(newCi)
-                },
-                onThemeModeChange = { mode ->
-                    viewModel.updateThemeMode(mode)
-                    onSettingsChanged(state.settings.copy(themeMode = mode))
-                },
-                onShowReasoningChange = { show ->
-                    viewModel.updateShowReasoning(show)
-                    onSettingsChanged(state.settings.copy(showReasoning = show))
-                },
-                onShowTokensChange = { show ->
-                    viewModel.updateShowTokens(show)
-                    onSettingsChanged(state.settings.copy(showTokens = show))
-                },
-                onClose = { viewModel.toggleSettings() },
-                modifier = Modifier.fillMaxSize().zIndex(20f)
             )
         }
 
@@ -641,7 +616,7 @@ private fun Footer(
     onToggleAuto: (() -> Unit)?,
     serverUrl: String,
     onServerUrlChange: (String) -> Unit,
-    isConnected: Boolean,
+    connectionState: ConnectionState,
     cumulativeCost: Double,
     cumulativeTokens: Long,
     balance: String?,
@@ -674,17 +649,24 @@ private fun Footer(
                 // 分隔
                 Box(modifier = Modifier.width(1.dp).height(16.dp).background(Border))
 
-                // 状态
+                // 状态（连接健康度：绿=已连接 / 黄=重连中 / 红=流式中断开 / 灰=就绪）
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val (dotColor, statusText) = when {
+                        connectionState == ConnectionState.RECONNECTING -> Warning to "重连中…"
+                        connectionState == ConnectionState.DISCONNECTED && isStreaming -> Danger to "连接断开"
+                        isStreaming -> Accent to "思考中…"
+                        connectionState == ConnectionState.CONNECTED -> Success to "已连接"
+                        else -> Muted2 to "就绪"
+                    }
                     Box(
                         modifier = Modifier
                             .size(5.dp)
                             .clip(CircleShape)
-                            .background(if (isStreaming) Accent else Success)
+                            .background(dotColor)
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
-                        text = if (isStreaming) "思考中…" else "就绪",
+                        text = statusText,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         color = Muted

@@ -9,12 +9,14 @@ import com.reasonix.agents.data.AppSettingsStore
 import com.reasonix.agents.data.repository.ChatRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 data class ChatUiState(
     val messages: List<ChatItem> = emptyList(),
     val sessions: List<SessionInfo> = emptyList(),
+    val todos: List<TodoItem> = emptyList(),
     val status: StatusInfo? = null,
     val models: List<ModelInfo> = emptyList(),
     val currentModel: String = "",
@@ -28,13 +30,13 @@ data class ChatUiState(
     val showRewindPicker: Boolean = false,
     val checkpoints: List<CheckpointInfo> = emptyList(),
     val showStatsDialog: Boolean = false,
-    val showSettings: Boolean = false,
     val settings: AppSettingsStore.Settings = AppSettingsStore.Settings(),
     val ciSettings: com.reasonix.agents.data.CiMonitorStore.CiSettings = com.reasonix.agents.data.CiMonitorStore.CiSettings(),
     val cumulativeTokens: Long = 0,
     val cumulativeCost: Double = 0.0,
     val cumulativeCacheHit: Long = 0,
     val cumulativeCacheMiss: Long = 0,
+    val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
     val error: String? = null
 )
 
@@ -48,6 +50,10 @@ class ChatViewModel(
 
     private var repository: ChatRepository = createRepository(initialServerUrl, initialCredentials)
     private var sseCollectionJob: Job? = null
+    private var connectionStateJob: Job? = null
+
+    // 最近一次收到 SSE 事件的时间戳（重连后判定流是否还活着）
+    private var lastSseEventAt: Long = 0L
 
     // 当前流的助手消息 builder（增量）
     private var currentAssistantMsgIndex: Int? = null
@@ -61,6 +67,7 @@ class ChatViewModel(
 
     init {
         loadInitialData()
+        collectConnectionState()
     }
 
     // ── 服务器配置 ──
@@ -71,6 +78,7 @@ class ChatViewModel(
         repository = createRepository(normalized, credentials)
         _uiState.update { it.copy(serverUrl = normalized, messages = emptyList(), error = null) }
         loadInitialData()
+        collectConnectionState()
     }
 
     private fun createRepository(url: String, credentials: Pair<String, String>? = null): ChatRepository {
@@ -89,12 +97,14 @@ class ChatViewModel(
             val history = repository.getHistory()
             val modelsResp = repository.getModels()
             val systemPrompt = repository.getSystemPrompt()
+            val todos = repository.getTodos()
 
             val historyItems = buildHistoryItems(history)
 
             _uiState.update {
                 it.copy(
                     sessions = sessions,
+                    todos = todos,
                     status = status,
                     models = modelsResp?.models ?: emptyList(),
                     currentModel = modelsResp?.current ?: status?.label ?: "",
@@ -190,10 +200,6 @@ class ChatViewModel(
     }
 
     // ── 设置页 ──
-
-    fun toggleSettings(settings: AppSettingsStore.Settings? = null) {
-        _uiState.update { it.copy(showSettings = !it.showSettings, settings = settings ?: it.settings) }
-    }
 
     fun updateThemeMode(mode: Int) {
         _uiState.update { it.copy(settings = it.settings.copy(themeMode = mode)) }
@@ -375,13 +381,74 @@ class ChatViewModel(
         }
     }
 
+    // ── 任务清单（Todo 面板） ──
+
+    fun loadTodos() {
+        viewModelScope.launch {
+            val todos = repository.getTodos()
+            _uiState.update { it.copy(todos = todos) }
+        }
+    }
+
+    // ── 连接状态收集 ──
+
+    /**
+     * 收集 SSE 连接状态（驱动顶栏绿/黄/红状态点）。
+     * 检测「重连成功」（RECONNECTING → CONNECTED 上升沿）：补拉 /history 增量合并，
+     * 避免断线期间产生的消息丢失。
+     */
+    private fun collectConnectionState() {
+        connectionStateJob?.cancel()
+        connectionStateJob = viewModelScope.launch {
+            var prev = ConnectionState.DISCONNECTED
+            repository.sseConnectionState().collect { s ->
+                val reconnected = prev == ConnectionState.RECONNECTING && s == ConnectionState.CONNECTED
+                prev = s
+                _uiState.update { it.copy(connectionState = s) }
+                if (reconnected) {
+                    syncHistoryAfterReconnect()
+                }
+            }
+        }
+    }
+
+    /** 重连成功后：拉 /history 重建消息 + 重置流式缓冲 + 卡流保险收尾 */
+    private fun syncHistoryAfterReconnect() {
+        val reconnectedAt = System.currentTimeMillis()
+        viewModelScope.launch {
+            try {
+                val history = repository.getHistory()
+                rebuildFromHistory(history)
+            } catch (e: Exception) {
+                appendMessage(ChatItem.ErrorMessage("重连后同步历史失败: ${e.message}"))
+            }
+            // 重置流式缓冲：后续事件（若有）从干净状态重新累积
+            currentAssistantMsgIndex = null
+            pendingContent = null
+            pendingReasoning = null
+            pendingToolCards.clear()
+            // 保险：重连后若 5s 内无任何新 SSE 事件且仍显示流式中，
+            // 说明服务端 turn 已随断线结束（turn_done 已丢失）→ 收尾
+            if (_uiState.value.isStreaming) {
+                viewModelScope.launch {
+                    delay(5_000)
+                    if (lastSseEventAt <= reconnectedAt && _uiState.value.isStreaming) {
+                        finalizeTurn()
+                    }
+                }
+            }
+        }
+    }
+
     private fun handleSseEvent(event: SseEvent) {
+        lastSseEventAt = System.currentTimeMillis()
         when (event.kind) {
             "turn_started" -> {
                 currentAssistantMsgIndex = null
                 pendingContent = StringBuilder()
                 pendingReasoning = StringBuilder()
                 pendingToolCards.clear()
+                loadTodos()
             }
 
             "reasoning" -> {
@@ -431,6 +498,7 @@ class ChatViewModel(
                     )
                     pendingToolCards[tool.id] = card
                     replaceToolCard(tool.id, card)
+                    loadTodos()
                 }
             }
 
@@ -499,6 +567,7 @@ class ChatViewModel(
 
             "turn_done" -> {
                 finalizeTurn()
+                loadTodos()
             }
         }
     }

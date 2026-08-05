@@ -1,6 +1,7 @@
 package com.reasonix.agents.data.api
 
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import com.reasonix.agents.data.model.*
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +63,26 @@ class ReasonixApi(
             gson.fromJson(json, StatusInfo::class.java)
         } catch (e: Exception) {
             null
+        }
+    }
+
+    // ── 获取任务清单（GET /todos）──
+    // 服务端可能返回数组或 {todos:[...]} 对象，两种形态都兼容解析
+    suspend fun getTodos(): List<TodoItem> = withContext(Dispatchers.IO) {
+        val json = get("/todos")
+        if (json.isNullOrBlank()) return@withContext emptyList()
+        try {
+            val arrayType = object : TypeToken<List<TodoItem>>() {}.type
+            val asArray = gson.fromJson<List<TodoItem>>(json, arrayType)
+            if (asArray != null) return@withContext asArray
+            // 对象形态：{todos: [...]}
+            val obj = gson.fromJson(json, JsonObject::class.java)
+            val arr = obj?.getAsJsonArray("todos")
+                ?: obj?.getAsJsonArray("items")
+                ?: return@withContext emptyList()
+            gson.fromJson(arr, arrayType) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 

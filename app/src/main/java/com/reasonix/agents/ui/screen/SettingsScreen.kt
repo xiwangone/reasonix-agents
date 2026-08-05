@@ -30,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,8 +50,11 @@ private val Muted: Color @Composable get() = LocalPalette.current.muted
 private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 
 /**
- * 设置页（全屏覆盖层）。
- * 含：主题切换、显示选项、服务器信息、关于。
+ * 设置页 — 可嵌入底部 Tab 的页面（批 1 起由 NavHost 承载）。
+ * 含：主题切换、模型、显示选项、服务器信息、CI 监控、关于。
+ *
+ * @param onClose 关闭回调；作为独立 Tab 时传 null（隐藏关闭按钮），
+ *                保留向后兼容：覆盖层模式仍可传非 null。
  */
 @Composable
 fun SettingsScreen(
@@ -68,7 +70,7 @@ fun SettingsScreen(
     onShowTokensChange: (Boolean) -> Unit,
     onModelSelect: (String) -> Unit = {},
     onCiSettingsChange: (com.reasonix.agents.data.CiMonitorStore.CiSettings) -> Unit = {},
-    onClose: () -> Unit,
+    onClose: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -94,16 +96,18 @@ fun SettingsScreen(
                     color = Fg,
                     modifier = Modifier.weight(1f)
                 )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Panel)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
-                        .clickable { onClose() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("关闭", fontSize = 13.sp, color = Muted)
+                if (onClose != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Panel)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp))
+                            .clickable { onClose() }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("关闭", fontSize = 13.sp, color = Muted)
+                    }
                 }
             }
 

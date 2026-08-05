@@ -4,6 +4,13 @@ import com.google.gson.annotations.SerializedName
 
 // ── SSE 事件类型 ──
 
+/** SSE 连接状态：已连接 / 重连中 / 断开（驱动 Chat 顶栏绿/黄/红状态点） */
+enum class ConnectionState {
+    CONNECTED,
+    RECONNECTING,
+    DISCONNECTED
+}
+
 enum class SseEventKind {
     turn_started,
     reasoning,
@@ -100,6 +107,25 @@ data class CompactionPayload(
 )
 
 // ── 消息（历史记录用） ──
+
+// ── Todo（GET /todos 返回的任务清单，驱动 Todo 面板） ──
+
+data class TodoItem(
+    val id: String = "",
+    val content: String = "",
+    /** pending / in_progress / completed（兼容 "done"） */
+    val status: String = "pending",
+    /** 进行中状态的动作描述（serve 端 optional「可选」字段） */
+    val activeForm: String? = null,
+    /** 层级缩进（serve 端 optional 字段，0 = 顶层） */
+    val level: Int = 0,
+    val details: String? = null
+) {
+    val isCompleted: Boolean
+        get() = status == "completed" || status == "done"
+    val isInProgress: Boolean
+        get() = status == "in_progress" || status == "running"
+}
 
 data class MessagePayload(
     val role: String = "",

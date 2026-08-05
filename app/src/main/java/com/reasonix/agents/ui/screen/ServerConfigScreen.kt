@@ -350,6 +350,14 @@ fun ServerConfigScreen(
                         color = Muted2
                     )
                 }
+                if (!useHttps) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    androidx.compose.material3.Text(
+                        text = "提示：明文 HTTP 仅允许本机(127.0.0.1)/模拟器(10.0.2.2)/Tailscale(*.ts.net)，其他地址请改用 HTTPS",
+                        fontSize = 11.sp,
+                        color = Muted2
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
