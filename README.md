@@ -156,6 +156,48 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 或在 Android Studio 中直接打开项目，点击 Run。
 
+### 部署 Reasonix 服务端
+
+Reasonix 服务端（DeepSeek-Reasonix 协议）需自部署（本地或云服务器），App 通过 SSE 连接使用。推荐 systemd 方式：
+
+**1. 安装（需 Node.js 18+）**
+
+```bash
+npm install -g reasonix
+reasonix --version   # v1.19.x
+```
+
+**2. systemd 服务**（`/etc/systemd/system/reasonix-serve.service`）
+
+```ini
+[Unit]
+Description=Reasonix serve
+After=network.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/reasonix serve --addr 0.0.0.0:9899
+Restart=on-failure
+RestartSec=3
+Environment=HOME=/root
+# 模型 API key 按需添加：Environment=OPENAI_API_KEY=xxx
+[Install]
+WantedBy=multi-user.target
+```
+
+**3. 启动**
+
+```bash
+systemctl enable --now reasonix-serve
+systemctl status reasonix-serve
+```
+
+**4. 访问方式**
+
+- 本地/局域网：防火墙放行 9899，App 填 `http://服务器IP:9899`
+- 公网推荐：nginx 反代 + HTTPS（`proxy_pass http://127.0.0.1:9899`）
+
+**5. 连接 App**：填写服务器地址 `http(s)://你的地址:端口` + 认证（Basic Auth / Token），支持多服务器配置切换。
+
 ### 连接后端
 
 客户端需要连接到 Reasonix 后端服务才能正常工作。
