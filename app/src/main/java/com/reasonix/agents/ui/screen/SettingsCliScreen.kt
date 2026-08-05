@@ -212,7 +212,6 @@ private fun CliToolChip(
     Box(
         modifier =
             Modifier
-                .weight(1f)
                 .clip(RoundedCornerShape(8.dp))
                 .background(if (selected) Accent.copy(alpha = 0.15f) else Panel)
                 .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
