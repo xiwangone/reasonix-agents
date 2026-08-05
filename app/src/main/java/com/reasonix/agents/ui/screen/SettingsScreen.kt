@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
@@ -87,6 +88,7 @@ fun SettingsScreen(
     onOpenServerInfo: () -> Unit = {},
     onOpenCi: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
+    onOpenWebDav: () -> Unit = {},
     onOpenCli: () -> Unit = {},
     onOpenDeploy: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
@@ -216,9 +218,11 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ── 数据（第五批 E-1）──
+            // ── 数据（第五批 E-1 + 第八批坚果云同步）──
             SectionTitle("数据")
             SettingEntry(Icons.Default.Lock, "备份与恢复", "导出 / 导入单文件备份（配置加密 + 会话历史）", onClick = onOpenBackup)
+            Spacer(modifier = Modifier.height(6.dp))
+            SettingEntry(Icons.Default.CloudSync, "坚果云同步", "WebDAV 备份上传 / 下载 / 定时自动同步", onClick = onOpenWebDav)
 
             Spacer(modifier = Modifier.height(16.dp))
 

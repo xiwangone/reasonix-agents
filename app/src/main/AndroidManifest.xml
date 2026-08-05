@@ -82,6 +82,11 @@
             android:name=".service.CiMonitorService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- 坚果云定时同步（第八批）：AlarmManager 每天定时触发，后台上传配置备份 -->
+        <receiver
+            android:name=".sync.WebDavSyncReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

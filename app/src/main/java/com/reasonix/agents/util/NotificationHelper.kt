@@ -22,6 +22,31 @@ object NotificationHelper {
     private const val CHANNEL_ID = "reasonix_tasks"
     private const val CHANNEL_NAME = "Reasonix 任务通知"
     private const val NOTIFICATION_ID = 1001
+    private const val SYNC_NOTIFICATION_ID = 1002
+
+    /** 发送通用系统通知（后台坚果云同步失败提醒等）；无通知权限时静默返回。 */
+    fun notify(context: Context, title: String, summary: String, id: Int = SYNC_NOTIFICATION_ID) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        ensureChannel(context)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_reasonix)
+            .setContentTitle(title)
+            .setContentText(summary)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(id, notification)
+        } catch (e: Exception) {
+            // 通知失败（权限/服务异常）不影响主流程
+        }
+    }
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return

@@ -54,6 +54,7 @@ import com.reasonix.agents.ui.screen.SettingsScreen
 import com.reasonix.agents.ui.screen.SettingsServerScreen
 import com.reasonix.agents.ui.screen.SettingsSystemPromptScreen
 import com.reasonix.agents.ui.screen.SettingsThemeScreen
+import com.reasonix.agents.ui.screen.SettingsWebDavScreen
 import com.reasonix.agents.ui.theme.DarkPalette
 import com.reasonix.agents.ui.theme.LightPalette
 import com.reasonix.agents.ui.theme.LocalPalette
@@ -310,6 +311,7 @@ private fun ReasonixApp(
                     onOpenServerInfo = { navController.navigate(Screens.SETTINGS_SERVER) },
                     onOpenCi = { navController.navigate(Screens.SETTINGS_CI) },
                     onOpenBackup = { navController.navigate(Screens.SETTINGS_BACKUP) },
+                    onOpenWebDav = { navController.navigate(Screens.SETTINGS_WEBDAV) },
                     onOpenCli = { navController.navigate(Screens.SETTINGS_CLI) },
                     onOpenDeploy = {
                         // 部署自己的服务：AndroidBrowserIntent 打开仓库 README 部署说明
@@ -414,6 +416,18 @@ private fun ReasonixApp(
                         chatViewModel.updateCliSettings(newCli)
                     },
                     onBack = { navController.popBackStack() }
+                )
+            }
+            // ── 设置二级界面（第八批）：坚果云 WebDAV 同步 ──
+            composable(Screens.SETTINGS_WEBDAV) {
+                SettingsWebDavScreen(
+                    onBack = { navController.popBackStack() },
+                    onSettingsRestored = { newSettings ->
+                        // 下载恢复主题等设置后同步到顶层，使主题立即生效
+                        chatViewModel.updateSettings(newSettings)
+                        onSettingsChanged(newSettings)
+                    },
+                    viewModel = chatViewModel
                 )
             }
             // ── 设置二级界面（第六批）：系统提示词（只读）──

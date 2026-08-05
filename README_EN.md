@@ -4,7 +4,7 @@
 
 # Reasonix Android
 
-**🤖 AI coding assistant client, iteratively maintained by AI** — connect to a self-deployed Reasonix server via SSE streaming, real-time reasoning & tool-call rendering, code anytime anywhere. More agent modes to explore. (Multi-server/model grouping supported, prompt system & more in development...)
+**🤖 AI coding assistant client, iteratively maintained by AI** — connect to a self-deployed Reasonix server via SSE streaming, real-time reasoning & tool-call rendering, code anytime anywhere. More agent modes to explore. (Multi-server/model grouping, prompt system & Jianguoyun sync supported, more in continuous iteration...)
 
 [![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-agents?color=2ea44f&label=Latest%20Release&logo=github)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 [![Build](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml)
@@ -24,6 +24,21 @@
 > <span style="color:red">**❗️❗️❗️ Note: Reasonix Agents requires self-deploying the Reasonix server (DeepSeek-Reasonix protocol) locally or on a server — no cloud hosting; bring your own server resources!**</span>
 
 </div>
+
+---
+
+## ✨ Feature Highlights
+
+- 🧠 **Prompt System** — 10 custom slots, injected into session context
+- ⚙️ **Componentized Settings** — grouped second-level screens
+- 💾 **Backup Import/Export** — config + sessions, encrypted credentials
+- 🗑️ **Multi-select Session Delete** — batch session management
+- 🔧 **CLI Integration** — invoke deployed aider / opencode
+- 🔐 **Multi-server / Multi-user Self-config** — anti-free-riding
+- 🤫 **Silent Web System Prompt** — no popup on new sessions
+- 🖼️ **Image Sending** — on-device OCR
+- 📊 **CI Monitor Floating Ball** — three-color status indicator
+- 🎨 **Multi-theme Icons** — default / Material blue / brand dark
 
 ---
 

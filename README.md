@@ -4,7 +4,7 @@
 
 # Reasonix Android
 
-**🤖 由 AI 维护迭代的 AI 编码助手客户端** —— 通过 SSE 流式连接自部署的 Reasonix 服务端，实时渲染推理过程与工具调用，随时随地完成编码任务。还有更多 Agent 体验模式待探索。（多服务器/模型分组已支持，提示词系统与更多能力开发中……）
+**🤖 由 AI 维护迭代的 AI 编码助手客户端** —— 通过 SSE 流式连接自部署的 Reasonix 服务端，实时渲染推理过程与工具调用，随时随地完成编码任务。还有更多 Agent 体验模式待探索。（多服务器 / 模型分组 / 提示词系统 / 坚果云同步已支持，更多能力持续迭代中……）
 
 [![Release](https://img.shields.io/github/v/release/xiwangone/reasonix-agents?color=2ea44f&label=最新版本&logo=github)](https://github.com/xiwangone/reasonix-agents/releases/latest)
 [![Build](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml/badge.svg)](https://github.com/xiwangone/reasonix-agents/actions/workflows/build.yml)
@@ -26,6 +26,21 @@
 
 
 </div>
+
+---
+
+## ✨ 功能特性
+
+- 🧠 **提示词系统** — 10 槽位自定义，注入会话上下文
+- ⚙️ **设置组件化** — 二级界面分组管理
+- 💾 **备份导入导出** — 配置 + 会话，凭据加密
+- 🗑️ **会话多选批量删除** — 批量管理会话
+- 🔧 **CLI 集成** — 调用部署的 aider / opencode
+- 🔐 **多服务器 / 多用户自配置** — 防白嫖
+- 🤫 **Web 系统提示静默化** — 新会话不再弹出系统提示
+- 🖼️ **图片发送** — 本地 OCR 识别
+- 📊 **CI 监控悬浮窗** — 三色状态指示
+- 🎨 **多主题图标** — 默认 / Material 蓝 / 品牌深色
 
 ---
 
