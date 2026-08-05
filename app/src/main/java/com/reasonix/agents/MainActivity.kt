@@ -194,6 +194,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+        }
 
     /** 根据设置启动/停止 CI 悬浮窗；未授权悬浮窗权限时引导授权 */
     private fun syncCiMonitor(context: android.content.Context, s: CiMonitorStore.CiSettings) {
