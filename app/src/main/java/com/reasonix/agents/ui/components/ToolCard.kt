@@ -93,16 +93,17 @@ fun ToolCard(
     output: String? = null,
     err: String? = null,
     truncated: Boolean = false,
-    isRunning: Boolean = true
+    isRunning: Boolean = true,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     // 敲定状态
-    val status: ToolStatus = when {
-        isRunning  -> ToolStatus.RUNNING
-        err != null -> ToolStatus.ERROR
-        else        -> ToolStatus.SUCCESS
-    }
+    val status: ToolStatus =
+        when {
+            isRunning -> ToolStatus.RUNNING
+            err != null -> ToolStatus.ERROR
+            else -> ToolStatus.SUCCESS
+        }
 
     // 无限旋转动画（仅运行态）
     val rotation by if (status == ToolStatus.RUNNING) {
@@ -110,10 +111,11 @@ fun ToolCard(
         transition.animateFloat(
             initialValue = 0f,
             targetValue = 360f,
-            animationSpec = remember(toolCardSpinDuration) {
-                toolCardSpinDuration
-            },
-            label = "spinRotation"
+            animationSpec =
+                remember(toolCardSpinDuration) {
+                    toolCardSpinDuration
+                },
+            label = "spinRotation",
         )
     } else {
         remember { mutableStateOf(0f) }
@@ -124,17 +126,18 @@ fun ToolCard(
         shape = RoundedCornerShape(12.dp),
         color = CardBg,
         shadowElevation = 2.dp,
-        tonalElevation = 0.dp
+        tonalElevation = 0.dp,
     ) {
         Column {
             // ═══════════ 卡片头部 ═══════════
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 // 状态图标
                 StatusIcon(status = status, rotation = rotation)
@@ -144,7 +147,7 @@ fun ToolCard(
                     text = name,
                     color = Fg,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 )
 
                 // 参数（等宽截断）
@@ -156,7 +159,7 @@ fun ToolCard(
                         fontFamily = FontFamily.Monospace,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                 }
 
@@ -164,11 +167,15 @@ fun ToolCard(
 
                 // 折叠箭头
                 Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp
-                                  else Icons.Default.KeyboardArrowDown,
+                    imageVector =
+                        if (expanded) {
+                            Icons.Default.KeyboardArrowUp
+                        } else {
+                            Icons.Default.KeyboardArrowDown
+                        },
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     tint = Muted,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
@@ -176,7 +183,7 @@ fun ToolCard(
             AnimatedVisibility(
                 visible = expanded,
                 enter = expandVertically(),
-                exit = shrinkVertically()
+                exit = shrinkVertically(),
             ) {
                 ToolBody(status = status, args = args, output = output, err = err, truncated = truncated)
             }
@@ -195,42 +202,49 @@ private enum class ToolStatus { RUNNING, SUCCESS, ERROR }
  * 运行态带旋转动画。
  */
 @Composable
-private fun StatusIcon(status: ToolStatus, rotation: Float) {
-    val bgColor = when (status) {
-        ToolStatus.RUNNING -> AccentSoft
-        ToolStatus.SUCCESS -> SuccessSoft
-        ToolStatus.ERROR   -> DangerSoft
-    }
+private fun StatusIcon(
+    status: ToolStatus,
+    rotation: Float,
+) {
+    val bgColor =
+        when (status) {
+            ToolStatus.RUNNING -> AccentSoft
+            ToolStatus.SUCCESS -> SuccessSoft
+            ToolStatus.ERROR -> DangerSoft
+        }
 
     Box(
-        modifier = Modifier
-            .size(22.dp)
-            .clip(CircleShape)
-            .background(bgColor),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(bgColor),
+        contentAlignment = Alignment.Center,
     ) {
         when (status) {
             ToolStatus.RUNNING -> {
                 SpinningLoaderIcon(
                     rotation = rotation,
                     tint = Accent,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
             }
+
             ToolStatus.SUCCESS -> {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
                     tint = Success,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
             }
+
             ToolStatus.ERROR -> {
                 Icon(
                     imageVector = Icons.Default.Cancel,
                     contentDescription = null,
                     tint = Danger,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
             }
         }
@@ -245,7 +259,7 @@ private fun StatusIcon(status: ToolStatus, rotation: Float) {
 private fun SpinningLoaderIcon(
     rotation: Float,
     tint: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Canvas(modifier = modifier.rotate(rotation)) {
         val strokeWidth = 2.5.dp.toPx()
@@ -255,21 +269,21 @@ private fun SpinningLoaderIcon(
             startAngle = 0f,
             sweepAngle = sweep,
             useCenter = false,
-            style = Stroke(width = strokeWidth)
+            style = Stroke(width = strokeWidth),
         )
         drawArc(
             color = tint.copy(alpha = 0.35f),
             startAngle = 120f,
             sweepAngle = sweep,
             useCenter = false,
-            style = Stroke(width = strokeWidth)
+            style = Stroke(width = strokeWidth),
         )
         drawArc(
             color = tint.copy(alpha = 0.15f),
             startAngle = 240f,
             sweepAngle = sweep,
             useCenter = false,
-            style = Stroke(width = strokeWidth)
+            style = Stroke(width = strokeWidth),
         )
     }
 }
@@ -283,33 +297,37 @@ private fun ToolBody(
     args: String?,
     output: String?,
     err: String?,
-    truncated: Boolean
+    truncated: Boolean,
 ) {
-    val bodyText = when (status) {
-        ToolStatus.ERROR -> err.orEmpty()
-        else             -> output.orEmpty()
-    }
+    val bodyText =
+        when (status) {
+            ToolStatus.ERROR -> err.orEmpty()
+            else -> output.orEmpty()
+        }
 
     if (bodyText.isBlank() && args.isNullOrBlank()) return
 
     // diff 识别：args（search/replace 意图）优先，output（apply_patch 结果）次之
-    val diffResult = if (status != ToolStatus.ERROR) {
-        remember(args, bodyText) { DiffParser.parse(args, bodyText) }
-    } else {
-        null
-    }
+    val diffResult =
+        if (status != ToolStatus.ERROR) {
+            remember(args, bodyText) { DiffParser.parse(args, bodyText) }
+        } else {
+            null
+        }
 
-    val bodyBg = when (status) {
-        ToolStatus.ERROR   -> DangerSoft
-        ToolStatus.RUNNING -> Panel2
-        ToolStatus.SUCCESS -> Bg2
-    }
+    val bodyBg =
+        when (status) {
+            ToolStatus.ERROR -> DangerSoft
+            ToolStatus.RUNNING -> Panel2
+            ToolStatus.SUCCESS -> Bg2
+        }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(bodyBg)
-            .padding(12.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(bodyBg)
+                .padding(12.dp),
     ) {
         if (truncated && status != ToolStatus.ERROR) {
             Text(
@@ -317,7 +335,7 @@ private fun ToolBody(
                 color = Muted,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
-                modifier = Modifier.padding(bottom = 6.dp)
+                modifier = Modifier.padding(bottom = 6.dp),
             )
         }
 
@@ -325,17 +343,18 @@ private fun ToolBody(
             // Patch diff 渲染
             DiffCard(result = diffResult)
         } else {
-            val displayText = if (bodyText.length > TOOL_BODY_MAX_CHARS) {
-                bodyText.take(TOOL_BODY_MAX_CHARS) + "\n…"
-            } else {
-                bodyText
-            }
+            val displayText =
+                if (bodyText.length > TOOL_BODY_MAX_CHARS) {
+                    bodyText.take(TOOL_BODY_MAX_CHARS) + "\n…"
+                } else {
+                    bodyText
+                }
             Text(
                 text = displayText,
                 color = Fg2,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
-                lineHeight = 18.sp
+                lineHeight = 18.sp,
             )
         }
     }
@@ -349,9 +368,11 @@ private fun ToolBody(
 private const val TOOL_BODY_MAX_CHARS = 2000
 
 /** 旋转动画时长 */
-private val toolCardSpinDuration = infiniteRepeatable<Float>(
-    animation = tween(
-        durationMillis = 1200,
-        easing = LinearEasing
+private val toolCardSpinDuration =
+    infiniteRepeatable<Float>(
+        animation =
+            tween(
+                durationMillis = 1200,
+                easing = LinearEasing,
+            ),
     )
-)

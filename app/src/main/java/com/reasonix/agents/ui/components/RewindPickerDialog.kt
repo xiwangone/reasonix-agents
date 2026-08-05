@@ -49,17 +49,18 @@ private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 private data class ScopeDef(
     val letter: String,
     val label: String,
-    val desc: String
+    val desc: String,
 )
 
-private val scopes = listOf(
-    ScopeDef("b", "全部",              "代码 + 对话"),
-    ScopeDef("c", "仅对话",            "仅对话"),
-    ScopeDef("d", "仅代码",            "仅代码"),
-    ScopeDef("f", "分叉",              "新分支"),
-    ScopeDef("s", "总结",              "从此处"),
-    ScopeDef("u", "总结至此处",        "至此")
-)
+private val scopes =
+    listOf(
+        ScopeDef("b", "全部", "代码 + 对话"),
+        ScopeDef("c", "仅对话", "仅对话"),
+        ScopeDef("d", "仅代码", "仅代码"),
+        ScopeDef("f", "分叉", "新分支"),
+        ScopeDef("s", "总结", "从此处"),
+        ScopeDef("u", "总结至此处", "至此"),
+    )
 
 // ═══════════════════════════════════════════════
 // RewindPickerDialog
@@ -84,7 +85,7 @@ fun RewindPickerDialog(
     onRewind: (turn: Int, scope: String) -> Unit,
     onFork: (turn: Int) -> Unit,
     onSummarize: (turn: Int, mode: String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     // ── 状态 ──
     var stage by remember { mutableStateOf(0) }
@@ -114,12 +115,35 @@ fun RewindPickerDialog(
     fun applyScope(letter: String) {
         val turn = currentTurn
         when (letter) {
-            "b" -> { onRewind(turn, "both"); onDismiss() }
-            "c" -> { onRewind(turn, "conversation"); onDismiss() }
-            "d" -> { onRewind(turn, "code"); onDismiss() }
-            "f" -> { onFork(turn); onDismiss() }
-            "s" -> { onSummarize(turn, "from"); onDismiss() }
-            "u" -> { onSummarize(turn, "up_to"); onDismiss() }
+            "b" -> {
+                onRewind(turn, "both")
+                onDismiss()
+            }
+
+            "c" -> {
+                onRewind(turn, "conversation")
+                onDismiss()
+            }
+
+            "d" -> {
+                onRewind(turn, "code")
+                onDismiss()
+            }
+
+            "f" -> {
+                onFork(turn)
+                onDismiss()
+            }
+
+            "s" -> {
+                onSummarize(turn, "from")
+                onDismiss()
+            }
+
+            "u" -> {
+                onSummarize(turn, "up_to")
+                onDismiss()
+            }
         }
     }
 
@@ -129,140 +153,192 @@ fun RewindPickerDialog(
 
         return when (stage) {
             // ── Stage 0: 检查点导航 ──
-            0 -> when {
-                (keyEvent.key == Key.J || keyEvent.key == Key.DirectionDown) && turnCount > 0 -> {
-                    selectedTurnIndex = (selectedTurnIndex + 1).coerceAtMost(turnCount - 1)
-                    true
+            0 -> {
+                when {
+                    (keyEvent.key == Key.J || keyEvent.key == Key.DirectionDown) && turnCount > 0 -> {
+                        selectedTurnIndex = (selectedTurnIndex + 1).coerceAtMost(turnCount - 1)
+                        true
+                    }
+
+                    (keyEvent.key == Key.K || keyEvent.key == Key.DirectionUp) && turnCount > 0 -> {
+                        selectedTurnIndex = (selectedTurnIndex - 1).coerceAtLeast(0)
+                        true
+                    }
+
+                    keyEvent.key == Key.Enter && turnCount > 0 -> {
+                        stage = 1
+                        selectedScopeIndex = 0
+                        true
+                    }
+
+                    keyEvent.key == Key.Escape -> {
+                        onDismiss()
+                        true
+                    }
+
+                    else -> {
+                        false
+                    }
                 }
-                (keyEvent.key == Key.K || keyEvent.key == Key.DirectionUp) && turnCount > 0 -> {
-                    selectedTurnIndex = (selectedTurnIndex - 1).coerceAtLeast(0)
-                    true
-                }
-                keyEvent.key == Key.Enter && turnCount > 0 -> {
-                    stage = 1
-                    selectedScopeIndex = 0
-                    true
-                }
-                keyEvent.key == Key.Escape -> {
-                    onDismiss()
-                    true
-                }
-                else -> false
             }
 
             // ── Stage 1: 范围导航 + 快捷键 ──
-            1 -> when {
-                keyEvent.key == Key.J || keyEvent.key == Key.DirectionDown -> {
-                    selectedScopeIndex = (selectedScopeIndex + 1).coerceAtMost(scopeCount - 1)
-                    true
+            1 -> {
+                when {
+                    keyEvent.key == Key.J || keyEvent.key == Key.DirectionDown -> {
+                        selectedScopeIndex = (selectedScopeIndex + 1).coerceAtMost(scopeCount - 1)
+                        true
+                    }
+
+                    keyEvent.key == Key.K || keyEvent.key == Key.DirectionUp -> {
+                        selectedScopeIndex = (selectedScopeIndex - 1).coerceAtLeast(0)
+                        true
+                    }
+
+                    keyEvent.key == Key.Enter -> {
+                        applyScope(scopes[selectedScopeIndex].letter)
+                        true
+                    }
+
+                    keyEvent.key == Key.Escape -> {
+                        stage = 0
+                        true
+                    }
+
+                    // 快捷键：字母直接应用
+                    keyEvent.key == Key.B -> {
+                        applyScope("b")
+                        true
+                    }
+
+                    keyEvent.key == Key.C -> {
+                        applyScope("c")
+                        true
+                    }
+
+                    keyEvent.key == Key.D -> {
+                        applyScope("d")
+                        true
+                    }
+
+                    keyEvent.key == Key.F -> {
+                        applyScope("f")
+                        true
+                    }
+
+                    keyEvent.key == Key.S -> {
+                        applyScope("s")
+                        true
+                    }
+
+                    keyEvent.key == Key.U -> {
+                        applyScope("u")
+                        true
+                    }
+
+                    else -> {
+                        false
+                    }
                 }
-                keyEvent.key == Key.K || keyEvent.key == Key.DirectionUp -> {
-                    selectedScopeIndex = (selectedScopeIndex - 1).coerceAtLeast(0)
-                    true
-                }
-                keyEvent.key == Key.Enter -> {
-                    applyScope(scopes[selectedScopeIndex].letter)
-                    true
-                }
-                keyEvent.key == Key.Escape -> {
-                    stage = 0
-                    true
-                }
-                // 快捷键：字母直接应用
-                keyEvent.key == Key.B -> { applyScope("b"); true }
-                keyEvent.key == Key.C -> { applyScope("c"); true }
-                keyEvent.key == Key.D -> { applyScope("d"); true }
-                keyEvent.key == Key.F -> { applyScope("f"); true }
-                keyEvent.key == Key.S -> { applyScope("s"); true }
-                keyEvent.key == Key.U -> { applyScope("u"); true }
-                else -> false
             }
 
-            else -> false
+            else -> {
+                false
+            }
         }
     }
 
     // ── Dialog ──
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnClickOutside = true
-        )
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnClickOutside = true,
+            ),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .focusRequester(focusRequester)
-                .focusable()
-                .onKeyEvent(::onKey)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Panel)
-                .border(1.dp, BorderStrong, RoundedCornerShape(12.dp))
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.92f)
+                    .focusRequester(focusRequester)
+                    .focusable()
+                    .onKeyEvent(::onKey)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Panel)
+                    .border(1.dp, BorderStrong, RoundedCornerShape(12.dp)),
         ) {
             Column(modifier = Modifier.padding(0.dp)) {
                 // ── 头部 ──
                 DialogHeader(
                     stage = stage,
                     turn = currentTurn,
-                    onDismiss = onDismiss
+                    onDismiss = onDismiss,
                 )
 
                 // 分隔线
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(Border)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Border),
                 )
 
                 if (turnCount == 0) {
                     // ── 空状态 ──
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 32.dp),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = "无可用检查点。",
                             color = Muted,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
                         )
                     }
                 } else {
                     when (stage) {
                         // ── Stage 0: 检查点列表 ──
-                        0 -> Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            checkpoints.forEachIndexed { index, cp ->
-                                CheckpointRow(
-                                    checkpoint = cp,
-                                    isSelected = index == selectedTurnIndex,
-                                    onClick = {
-                                        selectedTurnIndex = index
-                                        stage = 1
-                                        selectedScopeIndex = 0
-                                    }
-                                )
+                        0 -> {
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                            ) {
+                                checkpoints.forEachIndexed { index, cp ->
+                                    CheckpointRow(
+                                        checkpoint = cp,
+                                        isSelected = index == selectedTurnIndex,
+                                        onClick = {
+                                            selectedTurnIndex = index
+                                            stage = 1
+                                            selectedScopeIndex = 0
+                                        },
+                                    )
+                                }
                             }
                         }
 
                         // ── Stage 1: 范围列表 ──
-                        1 -> Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            scopes.forEachIndexed { index, scope ->
-                                ScopeRow(
-                                    scope = scope,
-                                    isSelected = index == selectedScopeIndex,
-                                    onClick = { applyScope(scope.letter) }
-                                )
+                        1 -> {
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                            ) {
+                                scopes.forEachIndexed { index, scope ->
+                                    ScopeRow(
+                                        scope = scope,
+                                        isSelected = index == selectedScopeIndex,
+                                        onClick = { applyScope(scope.letter) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -270,10 +346,11 @@ fun RewindPickerDialog(
 
                 // 分隔线
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(Border)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Border),
                 )
 
                 // ── 底部提示 ──
@@ -294,39 +371,42 @@ fun RewindPickerDialog(
 private fun DialogHeader(
     stage: Int,
     turn: Int,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 标题
         Text(
-            text = when (stage) {
-                0 -> "倒带 — 选择轮次"
-                else -> "倒带回 #$turn → 范围"
-            },
+            text =
+                when (stage) {
+                    0 -> "倒带 — 选择轮次"
+                    else -> "倒带回 #$turn → 范围"
+                },
             color = Fg,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
 
         // Esc 关闭按钮
         Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .clickable { onDismiss() }
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { onDismiss() }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "Esc",
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
-                color = Muted2
+                color = Muted2,
             )
         }
     }
@@ -339,27 +419,29 @@ private fun DialogHeader(
 private fun CheckpointRow(
     checkpoint: CheckpointInfo,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val rowBg = if (isSelected) AccentSoft else Color.Transparent
     val promptText = checkpoint.prompt ?: ""
     val snippet = if (promptText.length > 60) promptText.take(60) + "…" else promptText
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(rowBg)
-            .clickable { onClick() }
-            .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(rowBg)
+                .clickable { onClick() }
+                .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 选中指示条
         Box(
-            modifier = Modifier
-                .width(3.dp)
-                .height(18.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(if (isSelected) Accent else Color.Transparent)
+            modifier =
+                Modifier
+                    .width(3.dp)
+                    .height(18.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(if (isSelected) Accent else Color.Transparent),
         )
 
         Spacer(modifier = Modifier.width(9.dp))
@@ -371,7 +453,7 @@ private fun CheckpointRow(
             fontSize = 12.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
             color = if (isSelected) Accent else Muted,
-            modifier = Modifier.width(32.dp)
+            modifier = Modifier.width(32.dp),
         )
 
         Spacer(modifier = Modifier.width(6.dp))
@@ -383,7 +465,7 @@ private fun CheckpointRow(
             fontSize = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -394,14 +476,14 @@ private fun CheckpointRow(
                 text = "${checkpoint.files}",
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
-                color = if (isSelected) Muted else Muted2
+                color = if (isSelected) Muted else Muted2,
             )
         } else {
             Text(
                 text = "—",
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
-                color = Muted2
+                color = Muted2,
             )
         }
     }
@@ -414,25 +496,27 @@ private fun CheckpointRow(
 private fun ScopeRow(
     scope: ScopeDef,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val rowBg = if (isSelected) AccentSoft else Color.Transparent
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(rowBg)
-            .clickable { onClick() }
-            .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(rowBg)
+                .clickable { onClick() }
+                .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 选中指示条
         Box(
-            modifier = Modifier
-                .width(3.dp)
-                .height(18.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(if (isSelected) Accent else Color.Transparent)
+            modifier =
+                Modifier
+                    .width(3.dp)
+                    .height(18.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(if (isSelected) Accent else Color.Transparent),
         )
 
         Spacer(modifier = Modifier.width(9.dp))
@@ -444,7 +528,7 @@ private fun ScopeRow(
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             color = if (isSelected) Accent else Fg2,
-            modifier = Modifier.width(18.dp)
+            modifier = Modifier.width(18.dp),
         )
 
         Spacer(modifier = Modifier.width(6.dp))
@@ -454,7 +538,7 @@ private fun ScopeRow(
             text = scope.label,
             color = if (isSelected) Fg else Fg2,
             fontSize = 13.sp,
-            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -466,7 +550,7 @@ private fun ScopeRow(
             fontSize = 11.sp,
             modifier = Modifier.weight(1f),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -477,30 +561,33 @@ private fun ScopeRow(
 @Composable
 private fun DialogFooter(stage: Int) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = when (stage) {
-                0 -> "j/k ↑↓ 导航"
-                else -> "j/k ↑↓ 导航  ·  字母键执行"
-            },
+            text =
+                when (stage) {
+                    0 -> "j/k ↑↓ 导航"
+                    else -> "j/k ↑↓ 导航  ·  字母键执行"
+                },
             fontFamily = FontFamily.Monospace,
             fontSize = 10.sp,
-            color = Muted2
+            color = Muted2,
         )
 
         Text(
-            text = when (stage) {
-                0 -> "Enter: 选择"
-                else -> "Enter: 执行  ·  Esc: 返回"
-            },
+            text =
+                when (stage) {
+                    0 -> "Enter: 选择"
+                    else -> "Enter: 执行  ·  Esc: 返回"
+                },
             fontFamily = FontFamily.Monospace,
             fontSize = 10.sp,
-            color = Muted2
+            color = Muted2,
         )
     }
 }

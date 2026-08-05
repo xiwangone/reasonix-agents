@@ -44,14 +44,14 @@ private val Warning: Color @Composable get() = LocalPalette.current.warning
 // 工具函数
 // ═══════════════════════════════════════════════
 
-private fun fmtTok(n: Long): String =
-    if (n >= 1000) "%.1fk".format(n / 1000.0) else "$n"
+private fun fmtTok(n: Long): String = if (n >= 1000) "%.1fk".format(n / 1000.0) else "$n"
 
-private fun fmtMoney(n: Double): String = when {
-    n >= 1.0 -> "¥%.2f".format(n)
-    n >= 0.01 -> "¥%.4f".format(n)
-    else -> "¥%.6f".format(n)
-}
+private fun fmtMoney(n: Double): String =
+    when {
+        n >= 1.0 -> "¥%.2f".format(n)
+        n >= 0.01 -> "¥%.4f".format(n)
+        else -> "¥%.6f".format(n)
+    }
 
 // ═══════════════════════════════════════════════
 // StatsDialog
@@ -69,21 +69,22 @@ fun StatsDialog(
     cumulativeCost: Double,
     cumulativeCacheHit: Long,
     cumulativeCacheMiss: Long,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .widthIn(max = 520.dp)
-                .fillMaxHeight(0.8f),
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.9f)
+                    .widthIn(max = 520.dp)
+                    .fillMaxHeight(0.8f),
             shape = RoundedCornerShape(12.dp),
             color = Panel,
             tonalElevation = 0.dp,
-            shadowElevation = 8.dp
+            shadowElevation = 8.dp,
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // ── Header ──
@@ -91,76 +92,83 @@ fun StatsDialog(
 
                 // ── Body (scrollable) ──
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     // Row 1: Model | Sessions
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         StatCell(
                             label = "模型",
                             value = status?.label ?: "-",
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                         StatCell(
                             label = "会话数",
                             value = "$sessionCount",
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                     }
 
                     // Row 2: Total Tokens | Cache Hit Rate
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         StatCell(
                             label = "总 Token",
                             value = fmtTok(cumulativeTokens),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                         val cacheTotal = cumulativeCacheHit + cumulativeCacheMiss
                         StatCell(
                             label = "缓存命中率",
-                            value = if (cacheTotal > 0) {
-                                val pct = cumulativeCacheHit.toDouble() / cacheTotal * 100.0
-                                if (pct >= 1.0) "${pct.toInt()}%" else "%.1f%%".format(pct)
-                            } else {
-                                "-"
-                            },
+                            value =
+                                if (cacheTotal > 0) {
+                                    val pct = cumulativeCacheHit.toDouble() / cacheTotal * 100.0
+                                    if (pct >= 1.0) "${pct.toInt()}%" else "%.1f%%".format(pct)
+                                } else {
+                                    "-"
+                                },
                             modifier = Modifier.weight(1f),
-                            valueColor = if (cacheTotal > 0 && cumulativeCacheHit > cumulativeCacheMiss) Success
-                            else if (cacheTotal > 0) Warning
-                            else null
+                            valueColor =
+                                if (cacheTotal > 0 && cumulativeCacheHit > cumulativeCacheMiss) {
+                                    Success
+                                } else if (cacheTotal > 0) {
+                                    Warning
+                                } else {
+                                    null
+                                },
                         )
                     }
 
                     // Row 3: Total Cost | Balance
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         StatCell(
                             label = "总费用",
                             value = fmtMoney(cumulativeCost),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                         StatCell(
                             label = "余额",
                             value = status?.balance?.display ?: "-",
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                     }
 
                     // Row 4 (full width): Context Usage
                     ContextUsageBar(
                         used = status?.used ?: 0,
-                        window = status?.window ?: 0
+                        window = status?.window ?: 0,
                     )
                 }
             }
@@ -175,31 +183,33 @@ fun StatsDialog(
 @Composable
 private fun StatsHeader(onDismiss: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, end = 12.dp, top = 14.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 12.dp, top = 14.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = "统计",
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             color = Fg,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         Surface(
             shape = RoundedCornerShape(6.dp),
             color = Bg2,
-            modifier = Modifier
-                .size(28.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .clickable { onDismiss() }
+            modifier =
+                Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable { onDismiss() },
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
                     text = "\u00D7",
                     fontSize = 16.sp,
-                    color = Muted
+                    color = Muted,
                 )
             }
         }
@@ -215,13 +225,14 @@ private fun StatCell(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    valueColor: Color? = null
+    valueColor: Color? = null,
 ) {
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Bg2)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Bg2)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Text(
             text = label,
@@ -230,7 +241,7 @@ private fun StatCell(
             color = Muted,
             letterSpacing = 0.3.sp,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -240,7 +251,7 @@ private fun StatCell(
             fontFamily = FontFamily.Monospace,
             color = valueColor ?: Fg,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -250,47 +261,53 @@ private fun StatCell(
 // ═══════════════════════════════════════════════
 
 @Composable
-private fun ContextUsageBar(used: Long, window: Long) {
+private fun ContextUsageBar(
+    used: Long,
+    window: Long,
+) {
     if (window <= 0) return
 
     val pct = (used.toFloat() / window).coerceIn(0f, 1f)
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Bg2)
-            .padding(12.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Bg2)
+                .padding(12.dp),
     ) {
         Text(
             text = "上下文用量",
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             color = Muted,
-            letterSpacing = 0.3.sp
+            letterSpacing = 0.3.sp,
         )
         Spacer(modifier = Modifier.height(8.dp))
 
         // 进度条
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(99.dp))
-                .background(Panel)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(pct)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(99.dp))
-                    .background(
-                        when {
-                            pct > 0.90f -> Danger
-                            pct > 0.75f -> Warning
-                            else -> Accent
-                        }
-                    )
+                    .background(Panel),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(pct)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(99.dp))
+                        .background(
+                            when {
+                                pct > 0.90f -> Danger
+                                pct > 0.75f -> Warning
+                                else -> Accent
+                            },
+                        ),
             )
         }
 
@@ -299,19 +316,19 @@ private fun ContextUsageBar(used: Long, window: Long) {
         // 标签
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = fmtTok(used),
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
-                color = Muted2
+                color = Muted2,
             )
             Text(
                 text = fmtTok(window),
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
-                color = Muted2
+                color = Muted2,
             )
         }
     }

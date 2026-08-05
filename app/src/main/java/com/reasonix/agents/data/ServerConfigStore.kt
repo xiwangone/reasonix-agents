@@ -15,7 +15,6 @@ import com.google.gson.reflect.TypeToken
  * - 密码 / Token 使用 [CredentialCrypto]（AES-GCM + AndroidKeyStore）加密存储，禁止明文落盘。
  */
 object ServerConfigStore {
-
     private const val TAG = "ServerConfigStore"
     private const val PREFS_NAME = "reasonix_server_config"
     private const val KEY_IP = "ip"
@@ -38,18 +37,19 @@ object ServerConfigStore {
         val authType: String = AuthType.NONE.name,
         val username: String = "",
         val password: String = "",
-        val token: String = ""
+        val token: String = "",
     ) {
         val label: String
             get() = if (name.isNotBlank()) name else ip.ifBlank { "未命名服务器" }
 
         /** 生成认证信息（用于 REST / SSE 客户端）。 */
-        fun toAuth(): AuthInfo = AuthInfo(
-            type = AuthType.from(authType),
-            username = username,
-            password = password,
-            token = token
-        )
+        fun toAuth(): AuthInfo =
+            AuthInfo(
+                type = AuthType.from(authType),
+                username = username,
+                password = password,
+                token = token,
+            )
     }
 
     /** 持久化形态：password / token 已加密。 */
@@ -61,7 +61,7 @@ object ServerConfigStore {
         val authType: String,
         val username: String,
         val passwordEnc: String,
-        val tokenEnc: String
+        val tokenEnc: String,
     )
 
     /** 上次连接配置（自动回填用）。 */
@@ -72,7 +72,7 @@ object ServerConfigStore {
         val password: String = "",
         val useHttps: Boolean = false,
         val authType: String = AuthType.NONE.name,
-        val token: String = ""
+        val token: String = "",
     )
 
     fun load(context: Context): Config {
@@ -87,22 +87,32 @@ object ServerConfigStore {
             password = decryptOrMigrate(context, KEY_PASSWORD, storedPassword),
             useHttps = prefs.getBoolean(KEY_USE_HTTPS, false),
             authType = prefs.getString(KEY_AUTH_TYPE, AuthType.NONE.name) ?: AuthType.NONE.name,
-            token = decryptOrMigrate(context, KEY_TOKEN, storedToken)
+            token = decryptOrMigrate(context, KEY_TOKEN, storedToken),
         )
     }
 
-    private fun decryptOrMigrate(context: Context, key: String, stored: String): String {
+    private fun decryptOrMigrate(
+        context: Context,
+        key: String,
+        stored: String,
+    ): String {
         if (stored.isEmpty()) return ""
         return when {
-            CredentialCrypto.isEncrypted(stored) -> CredentialCrypto.decrypt(stored) ?: ""
-            else -> stored.also { plaintext ->
-                try {
-                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .edit()
-                        .putString(key, CredentialCrypto.encrypt(plaintext))
-                        .apply()
-                } catch (e: Exception) {
-                    Log.e(TAG, "明文迁移失败，下次加载重试", e)
+            CredentialCrypto.isEncrypted(stored) -> {
+                CredentialCrypto.decrypt(stored) ?: ""
+            }
+
+            else -> {
+                stored.also { plaintext ->
+                    try {
+                        context
+                            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            .edit()
+                            .putString(key, CredentialCrypto.encrypt(plaintext))
+                            .apply()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "明文迁移失败，下次加载重试", e)
+                    }
                 }
             }
         }
@@ -116,9 +126,10 @@ object ServerConfigStore {
         password: String = "",
         useHttps: Boolean = false,
         authType: String = AuthType.NONE.name,
-        token: String = ""
+        token: String = "",
     ) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_IP, ip)
             .putString(KEY_PORT, port)
@@ -131,7 +142,10 @@ object ServerConfigStore {
     }
 
     /** 保存最近一次成功连接（含认证信息），供下次重开自动回填。 */
-    fun saveLast(context: Context, profile: ServerProfile) {
+    fun saveLast(
+        context: Context,
+        profile: ServerProfile,
+    ) {
         save(
             context = context,
             ip = profile.ip,
@@ -140,15 +154,17 @@ object ServerConfigStore {
             password = profile.password,
             useHttps = profile.useHttps,
             authType = profile.authType,
-            token = profile.token
+            token = profile.token,
         )
     }
 
     // ── 多服务器配置（批 B-12）──
 
     fun loadProfiles(context: Context): List<ServerProfile> {
-        val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_PROFILES, "") ?: ""
+        val raw =
+            context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_PROFILES, "") ?: ""
         if (raw.isBlank()) return emptyList()
         return try {
             val type = object : TypeToken<List<StoredProfile>>() {}.type
@@ -162,7 +178,7 @@ object ServerConfigStore {
                     authType = p.authType,
                     username = p.username,
                     password = CredentialCrypto.decrypt(p.passwordEnc) ?: "",
-                    token = CredentialCrypto.decrypt(p.tokenEnc) ?: ""
+                    token = CredentialCrypto.decrypt(p.tokenEnc) ?: "",
                 )
             }
         } catch (e: Exception) {
@@ -171,20 +187,25 @@ object ServerConfigStore {
         }
     }
 
-    fun saveProfiles(context: Context, profiles: List<ServerProfile>) {
-        val stored = profiles.map { p ->
-            StoredProfile(
-                name = p.name,
-                ip = p.ip,
-                port = p.port,
-                useHttps = p.useHttps,
-                authType = p.authType,
-                username = p.username,
-                passwordEnc = CredentialCrypto.encrypt(p.password),
-                tokenEnc = CredentialCrypto.encrypt(p.token)
-            )
-        }
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun saveProfiles(
+        context: Context,
+        profiles: List<ServerProfile>,
+    ) {
+        val stored =
+            profiles.map { p ->
+                StoredProfile(
+                    name = p.name,
+                    ip = p.ip,
+                    port = p.port,
+                    useHttps = p.useHttps,
+                    authType = p.authType,
+                    username = p.username,
+                    passwordEnc = CredentialCrypto.encrypt(p.password),
+                    tokenEnc = CredentialCrypto.encrypt(p.token),
+                )
+            }
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_PROFILES, gson.toJson(stored))
             .apply()

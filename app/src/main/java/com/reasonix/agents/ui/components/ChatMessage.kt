@@ -47,10 +47,12 @@ private val userBubbleFg = Color(0xFFFFFFFF)
 // 格式化工具
 // ═══════════════════════════════════════════════
 
-private fun fmtTok(n: Long): String =
-    if (n >= 1000) "%.1fk".format(n / 1000.0) else "$n"
+private fun fmtTok(n: Long): String = if (n >= 1000) "%.1fk".format(n / 1000.0) else "$n"
 
-private fun fmtCost(costUsd: Double?, cost: Double?): String? {
+private fun fmtCost(
+    costUsd: Double?,
+    cost: Double?,
+): String? {
     val v = costUsd ?: cost ?: return null
     return when {
         v >= 1.0 -> "$${"%.2f".format(v)}"
@@ -68,35 +70,40 @@ private fun fmtCost(costUsd: Double?, cost: Double?): String? {
  * 第六批：图片发送——[imagePath] 非空时在文字上方展示本地图片（OCR 识别文字）。
  */
 @Composable
-fun UserMessageBubble(text: String, imagePath: String? = null) {
+fun UserMessageBubble(
+    text: String,
+    imagePath: String? = null,
+) {
     val clipboardManager = LocalClipboardManager.current
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.End
+        horizontalAlignment = Alignment.End,
     ) {
         // 复制按钮
         IconButton(
             onClick = { clipboardManager.setText(AnnotatedString(text)) },
-            modifier = Modifier
-                .padding(end = 12.dp)
-                .size(34.dp)
+            modifier =
+                Modifier
+                    .padding(end = 12.dp)
+                    .size(34.dp),
         ) {
             Icon(
                 imageVector = Icons.Default.ContentCopy,
                 contentDescription = "复制",
                 tint = muted,
-                modifier = Modifier.size(17.dp)
+                modifier = Modifier.size(17.dp),
             )
         }
 
         // 气泡
         Box(
-            modifier = Modifier
-                .padding(start = 64.dp, top = 2.dp, bottom = 6.dp, end = 12.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(userBubbleBg)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+            modifier =
+                Modifier
+                    .padding(start = 64.dp, top = 2.dp, bottom = 6.dp, end = 12.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(userBubbleBg)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             Column(horizontalAlignment = Alignment.End) {
                 // 图片（本地缓存文件，coil 异步加载；气泡 wrap-content，用固定宽度限宽）
@@ -104,11 +111,12 @@ fun UserMessageBubble(text: String, imagePath: String? = null) {
                     AsyncImage(
                         model = File(imagePath),
                         contentDescription = "发送的图片",
-                        modifier = Modifier
-                            .width(240.dp)
-                            .heightIn(max = 260.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0x22000000))
+                        modifier =
+                            Modifier
+                                .width(240.dp)
+                                .heightIn(max = 260.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0x22000000)),
                     )
                     if (text.isNotBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -121,7 +129,7 @@ fun UserMessageBubble(text: String, imagePath: String? = null) {
                         color = userBubbleFg,
                         fontWeight = FontWeight.Medium,
                         fontSize = 15.sp,
-                        lineHeight = 22.sp
+                        lineHeight = 22.sp,
                     )
                 }
             }
@@ -139,29 +147,30 @@ fun UserMessageBubble(text: String, imagePath: String? = null) {
 @Composable
 fun AssistantMessageBubble(
     text: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val clipboardManager = LocalClipboardManager.current
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(start = 4.dp, end = 16.dp, top = 2.dp, bottom = 6.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 16.dp, top = 2.dp, bottom = 6.dp),
     ) {
         // 复制按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.End,
         ) {
             IconButton(
                 onClick = { clipboardManager.setText(AnnotatedString(text)) },
-                modifier = Modifier.size(34.dp)
+                modifier = Modifier.size(34.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.ContentCopy,
                     contentDescription = "复制",
                     tint = muted,
-                    modifier = Modifier.size(17.dp)
+                    modifier = Modifier.size(17.dp),
                 )
             }
         }
@@ -171,7 +180,7 @@ fun AssistantMessageBubble(
             markdown = text,
             codeBackground = bg2,
             codeTextColor = fg2,
-            linkColor = accent
+            linkColor = accent,
         )
     }
 }
@@ -185,27 +194,32 @@ fun AssistantMessageBubble(
  * 警告模式使用 warning 色条和 "!" 前缀。
  */
 @Composable
-fun SystemNotice(text: String, isWarning: Boolean = false) {
+fun SystemNotice(
+    text: String,
+    isWarning: Boolean = false,
+) {
     val borderColor = if (isWarning) accent else muted
     val prefix = if (isWarning) "! " else ""
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
     ) {
         Box(
-            modifier = Modifier
-                .width(2.dp)
-                .height(20.dp)
-                .background(borderColor, RoundedCornerShape(1.dp))
+            modifier =
+                Modifier
+                    .width(2.dp)
+                    .height(20.dp)
+                    .background(borderColor, RoundedCornerShape(1.dp)),
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "$prefix$text",
             color = if (isWarning) fg2 else muted,
             fontSize = 13.sp,
-            lineHeight = 20.sp
+            lineHeight = 20.sp,
         )
     }
 }
@@ -220,25 +234,27 @@ fun SystemNotice(text: String, isWarning: Boolean = false) {
 @Composable
 fun ErrorMessage(text: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(dangerSoft)
-            .padding(start = 10.dp, top = 6.dp, end = 10.dp, bottom = 6.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(dangerSoft)
+                .padding(start = 10.dp, top = 6.dp, end = 10.dp, bottom = 6.dp),
     ) {
         Box(
-            modifier = Modifier
-                .width(2.dp)
-                .height(20.dp)
-                .background(danger, RoundedCornerShape(1.dp))
+            modifier =
+                Modifier
+                    .width(2.dp)
+                    .height(20.dp)
+                    .background(danger, RoundedCornerShape(1.dp)),
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
             color = danger,
             fontSize = 13.sp,
-            lineHeight = 20.sp
+            lineHeight = 20.sp,
         )
     }
 }
@@ -253,17 +269,18 @@ fun ErrorMessage(text: String) {
 @Composable
 fun PhaseIndicator(text: String) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text.uppercase(),
             fontFamily = FontFamily.Monospace,
             fontSize = 11.sp,
             color = muted,
-            letterSpacing = 1.sp
+            letterSpacing = 1.sp,
         )
     }
 }
@@ -278,7 +295,10 @@ fun PhaseIndicator(text: String) {
  * 下排：Token 明细（Total / In / Out） + 缓存命中率
  */
 @Composable
-fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
+fun UsageStatsRow(
+    usage: UsagePayload,
+    balance: String? = null,
+) {
     val total = usage.totalTokens
     val prompt = usage.promptTokens
     val completion = usage.completionTokens
@@ -288,25 +308,29 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
 
     // 计算缓存命中率
     val cacheTotal = cacheHit + cacheMiss
-    val cachePercent: String? = if (cacheTotal > 0) {
-        val pct = cacheHit.toDouble() / cacheTotal * 100.0
-        if (pct >= 1.0) "${pct.toInt()}%" else "%.1f%%".format(pct)
-    } else null
+    val cachePercent: String? =
+        if (cacheTotal > 0) {
+            val pct = cacheHit.toDouble() / cacheTotal * 100.0
+            if (pct >= 1.0) "${pct.toInt()}%" else "%.1f%%".format(pct)
+        } else {
+            null
+        }
 
     // 卡片容器
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(bg2)
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(bg2)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         // ── 上排：费用 + 余额 ──
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // 本轮费用
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -314,7 +338,7 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
                     text = "本轮",
                     color = muted,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -322,7 +346,7 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
                     color = accent,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
                 )
             }
 
@@ -333,7 +357,7 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
                         text = "余额",
                         color = muted,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -341,7 +365,7 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
                         color = success,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = FontFamily.Monospace,
                     )
                 }
             }
@@ -352,27 +376,27 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
         // ── 下排：Token 明细 ──
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "T:${fmtTok(total)}",
                 color = muted2,
                 fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
+                fontFamily = FontFamily.Monospace,
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "入:${fmtTok(prompt)}",
                 color = muted2,
                 fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
+                fontFamily = FontFamily.Monospace,
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "出:${fmtTok(completion)}",
                 color = muted2,
                 fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
+                fontFamily = FontFamily.Monospace,
             )
 
             // 缓存命中率
@@ -382,7 +406,7 @@ fun UsageStatsRow(usage: UsagePayload, balance: String? = null) {
                     text = "缓存 $cachePercent",
                     color = if (cacheHit > cacheMiss) success else muted2,
                     fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
                 )
             }
         }

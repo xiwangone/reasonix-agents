@@ -73,26 +73,28 @@ fun SettingsModelScreen(
     onRefreshModels: () -> Unit,
     onAddCustomModel: (CustomModel) -> Unit,
     onRemoveCustomModel: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     var showAddModel by remember { mutableStateOf(false) }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏（返回 + 标题）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
@@ -101,7 +103,7 @@ fun SettingsModelScreen(
                     text = "模型",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -112,7 +114,7 @@ fun SettingsModelScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // 模型下拉：服务端模型 + 自定义模型合并
                 ModelDropdown(
@@ -120,25 +122,27 @@ fun SettingsModelScreen(
                     customModels = customModels,
                     currentModel = currentModel,
                     onSelect = onModelSelect,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 IconButton(
                     onClick = onRefreshModels,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Bg2)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                    modifier =
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Bg2)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp)),
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = "刷新模型列表", tint = Muted, modifier = Modifier.size(18.dp))
                 }
                 IconButton(
                     onClick = { showAddModel = true },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Bg2)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                    modifier =
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Bg2)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp)),
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "添加模型", tint = Accent, modifier = Modifier.size(18.dp))
                 }
@@ -151,38 +155,40 @@ fun SettingsModelScreen(
                     text = "自定义模型（本地）",
                     fontSize = 11.sp,
                     color = Muted,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 4.dp),
                 )
                 customModels.forEach { cm ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Panel)
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Panel)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = cm.name,
                                 fontSize = 13.sp,
                                 color = if (cm.name == currentModel) Accent else Fg,
-                                fontWeight = if (cm.name == currentModel) FontWeight.SemiBold else FontWeight.Normal
+                                fontWeight = if (cm.name == currentModel) FontWeight.SemiBold else FontWeight.Normal,
                             )
                             Text(
-                                text = buildString {
-                                    append(if (cm.provider == "builtin") "内置" else "自定义")
-                                    if (cm.baseUrl.isNotBlank()) append(" · ${cm.baseUrl}")
-                                    append(" · ${compatLabel(cm.compat)}")
-                                },
+                                text =
+                                    buildString {
+                                        append(if (cm.provider == "builtin") "内置" else "自定义")
+                                        if (cm.baseUrl.isNotBlank()) append(" · ${cm.baseUrl}")
+                                        append(" · ${compatLabel(cm.compat)}")
+                                    },
                                 fontSize = 10.sp,
-                                color = Muted2
+                                color = Muted2,
                             )
                         }
                         IconButton(
                             onClick = { onRemoveCustomModel(cm.id) },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(32.dp),
                         ) {
                             Icon(Icons.Default.Delete, contentDescription = "删除模型", tint = Muted, modifier = Modifier.size(16.dp))
                         }
@@ -200,7 +206,7 @@ fun SettingsModelScreen(
             Text(
                 text = "自定义模型保存在本机，用于第三方兼容服务；服务端模型由 reasonix 服务端管理。",
                 fontSize = 10.sp,
-                color = Muted2
+                color = Muted2,
             )
         }
     }
@@ -212,7 +218,7 @@ fun SettingsModelScreen(
                 onAddCustomModel(model)
                 showAddModel = false
             },
-            onDismiss = { showAddModel = false }
+            onDismiss = { showAddModel = false },
         )
     }
 }
@@ -224,26 +230,27 @@ private fun ModelDropdown(
     customModels: List<CustomModel>,
     currentModel: String,
     onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(Bg2)
-                .border(1.dp, Border, RoundedCornerShape(8.dp))
-                .clickable { expanded = true }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            contentAlignment = Alignment.CenterStart
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Bg2)
+                    .border(1.dp, Border, RoundedCornerShape(8.dp))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.CenterStart,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = currentModel.ifEmpty { "选择模型" },
                     fontSize = 13.sp,
                     color = if (currentModel.isEmpty()) Muted2 else Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(16.dp))
             }
@@ -252,9 +259,10 @@ private fun ModelDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             containerColor = Panel,
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .clip(RoundedCornerShape(10.dp))
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.9f)
+                    .clip(RoundedCornerShape(10.dp)),
         ) {
             // 自定义模型（本地）
             customModels.forEach { cm ->
@@ -265,14 +273,14 @@ private fun ModelDropdown(
                             Text(
                                 "自定义 · ${compatLabel(cm.compat)}",
                                 fontSize = 10.sp,
-                                color = Muted2
+                                color = Muted2,
                             )
                         }
                     },
                     onClick = {
                         expanded = false
                         onSelect(cm.name)
-                    }
+                    },
                 )
             }
             if (customModels.isNotEmpty() && models.isNotEmpty()) {
@@ -293,13 +301,13 @@ private fun ModelDropdown(
                     onClick = {
                         expanded = false
                         onSelect(m.ref)
-                    }
+                    },
                 )
             }
             if (customModels.isEmpty() && models.isEmpty()) {
                 DropdownMenuItem(
                     text = { Text("暂无模型（可点击 + 添加自定义模型）", fontSize = 12.sp, color = Muted2) },
-                    onClick = { expanded = false }
+                    onClick = { expanded = false },
                 )
             }
         }
@@ -313,7 +321,7 @@ private fun ModelDropdown(
 @Composable
 private fun AddModelDialog(
     onAdd: (CustomModel) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
     var key by remember { mutableStateOf("") }
@@ -329,28 +337,39 @@ private fun AddModelDialog(
         val nameTrim = name.trim()
         val keyTrim = key.trim()
         when {
-            nameTrim.isBlank() -> keyError = "请填写模型名称"
+            nameTrim.isBlank() -> {
+                keyError = "请填写模型名称"
+            }
 
-            keyTrim.isBlank() -> keyError = "请填写 Key（provider/model 格式）"
+            keyTrim.isBlank() -> {
+                keyError = "请填写 Key（provider/model 格式）"
+            }
 
-            !keyTrim.contains("/") -> keyError = "Key 需为 provider/model 格式，例如 openai/deepseek-v4-flash"
+            !keyTrim.contains("/") -> {
+                keyError = "Key 需为 provider/model 格式，例如 openai/deepseek-v4-flash"
+            }
 
-            keyTrim.startsWith("/") || keyTrim.endsWith("/") -> keyError = "Key 格式不正确：provider 和 model 均不能为空"
+            keyTrim.startsWith("/") || keyTrim.endsWith("/") -> {
+                keyError = "Key 格式不正确：provider 和 model 均不能为空"
+            }
 
-            else -> onAdd(
-                CustomModel(
-                    id = nameTrim,
-                    name = nameTrim,
-                    key = keyTrim,
-                    provider = if (provider == "内置") "builtin" else "custom",
-                    baseUrl = baseUrl.trim(),
-                    compat = when (compat) {
-                        "OpenAI" -> "openai"
-                        "DeepSeek-Reasonix" -> "deepseek"
-                        else -> "other"
-                    }
+            else -> {
+                onAdd(
+                    CustomModel(
+                        id = nameTrim,
+                        name = nameTrim,
+                        key = keyTrim,
+                        provider = if (provider == "内置") "builtin" else "custom",
+                        baseUrl = baseUrl.trim(),
+                        compat =
+                            when (compat) {
+                                "OpenAI" -> "openai"
+                                "DeepSeek-Reasonix" -> "deepseek"
+                                else -> "other"
+                            },
+                    ),
                 )
-            )
+            }
         }
     }
 
@@ -370,11 +389,12 @@ private fun AddModelDialog(
                         textStyle = TextStyle(color = Fg, fontSize = 13.sp),
                         cursorBrush = SolidColor(Accent),
                         singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Panel)
-                            .border(1.dp, Border, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .background(Panel)
+                                .border(1.dp, Border, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
                     )
                 }
                 // Key（provider/model 兼容格式）
@@ -388,17 +408,18 @@ private fun AddModelDialog(
                         textStyle = TextStyle(color = Fg, fontSize = 13.sp),
                         cursorBrush = SolidColor(Accent),
                         singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Panel)
-                            .border(1.dp, if (keyError != null) Danger else Border, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .background(Panel)
+                                .border(1.dp, if (keyError != null) Danger else Border, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
                     )
                     Text(
                         text = "如 openai/deepseek-v4-flash 或 opencode-zen/deepseek-v4-flash-free，保存后按 key 独立分组",
                         fontSize = 10.sp,
                         color = Muted2,
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
                 // Provider
@@ -406,7 +427,7 @@ private fun AddModelDialog(
                     SimpleDropdown(
                         label = provider,
                         options = providerOptions,
-                        onSelect = { provider = it }
+                        onSelect = { provider = it },
                     )
                 }
                 // base_url（自定义时）
@@ -418,11 +439,12 @@ private fun AddModelDialog(
                             textStyle = TextStyle(color = Fg, fontSize = 13.sp),
                             cursorBrush = SolidColor(Accent),
                             singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Panel)
-                                .border(1.dp, Border, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .background(Panel)
+                                    .border(1.dp, Border, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
                         )
                     }
                 }
@@ -431,7 +453,7 @@ private fun AddModelDialog(
                     SimpleDropdown(
                         label = compat,
                         options = compatOptions,
-                        onSelect = { compat = it }
+                        onSelect = { compat = it },
                     )
                 }
                 if (keyError != null) {
@@ -439,13 +461,13 @@ private fun AddModelDialog(
                         text = keyError.orEmpty(),
                         fontSize = 11.sp,
                         color = Danger,
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 } else {
                     Text(
                         text = "内置：由服务端模型管理；自定义：本地保存，用于第三方兼容服务",
                         fontSize = 10.sp,
-                        color = Muted2
+                        color = Muted2,
                     )
                 }
             }
@@ -456,6 +478,6 @@ private fun AddModelDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("取消", color = Muted) }
         },
-        containerColor = Panel
+        containerColor = Panel,
     )
 }

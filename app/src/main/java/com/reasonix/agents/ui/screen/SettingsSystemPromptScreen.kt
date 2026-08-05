@@ -48,24 +48,26 @@ private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 @Composable
 fun SettingsSystemPromptScreen(
     systemPrompt: String?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏（返回 + 标题）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
@@ -74,7 +76,7 @@ fun SettingsSystemPromptScreen(
                     text = "系统提示词",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -85,30 +87,31 @@ fun SettingsSystemPromptScreen(
                 Text(
                     text = "暂无系统提示词",
                     fontSize = 13.sp,
-                    color = Muted
+                    color = Muted,
                 )
             } else {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Panel)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
-                        .padding(12.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Panel)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp))
+                            .padding(12.dp),
                 ) {
                     Text(
                         text = systemPrompt,
                         fontSize = 13.sp,
                         color = Fg2,
                         lineHeight = 20.sp,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = FontFamily.Monospace,
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "只读：服务端不支持修改系统提示词",
                     fontSize = 11.sp,
-                    color = Muted2
+                    color = Muted2,
                 )
             }
         }

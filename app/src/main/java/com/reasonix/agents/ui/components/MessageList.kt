@@ -34,7 +34,7 @@ fun MessageList(
     balance: String? = null,
     onApprove: ((session: Boolean, persist: Boolean, scope: String) -> Unit)? = null,
     onDeny: (() -> Unit)? = null,
-    onAskSubmit: ((List<Map<String, String>>) -> Unit)? = null
+    onAskSubmit: ((List<Map<String, String>>) -> Unit)? = null,
 ) {
     val listState = rememberLazyListState()
 
@@ -47,24 +47,25 @@ fun MessageList(
 
     LazyColumn(
         state = listState,
-        modifier = modifier
-            .fillMaxSize()
-            .background(bg),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(bg),
         contentPadding = PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp)
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         itemsIndexed(items, key = { index, _ -> "msg_$index" }) { _, item ->
             AnimatedVisibility(
                 visible = true,
                 enter = fadeIn(),
-                exit = fadeOut()
+                exit = fadeOut(),
             ) {
                 ChatItemRow(
                     item = item,
                     balance = balance,
                     onApprove = onApprove,
                     onDeny = onDeny,
-                    onAskSubmit = onAskSubmit
+                    onAskSubmit = onAskSubmit,
                 )
             }
         }
@@ -77,10 +78,12 @@ private fun ChatItemRow(
     balance: String? = null,
     onApprove: ((session: Boolean, persist: Boolean, scope: String) -> Unit)?,
     onDeny: (() -> Unit)?,
-    onAskSubmit: ((List<Map<String, String>>) -> Unit)?
+    onAskSubmit: ((List<Map<String, String>>) -> Unit)?,
 ) {
     when (item) {
-        is ChatItem.UserMessage -> UserMessageBubble(item.content, item.imagePath)
+        is ChatItem.UserMessage -> {
+            UserMessageBubble(item.content, item.imagePath)
+        }
 
         is ChatItem.AssistantMessage -> {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -95,28 +98,40 @@ private fun ChatItemRow(
             }
         }
 
-        is ChatItem.ToolCard -> ToolCard(
-            id = item.id,
-            name = item.name,
-            args = item.args,
-            output = item.output,
-            err = item.err,
-            truncated = item.truncated,
-            isRunning = item.isRunning
-        )
+        is ChatItem.ToolCard -> {
+            ToolCard(
+                id = item.id,
+                name = item.name,
+                args = item.args,
+                output = item.output,
+                err = item.err,
+                truncated = item.truncated,
+                isRunning = item.isRunning,
+            )
+        }
 
-        is ChatItem.SystemNotice -> SystemNotice(
-            text = item.text,
-            isWarning = item.isWarning
-        )
+        is ChatItem.SystemNotice -> {
+            SystemNotice(
+                text = item.text,
+                isWarning = item.isWarning,
+            )
+        }
 
-        is ChatItem.ErrorMessage -> ErrorMessage(text = item.text)
+        is ChatItem.ErrorMessage -> {
+            ErrorMessage(text = item.text)
+        }
 
-        is ChatItem.PhaseIndicator -> PhaseIndicator(text = item.text)
+        is ChatItem.PhaseIndicator -> {
+            PhaseIndicator(text = item.text)
+        }
 
-        is ChatItem.UsageStats -> UsageStatsRow(usage = item.usage, balance = balance)
+        is ChatItem.UsageStats -> {
+            UsageStatsRow(usage = item.usage, balance = balance)
+        }
 
-        is ChatItem.CompactionNotice -> CompactionNoticeCard(item)
+        is ChatItem.CompactionNotice -> {
+            CompactionNoticeCard(item)
+        }
 
         is ChatItem.ApprovalCard -> {
             if (onApprove != null && onDeny != null) {
@@ -125,7 +140,7 @@ private fun ChatItemRow(
                     tool = item.tool,
                     subject = item.subject,
                     onAllow = onApprove,
-                    onDeny = onDeny
+                    onDeny = onDeny,
                 )
             }
         }
@@ -135,7 +150,7 @@ private fun ChatItemRow(
                 AskCard(
                     id = item.id,
                     questions = item.questions,
-                    onSubmit = onAskSubmit
+                    onSubmit = onAskSubmit,
                 )
             }
         }
@@ -153,25 +168,26 @@ private fun CompactionNoticeCard(notice: ChatItem.CompactionNotice) {
     val fg2 = Color(0xFFCCC5C0)
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(8.dp),
         color = bg2,
-        shadowElevation = 1.dp
+        shadowElevation = 1.dp,
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = "压缩",
                 color = muted,
                 fontSize = 11.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
             )
             if (notice.trigger != null) {
                 Text(
                     text = "触发: ${notice.trigger}",
                     color = fg2,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
                 )
             }
             if (notice.summary != null) {
@@ -179,14 +195,14 @@ private fun CompactionNoticeCard(notice: ChatItem.CompactionNotice) {
                     text = notice.summary,
                     color = fg2,
                     fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
             Text(
                 text = "${notice.messages} 条消息已压缩",
                 color = muted,
                 fontSize = 11.sp,
-                modifier = Modifier.padding(top = 2.dp)
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }

@@ -27,12 +27,14 @@ object PromptStore {
     data class CustomPrompt(
         val id: String = "",
         val content: String = "",
-        val createdAt: Long = 0L
+        val createdAt: Long = 0L,
     )
 
     fun load(context: Context): List<CustomPrompt> {
-        val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_PROMPTS, "") ?: ""
+        val raw =
+            context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_PROMPTS, "") ?: ""
         if (raw.isBlank()) return emptyList()
         return try {
             val type = object : TypeToken<List<CustomPrompt>>() {}.type
@@ -43,15 +45,22 @@ object PromptStore {
         }
     }
 
-    fun save(context: Context, prompts: List<CustomPrompt>) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun save(
+        context: Context,
+        prompts: List<CustomPrompt>,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_PROMPTS, gson.toJson(prompts))
             .apply()
     }
 
     /** 新增一条提示词（id 去重后追加）；返回新列表。 */
-    fun add(context: Context, prompt: CustomPrompt): List<CustomPrompt> {
+    fun add(
+        context: Context,
+        prompt: CustomPrompt,
+    ): List<CustomPrompt> {
         val prompts = load(context).toMutableList()
         prompts.removeAll { it.id == prompt.id }
         prompts.add(prompt)
@@ -61,7 +70,10 @@ object PromptStore {
     }
 
     /** 删除提示词；返回新列表。 */
-    fun remove(context: Context, id: String): List<CustomPrompt> {
+    fun remove(
+        context: Context,
+        id: String,
+    ): List<CustomPrompt> {
         val result = load(context).filterNot { it.id == id }
         save(context, result)
         return result
@@ -69,11 +81,18 @@ object PromptStore {
 
     /** 当前选中的提示词 id（选中后重开保留）。 */
     fun getCurrentId(context: Context): String =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_CURRENT, "") ?: ""
 
-    fun setCurrentId(context: Context, id: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putString(KEY_CURRENT, id).apply()
+    fun setCurrentId(
+        context: Context,
+        id: String,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_CURRENT, id)
+            .apply()
     }
 }

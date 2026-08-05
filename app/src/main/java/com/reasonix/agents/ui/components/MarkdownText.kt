@@ -45,12 +45,30 @@ import kotlinx.coroutines.launch
 // ── 内联 Token ──
 
 private sealed class InlinePart {
-    data class Text(val value: String) : InlinePart()
-    data class Bold(val children: List<InlinePart>) : InlinePart()
-    data class Italic(val children: List<InlinePart>) : InlinePart()
-    data class Code(val value: String) : InlinePart()
-    data class Strikethrough(val children: List<InlinePart>) : InlinePart()
-    data class Link(val text: String, val url: String) : InlinePart()
+    data class Text(
+        val value: String,
+    ) : InlinePart()
+
+    data class Bold(
+        val children: List<InlinePart>,
+    ) : InlinePart()
+
+    data class Italic(
+        val children: List<InlinePart>,
+    ) : InlinePart()
+
+    data class Code(
+        val value: String,
+    ) : InlinePart()
+
+    data class Strikethrough(
+        val children: List<InlinePart>,
+    ) : InlinePart()
+
+    data class Link(
+        val text: String,
+        val url: String,
+    ) : InlinePart()
 }
 
 // ── 表格对齐 ──
@@ -60,18 +78,41 @@ private enum class ColAlign { LEFT, CENTER, RIGHT }
 // ── 块类型 ──
 
 private sealed class MdBlock {
-    data class Header(val level: Int, val text: String) : MdBlock()
-    data class Paragraph(val text: String) : MdBlock()
-    data class CodeBlock(val code: String, val language: String = "") : MdBlock()
+    data class Header(
+        val level: Int,
+        val text: String,
+    ) : MdBlock()
+
+    data class Paragraph(
+        val text: String,
+    ) : MdBlock()
+
+    data class CodeBlock(
+        val code: String,
+        val language: String = "",
+    ) : MdBlock()
+
     data class Table(
         val headers: List<String>,
         val alignments: List<ColAlign>,
-        val rows: List<List<String>>
+        val rows: List<List<String>>,
     ) : MdBlock()
-    data class UnorderedListItem(val text: String) : MdBlock()
-    data class OrderedListItem(val number: Int, val text: String) : MdBlock()
-    data class BlockQuote(val text: String) : MdBlock()
+
+    data class UnorderedListItem(
+        val text: String,
+    ) : MdBlock()
+
+    data class OrderedListItem(
+        val number: Int,
+        val text: String,
+    ) : MdBlock()
+
+    data class BlockQuote(
+        val text: String,
+    ) : MdBlock()
+
     data object BlankLine : MdBlock()
+
     data object HorizontalRule : MdBlock()
 }
 
@@ -79,7 +120,10 @@ private sealed class MdBlock {
 
 private enum class TokenKind { KEYWORD, STRING, COMMENT, NUMBER, PUNCTUATION, TYPE, FUNCTION, OPERATOR, PLAIN }
 
-private data class HiToken(val text: String, val kind: TokenKind)
+private data class HiToken(
+    val text: String,
+    val kind: TokenKind,
+)
 
 // ═══════════════════════════════════════════════════════════════════
 //  公开入口
@@ -104,15 +148,22 @@ fun MarkdownText(
         blocks.forEachIndexed { _, block ->
             when (block) {
                 is MdBlock.Header -> {
-                    val sz = when (block.level) {
-                        1 -> 22f; 2 -> 20f; 3 -> 18f
-                        4 -> 17f; 5 -> 16f; else -> 15f
-                    }
+                    val sz =
+                        when (block.level) {
+                            1 -> 22f
+                            2 -> 20f
+                            3 -> 18f
+                            4 -> 17f
+                            5 -> 16f
+                            else -> 15f
+                        }
                     Spacer(modifier = Modifier.height(8.dp))
                     InlineText(
                         raw = block.text,
                         base = SpanStyle(color = textColor, fontWeight = FontWeight.Bold, fontSize = sz.sp),
-                        linkColor = linkColor, codeBg = codeBackground, codeFg = codeTextColor,
+                        linkColor = linkColor,
+                        codeBg = codeBackground,
+                        codeFg = codeTextColor,
                     )
                 }
 
@@ -121,7 +172,9 @@ fun MarkdownText(
                     InlineText(
                         raw = block.text,
                         base = SpanStyle(color = textColor, fontSize = fontSize.sp),
-                        linkColor = linkColor, codeBg = codeBackground, codeFg = codeTextColor,
+                        linkColor = linkColor,
+                        codeBg = codeBackground,
+                        codeFg = codeTextColor,
                         lh = lineHeight.sp,
                     )
                 }
@@ -130,26 +183,30 @@ fun MarkdownText(
                     Spacer(modifier = Modifier.height(6.dp))
                     // ── 语言标签 + 复制按钮（批 B-15）──
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 12.dp, bottom = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (block.language.isNotEmpty()) {
                             Text(
                                 text = block.language.uppercase(),
                                 color = secondaryColor,
                                 fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace
+                                fontFamily = FontFamily.Monospace,
                             )
                         }
                         Spacer(modifier = Modifier.weight(1f))
                         CodeCopyButton(code = block.code, iconColor = secondaryColor)
                     }
                     Box(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                            .background(codeBackground).padding(12.dp)
-                            .horizontalScroll(rememberScrollState())
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(codeBackground)
+                            .padding(12.dp)
+                            .horizontalScroll(rememberScrollState()),
                     ) {
                         HighlightedCode(
                             code = block.code,
@@ -169,13 +226,21 @@ fun MarkdownText(
                 is MdBlock.UnorderedListItem -> {
                     Spacer(modifier = Modifier.height(2.dp))
                     Row(Modifier.padding(start = 12.dp)) {
-                        Text("•", color = secondaryColor, fontSize = fontSize.sp,
-                            lineHeight = lineHeight.sp, modifier = Modifier.width(16.dp))
+                        Text(
+                            "•",
+                            color = secondaryColor,
+                            fontSize = fontSize.sp,
+                            lineHeight = lineHeight.sp,
+                            modifier = Modifier.width(16.dp),
+                        )
                         InlineText(
                             raw = block.text,
                             base = SpanStyle(color = textColor, fontSize = fontSize.sp),
-                            linkColor = linkColor, codeBg = codeBackground, codeFg = codeTextColor,
-                            lh = lineHeight.sp, modifier = Modifier.weight(1f),
+                            linkColor = linkColor,
+                            codeBg = codeBackground,
+                            codeFg = codeTextColor,
+                            lh = lineHeight.sp,
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -183,13 +248,21 @@ fun MarkdownText(
                 is MdBlock.OrderedListItem -> {
                     Spacer(modifier = Modifier.height(2.dp))
                     Row(Modifier.padding(start = 12.dp)) {
-                        Text("${block.number}.", color = secondaryColor, fontSize = fontSize.sp,
-                            lineHeight = lineHeight.sp, modifier = Modifier.width(24.dp))
+                        Text(
+                            "${block.number}.",
+                            color = secondaryColor,
+                            fontSize = fontSize.sp,
+                            lineHeight = lineHeight.sp,
+                            modifier = Modifier.width(24.dp),
+                        )
                         InlineText(
                             raw = block.text,
                             base = SpanStyle(color = textColor, fontSize = fontSize.sp),
-                            linkColor = linkColor, codeBg = codeBackground, codeFg = codeTextColor,
-                            lh = lineHeight.sp, modifier = Modifier.weight(1f),
+                            linkColor = linkColor,
+                            codeBg = codeBackground,
+                            codeFg = codeTextColor,
+                            lh = lineHeight.sp,
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -197,26 +270,45 @@ fun MarkdownText(
                 is MdBlock.BlockQuote -> {
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(Modifier.fillMaxWidth()) {
-                        Box(Modifier.width(3.dp).heightIn(min = 20.dp)
-                            .background(borderColor, RoundedCornerShape(2.dp)))
+                        Box(
+                            Modifier
+                                .width(3.dp)
+                                .heightIn(min = 20.dp)
+                                .background(borderColor, RoundedCornerShape(2.dp)),
+                        )
                         Spacer(Modifier.width(8.dp))
                         InlineText(
                             raw = block.text,
-                            base = SpanStyle(color = secondaryColor, fontStyle = FontStyle.Italic,
-                                fontSize = (fontSize - 0.5f).sp),
-                            linkColor = linkColor, codeBg = codeBackground, codeFg = codeTextColor,
-                            lh = lineHeight.sp, modifier = Modifier.weight(1f),
+                            base =
+                                SpanStyle(
+                                    color = secondaryColor,
+                                    fontStyle = FontStyle.Italic,
+                                    fontSize = (fontSize - 0.5f).sp,
+                                ),
+                            linkColor = linkColor,
+                            codeBg = codeBackground,
+                            codeFg = codeTextColor,
+                            lh = lineHeight.sp,
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
 
                 is MdBlock.HorizontalRule -> {
                     Spacer(Modifier.height(6.dp))
-                    Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(borderColor))
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(1.dp)
+                            .background(borderColor),
+                    )
                     Spacer(Modifier.height(6.dp))
                 }
 
-                is MdBlock.BlankLine -> Spacer(Modifier.height(6.dp))
+                is MdBlock.BlankLine -> {
+                    Spacer(Modifier.height(6.dp))
+                }
             }
         }
     }
@@ -250,20 +342,22 @@ private fun TableBlock(
     }
 
     Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
             .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-            .horizontalScroll(scrollState)
+            .horizontalScroll(scrollState),
     ) {
         // IntrinsicSize.Max 统一所有行宽度，让 fillMaxWidth / weight 在正确的约束下工作
         Column(Modifier.width(IntrinsicSize.Max)) {
             // ── 表头行 ──
             Row(
-                Modifier.fillMaxWidth().background(codeBg).height(IntrinsicSize.Min)
+                Modifier.fillMaxWidth().background(codeBg).height(IntrinsicSize.Min),
             ) {
                 table.headers.forEachIndexed { ci, header ->
                     Box(
                         cellPadding.weight(1f).widthIn(min = cellMinWidth),
-                        contentAlignment = cellAlign(ci)
+                        contentAlignment = cellAlign(ci),
                     ) {
                         Text(
                             text = header.trim(),
@@ -285,14 +379,15 @@ private fun TableBlock(
             // ── 数据行 ──
             table.rows.forEachIndexed { ri, row ->
                 Row(
-                    Modifier.fillMaxWidth()
+                    Modifier
+                        .fillMaxWidth()
                         .background(if (ri % 2 == 0) Color.Transparent else codeBg.copy(alpha = 0.4f))
-                        .height(IntrinsicSize.Min)
+                        .height(IntrinsicSize.Min),
                 ) {
                     row.forEachIndexed { ci, cell ->
                         Box(
                             cellPadding.weight(1f).widthIn(min = cellMinWidth),
-                            contentAlignment = cellAlign(ci)
+                            contentAlignment = cellAlign(ci),
                         ) {
                             Text(
                                 text = cell.trim(),
@@ -333,11 +428,13 @@ private fun HighlightedCode(
         buildAnnotatedString {
             for (t in tokens) {
                 val color = colorForKind(t.kind, baseColor)
-                withStyle(SpanStyle(
-                    color = color,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = if (t.kind == TokenKind.KEYWORD) FontWeight.Bold else FontWeight.Normal,
-                )) {
+                withStyle(
+                    SpanStyle(
+                        color = color,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = if (t.kind == TokenKind.KEYWORD) FontWeight.Bold else FontWeight.Normal,
+                    ),
+                ) {
                     append(t.text)
                 }
             }
@@ -347,155 +444,853 @@ private fun HighlightedCode(
     )
 }
 
-private fun colorForKind(kind: TokenKind, base: Color): Color = when (kind) {
-    TokenKind.KEYWORD     -> Color(0xFFCC7832)  // 橙棕
-    TokenKind.STRING      -> Color(0xFF6A8759)  // 绿
-    TokenKind.COMMENT     -> Color(0xFF808080)  // 灰
-    TokenKind.NUMBER      -> Color(0xFF6897BB)  // 蓝
-    TokenKind.TYPE        -> Color(0xFFA9B7C6)  // 浅灰白 (类/类型名)
-    TokenKind.FUNCTION    -> Color(0xFFFFC66D)  // 金黄
-    TokenKind.OPERATOR    -> Color(0xFFA9B7C6)  // 浅灰白
-    TokenKind.PUNCTUATION -> Color(0xFFA9B7C6)
-    TokenKind.PLAIN       -> base
-}
+private fun colorForKind(
+    kind: TokenKind,
+    base: Color,
+): Color =
+    when (kind) {
+        TokenKind.KEYWORD -> Color(0xFFCC7832)
+
+        // 橙棕
+        TokenKind.STRING -> Color(0xFF6A8759)
+
+        // 绿
+        TokenKind.COMMENT -> Color(0xFF808080)
+
+        // 灰
+        TokenKind.NUMBER -> Color(0xFF6897BB)
+
+        // 蓝
+        TokenKind.TYPE -> Color(0xFFA9B7C6)
+
+        // 浅灰白 (类/类型名)
+        TokenKind.FUNCTION -> Color(0xFFFFC66D)
+
+        // 金黄
+        TokenKind.OPERATOR -> Color(0xFFA9B7C6)
+
+        // 浅灰白
+        TokenKind.PUNCTUATION -> Color(0xFFA9B7C6)
+
+        TokenKind.PLAIN -> base
+    }
 
 // ── 词法分析引擎 ──
 
 /** 各语言的 keyword + 内建类型集合 */
-private val KEYWORD_SETS: Map<String, Set<String>> = mapOf(
-    "kotlin" to setOf(
-        "fun","val","var","class","object","interface","enum","data","sealed",
-        "if","else","when","for","while","do","return","try","catch","finally",
-        "throw","import","package","as","is","in","!in","super","this","true",
-        "false","null","typealias","companion","private","protected","public",
-        "internal","override","abstract","open","final","const","lateinit",
-        "suspend","inline","crossinline","noinline","reified","operator","infix",
-        "tailrec","external","annotation","by","get","set","constructor","init",
-        "break","continue","where","out","vararg","field","it"
-    ),
-    "java" to setOf(
-        "abstract","assert","boolean","break","byte","case","catch","char","class",
-        "const","continue","default","do","double","else","enum","extends","final",
-        "finally","float","for","goto","if","implements","import","instanceof",
-        "int","interface","long","native","new","package","private","protected",
-        "public","return","short","static","strictfp","super","switch",
-        "synchronized","this","throw","throws","transient","try","void","volatile",
-        "while","true","false","null","var","record","sealed","permits","yield"
-    ),
-    "python" to setOf(
-        "False","None","True","and","as","assert","async","await","break",
-        "class","continue","def","del","elif","else","except","finally","for",
-        "from","global","if","import","in","is","lambda","nonlocal","not","or",
-        "pass","raise","return","try","while","with","yield","self","print"
-    ),
-    "javascript" to setOf(
-        "async","await","break","case","catch","class","const","continue",
-        "debugger","default","delete","do","else","export","extends","finally",
-        "for","function","if","import","in","instanceof","let","new","of",
-        "return","super","switch","this","throw","try","typeof","var","void",
-        "while","with","yield","true","false","null","undefined","from","as"
-    ),
-    "typescript" to setOf(
-        "async","await","break","case","catch","class","const","continue",
-        "debugger","default","delete","do","else","enum","export","extends",
-        "finally","for","function","if","implements","import","in","instanceof",
-        "interface","let","new","of","return","super","switch","this","throw",
-        "try","type","typeof","var","void","while","with","yield","true","false",
-        "null","undefined","from","as","readonly","keyof","infer","never","unknown","any"
-    ),
-    "go" to setOf(
-        "break","case","chan","const","continue","default","defer","else",
-        "fallthrough","for","func","go","goto","if","import","interface","map",
-        "package","range","return","select","struct","switch","type","var",
-        "true","false","nil","int","string","bool","byte","error","float64","float32"
-    ),
-    "rust" to setOf(
-        "as","break","const","continue","crate","else","enum","extern","false",
-        "fn","for","if","impl","in","let","loop","match","mod","move","mut",
-        "pub","ref","return","self","Self","static","struct","super","trait",
-        "true","type","unsafe","use","where","while","async","await","dyn","union"
-    ),
-    "sql" to setOf(
-        "SELECT","FROM","WHERE","AND","OR","NOT","IN","IS","NULL","LIKE",
-        "INSERT","INTO","VALUES","UPDATE","SET","DELETE","CREATE","TABLE",
-        "ALTER","DROP","INDEX","JOIN","LEFT","RIGHT","OUTER","INNER","ON",
-        "GROUP","BY","ORDER","ASC","DESC","HAVING","LIMIT","OFFSET","UNION",
-        "AS","DISTINCT","COUNT","SUM","AVG","MAX","MIN","BETWEEN","EXISTS",
-        "CASE","WHEN","THEN","ELSE","END","PRIMARY","KEY","FOREIGN","REFERENCES",
-        "CASCADE","DEFAULT","CHECK","UNIQUE","IF","TRUNCATE"
-    ),
-    "bash" to setOf(
-        "if","then","else","elif","fi","for","while","do","done","case","esac",
-        "in","function","return","exit","export","local","source","echo","read",
-        "declare","unset","set","shift","break","continue","trap","eval","exec"
-    ),
-    "json" to emptySet(),
-    "yaml" to setOf("true","false","null","yes","no","on","off"),
-    "xml" to emptySet(),
-    "html" to emptySet(),
-    "css" to setOf(
-        "!important","@media","@import","@keyframes","@font-face","@supports",
-        "url","rgb","rgba","hsl","hsla"
-    ),
-    "c" to setOf(
-        "auto","break","case","char","const","continue","default","do","double",
-        "else","enum","extern","float","for","goto","if","inline","int","long",
-        "register","restrict","return","short","signed","sizeof","static","struct",
-        "switch","typedef","union","unsigned","void","volatile","while","NULL","true","false"
-    ),
-    "cpp" to setOf(
-        "auto","break","case","char","const","continue","default","do","double",
-        "else","enum","extern","float","for","goto","if","inline","int","long",
-        "register","restrict","return","short","signed","sizeof","static","struct",
-        "switch","typedef","union","unsigned","void","volatile","while","class",
-        "namespace","template","typename","virtual","override","final","public",
-        "private","protected","new","delete","this","nullptr","true","false",
-        "try","catch","throw","noexcept","constexpr","decltype","using","operator",
-        "explicit","friend","mutable","static_cast","dynamic_cast","reinterpret_cast",
-        "const_cast","include","define","ifdef","ifndef","endif","pragma"
-    ),
-    "swift" to setOf(
-        "class","struct","enum","protocol","extension","func","var","let","if",
-        "else","guard","switch","case","default","for","while","repeat","do",
-        "try","catch","throw","throws","rethrows","return","break","continue",
-        "fallthrough","where","in","as","is","self","Self","super","true","false",
-        "nil","import","public","private","internal","fileprivate","open","final",
-        "override","mutating","nonmutating","lazy","weak","unowned","static",
-        "deinit","init","subscript","associatedtype","typealias","some","any"
-    ),
-    "scala" to setOf(
-        "val","var","def","class","object","trait","extends","with","import",
-        "package","if","else","match","case","for","while","do","yield","return",
-        "throw","try","catch","finally","new","this","super","true","false","null",
-        "abstract","override","private","protected","implicit","lazy","sealed",
-        "final","type","lazy","given","using","extension","export","enum","given"
-    ),
-    "dart" to setOf(
-        "abstract","as","assert","async","await","break","case","catch","class",
-        "const","continue","covariant","default","deferred","do","dynamic","else",
-        "enum","export","extends","extension","external","factory","false","final",
-        "finally","for","Function","get","hide","if","implements","import","in",
-        "interface","is","late","library","mixin","new","null","on","operator",
-        "part","required","rethrow","return","set","show","static","super","switch",
-        "sync","this","throw","true","try","typedef","var","void","while","with","yield"
-    ),
-    "groovy" to setOf(
-        "def","var","class","interface","enum","trait","extends","implements",
-        "import","package","if","else","switch","case","default","for","while",
-        "do","return","break","continue","throw","try","catch","finally","new",
-        "this","super","true","false","null","as","in","instanceof","assert",
-        "abstract","final","private","protected","public","static","synchronized"
-    ),
-    "markdown" to emptySet(),
-    "plaintext" to emptySet(),
-    "text" to emptySet(),
-    "" to emptySet(),     // 无语言标签 → 纯文本
-)
+private val KEYWORD_SETS: Map<String, Set<String>> =
+    mapOf(
+        "kotlin" to
+            setOf(
+                "fun",
+                "val",
+                "var",
+                "class",
+                "object",
+                "interface",
+                "enum",
+                "data",
+                "sealed",
+                "if",
+                "else",
+                "when",
+                "for",
+                "while",
+                "do",
+                "return",
+                "try",
+                "catch",
+                "finally",
+                "throw",
+                "import",
+                "package",
+                "as",
+                "is",
+                "in",
+                "!in",
+                "super",
+                "this",
+                "true",
+                "false",
+                "null",
+                "typealias",
+                "companion",
+                "private",
+                "protected",
+                "public",
+                "internal",
+                "override",
+                "abstract",
+                "open",
+                "final",
+                "const",
+                "lateinit",
+                "suspend",
+                "inline",
+                "crossinline",
+                "noinline",
+                "reified",
+                "operator",
+                "infix",
+                "tailrec",
+                "external",
+                "annotation",
+                "by",
+                "get",
+                "set",
+                "constructor",
+                "init",
+                "break",
+                "continue",
+                "where",
+                "out",
+                "vararg",
+                "field",
+                "it",
+            ),
+        "java" to
+            setOf(
+                "abstract",
+                "assert",
+                "boolean",
+                "break",
+                "byte",
+                "case",
+                "catch",
+                "char",
+                "class",
+                "const",
+                "continue",
+                "default",
+                "do",
+                "double",
+                "else",
+                "enum",
+                "extends",
+                "final",
+                "finally",
+                "float",
+                "for",
+                "goto",
+                "if",
+                "implements",
+                "import",
+                "instanceof",
+                "int",
+                "interface",
+                "long",
+                "native",
+                "new",
+                "package",
+                "private",
+                "protected",
+                "public",
+                "return",
+                "short",
+                "static",
+                "strictfp",
+                "super",
+                "switch",
+                "synchronized",
+                "this",
+                "throw",
+                "throws",
+                "transient",
+                "try",
+                "void",
+                "volatile",
+                "while",
+                "true",
+                "false",
+                "null",
+                "var",
+                "record",
+                "sealed",
+                "permits",
+                "yield",
+            ),
+        "python" to
+            setOf(
+                "False",
+                "None",
+                "True",
+                "and",
+                "as",
+                "assert",
+                "async",
+                "await",
+                "break",
+                "class",
+                "continue",
+                "def",
+                "del",
+                "elif",
+                "else",
+                "except",
+                "finally",
+                "for",
+                "from",
+                "global",
+                "if",
+                "import",
+                "in",
+                "is",
+                "lambda",
+                "nonlocal",
+                "not",
+                "or",
+                "pass",
+                "raise",
+                "return",
+                "try",
+                "while",
+                "with",
+                "yield",
+                "self",
+                "print",
+            ),
+        "javascript" to
+            setOf(
+                "async",
+                "await",
+                "break",
+                "case",
+                "catch",
+                "class",
+                "const",
+                "continue",
+                "debugger",
+                "default",
+                "delete",
+                "do",
+                "else",
+                "export",
+                "extends",
+                "finally",
+                "for",
+                "function",
+                "if",
+                "import",
+                "in",
+                "instanceof",
+                "let",
+                "new",
+                "of",
+                "return",
+                "super",
+                "switch",
+                "this",
+                "throw",
+                "try",
+                "typeof",
+                "var",
+                "void",
+                "while",
+                "with",
+                "yield",
+                "true",
+                "false",
+                "null",
+                "undefined",
+                "from",
+                "as",
+            ),
+        "typescript" to
+            setOf(
+                "async",
+                "await",
+                "break",
+                "case",
+                "catch",
+                "class",
+                "const",
+                "continue",
+                "debugger",
+                "default",
+                "delete",
+                "do",
+                "else",
+                "enum",
+                "export",
+                "extends",
+                "finally",
+                "for",
+                "function",
+                "if",
+                "implements",
+                "import",
+                "in",
+                "instanceof",
+                "interface",
+                "let",
+                "new",
+                "of",
+                "return",
+                "super",
+                "switch",
+                "this",
+                "throw",
+                "try",
+                "type",
+                "typeof",
+                "var",
+                "void",
+                "while",
+                "with",
+                "yield",
+                "true",
+                "false",
+                "null",
+                "undefined",
+                "from",
+                "as",
+                "readonly",
+                "keyof",
+                "infer",
+                "never",
+                "unknown",
+                "any",
+            ),
+        "go" to
+            setOf(
+                "break",
+                "case",
+                "chan",
+                "const",
+                "continue",
+                "default",
+                "defer",
+                "else",
+                "fallthrough",
+                "for",
+                "func",
+                "go",
+                "goto",
+                "if",
+                "import",
+                "interface",
+                "map",
+                "package",
+                "range",
+                "return",
+                "select",
+                "struct",
+                "switch",
+                "type",
+                "var",
+                "true",
+                "false",
+                "nil",
+                "int",
+                "string",
+                "bool",
+                "byte",
+                "error",
+                "float64",
+                "float32",
+            ),
+        "rust" to
+            setOf(
+                "as",
+                "break",
+                "const",
+                "continue",
+                "crate",
+                "else",
+                "enum",
+                "extern",
+                "false",
+                "fn",
+                "for",
+                "if",
+                "impl",
+                "in",
+                "let",
+                "loop",
+                "match",
+                "mod",
+                "move",
+                "mut",
+                "pub",
+                "ref",
+                "return",
+                "self",
+                "Self",
+                "static",
+                "struct",
+                "super",
+                "trait",
+                "true",
+                "type",
+                "unsafe",
+                "use",
+                "where",
+                "while",
+                "async",
+                "await",
+                "dyn",
+                "union",
+            ),
+        "sql" to
+            setOf(
+                "SELECT",
+                "FROM",
+                "WHERE",
+                "AND",
+                "OR",
+                "NOT",
+                "IN",
+                "IS",
+                "NULL",
+                "LIKE",
+                "INSERT",
+                "INTO",
+                "VALUES",
+                "UPDATE",
+                "SET",
+                "DELETE",
+                "CREATE",
+                "TABLE",
+                "ALTER",
+                "DROP",
+                "INDEX",
+                "JOIN",
+                "LEFT",
+                "RIGHT",
+                "OUTER",
+                "INNER",
+                "ON",
+                "GROUP",
+                "BY",
+                "ORDER",
+                "ASC",
+                "DESC",
+                "HAVING",
+                "LIMIT",
+                "OFFSET",
+                "UNION",
+                "AS",
+                "DISTINCT",
+                "COUNT",
+                "SUM",
+                "AVG",
+                "MAX",
+                "MIN",
+                "BETWEEN",
+                "EXISTS",
+                "CASE",
+                "WHEN",
+                "THEN",
+                "ELSE",
+                "END",
+                "PRIMARY",
+                "KEY",
+                "FOREIGN",
+                "REFERENCES",
+                "CASCADE",
+                "DEFAULT",
+                "CHECK",
+                "UNIQUE",
+                "IF",
+                "TRUNCATE",
+            ),
+        "bash" to
+            setOf(
+                "if",
+                "then",
+                "else",
+                "elif",
+                "fi",
+                "for",
+                "while",
+                "do",
+                "done",
+                "case",
+                "esac",
+                "in",
+                "function",
+                "return",
+                "exit",
+                "export",
+                "local",
+                "source",
+                "echo",
+                "read",
+                "declare",
+                "unset",
+                "set",
+                "shift",
+                "break",
+                "continue",
+                "trap",
+                "eval",
+                "exec",
+            ),
+        "json" to emptySet(),
+        "yaml" to setOf("true", "false", "null", "yes", "no", "on", "off"),
+        "xml" to emptySet(),
+        "html" to emptySet(),
+        "css" to
+            setOf(
+                "!important",
+                "@media",
+                "@import",
+                "@keyframes",
+                "@font-face",
+                "@supports",
+                "url",
+                "rgb",
+                "rgba",
+                "hsl",
+                "hsla",
+            ),
+        "c" to
+            setOf(
+                "auto",
+                "break",
+                "case",
+                "char",
+                "const",
+                "continue",
+                "default",
+                "do",
+                "double",
+                "else",
+                "enum",
+                "extern",
+                "float",
+                "for",
+                "goto",
+                "if",
+                "inline",
+                "int",
+                "long",
+                "register",
+                "restrict",
+                "return",
+                "short",
+                "signed",
+                "sizeof",
+                "static",
+                "struct",
+                "switch",
+                "typedef",
+                "union",
+                "unsigned",
+                "void",
+                "volatile",
+                "while",
+                "NULL",
+                "true",
+                "false",
+            ),
+        "cpp" to
+            setOf(
+                "auto",
+                "break",
+                "case",
+                "char",
+                "const",
+                "continue",
+                "default",
+                "do",
+                "double",
+                "else",
+                "enum",
+                "extern",
+                "float",
+                "for",
+                "goto",
+                "if",
+                "inline",
+                "int",
+                "long",
+                "register",
+                "restrict",
+                "return",
+                "short",
+                "signed",
+                "sizeof",
+                "static",
+                "struct",
+                "switch",
+                "typedef",
+                "union",
+                "unsigned",
+                "void",
+                "volatile",
+                "while",
+                "class",
+                "namespace",
+                "template",
+                "typename",
+                "virtual",
+                "override",
+                "final",
+                "public",
+                "private",
+                "protected",
+                "new",
+                "delete",
+                "this",
+                "nullptr",
+                "true",
+                "false",
+                "try",
+                "catch",
+                "throw",
+                "noexcept",
+                "constexpr",
+                "decltype",
+                "using",
+                "operator",
+                "explicit",
+                "friend",
+                "mutable",
+                "static_cast",
+                "dynamic_cast",
+                "reinterpret_cast",
+                "const_cast",
+                "include",
+                "define",
+                "ifdef",
+                "ifndef",
+                "endif",
+                "pragma",
+            ),
+        "swift" to
+            setOf(
+                "class",
+                "struct",
+                "enum",
+                "protocol",
+                "extension",
+                "func",
+                "var",
+                "let",
+                "if",
+                "else",
+                "guard",
+                "switch",
+                "case",
+                "default",
+                "for",
+                "while",
+                "repeat",
+                "do",
+                "try",
+                "catch",
+                "throw",
+                "throws",
+                "rethrows",
+                "return",
+                "break",
+                "continue",
+                "fallthrough",
+                "where",
+                "in",
+                "as",
+                "is",
+                "self",
+                "Self",
+                "super",
+                "true",
+                "false",
+                "nil",
+                "import",
+                "public",
+                "private",
+                "internal",
+                "fileprivate",
+                "open",
+                "final",
+                "override",
+                "mutating",
+                "nonmutating",
+                "lazy",
+                "weak",
+                "unowned",
+                "static",
+                "deinit",
+                "init",
+                "subscript",
+                "associatedtype",
+                "typealias",
+                "some",
+                "any",
+            ),
+        "scala" to
+            setOf(
+                "val",
+                "var",
+                "def",
+                "class",
+                "object",
+                "trait",
+                "extends",
+                "with",
+                "import",
+                "package",
+                "if",
+                "else",
+                "match",
+                "case",
+                "for",
+                "while",
+                "do",
+                "yield",
+                "return",
+                "throw",
+                "try",
+                "catch",
+                "finally",
+                "new",
+                "this",
+                "super",
+                "true",
+                "false",
+                "null",
+                "abstract",
+                "override",
+                "private",
+                "protected",
+                "implicit",
+                "lazy",
+                "sealed",
+                "final",
+                "type",
+                "lazy",
+                "given",
+                "using",
+                "extension",
+                "export",
+                "enum",
+                "given",
+            ),
+        "dart" to
+            setOf(
+                "abstract",
+                "as",
+                "assert",
+                "async",
+                "await",
+                "break",
+                "case",
+                "catch",
+                "class",
+                "const",
+                "continue",
+                "covariant",
+                "default",
+                "deferred",
+                "do",
+                "dynamic",
+                "else",
+                "enum",
+                "export",
+                "extends",
+                "extension",
+                "external",
+                "factory",
+                "false",
+                "final",
+                "finally",
+                "for",
+                "Function",
+                "get",
+                "hide",
+                "if",
+                "implements",
+                "import",
+                "in",
+                "interface",
+                "is",
+                "late",
+                "library",
+                "mixin",
+                "new",
+                "null",
+                "on",
+                "operator",
+                "part",
+                "required",
+                "rethrow",
+                "return",
+                "set",
+                "show",
+                "static",
+                "super",
+                "switch",
+                "sync",
+                "this",
+                "throw",
+                "true",
+                "try",
+                "typedef",
+                "var",
+                "void",
+                "while",
+                "with",
+                "yield",
+            ),
+        "groovy" to
+            setOf(
+                "def",
+                "var",
+                "class",
+                "interface",
+                "enum",
+                "trait",
+                "extends",
+                "implements",
+                "import",
+                "package",
+                "if",
+                "else",
+                "switch",
+                "case",
+                "default",
+                "for",
+                "while",
+                "do",
+                "return",
+                "break",
+                "continue",
+                "throw",
+                "try",
+                "catch",
+                "finally",
+                "new",
+                "this",
+                "super",
+                "true",
+                "false",
+                "null",
+                "as",
+                "in",
+                "instanceof",
+                "assert",
+                "abstract",
+                "final",
+                "private",
+                "protected",
+                "public",
+                "static",
+                "synchronized",
+            ),
+        "markdown" to emptySet(),
+        "plaintext" to emptySet(),
+        "text" to emptySet(),
+        "" to emptySet(), // 无语言标签 → 纯文本
+    )
 
-private fun tokenize(code: String, language: String): List<HiToken> {
+private fun tokenize(
+    code: String,
+    language: String,
+): List<HiToken> {
     val lang = language.lowercase()
     val keywords = KEYWORD_SETS[lang] ?: emptySet()
-    if (keywords.isEmpty() && lang !in listOf("json","xml","html","yaml","css","markdown","plaintext","text","")) {
+    if (keywords.isEmpty() && lang !in listOf("json", "xml", "html", "yaml", "css", "markdown", "plaintext", "text", "")) {
         // 未知语言 → 退化为已知语言关键词检测 (尝试常见关键词)
         // 不做任何高亮，直接当纯文本
     }
@@ -522,7 +1317,7 @@ private fun tokenize(code: String, language: String): List<HiToken> {
                 val start = i
                 i += 2
                 while (i + 1 < n && !(code[i] == '*' && code[i + 1] == '/')) i++
-                if (i + 1 < n) i += 2  // skip */
+                if (i + 1 < n) i += 2 // skip */
                 tokens.add(HiToken(code.substring(start, i), TokenKind.COMMENT))
             }
 
@@ -546,7 +1341,7 @@ private fun tokenize(code: String, language: String): List<HiToken> {
                 val start = i
                 i++ // skip opening "
                 while (i < n && code[i] != '"') {
-                    if (code[i] == '\\' && i + 1 < n) i++  // escape
+                    if (code[i] == '\\' && i + 1 < n) i++ // escape
                     i++
                 }
                 if (i < n) i++ // skip closing "
@@ -578,12 +1373,14 @@ private fun tokenize(code: String, language: String): List<HiToken> {
             }
 
             // ── 三引号字符串 (Python docstring) ──
-            i + 2 < n && ((ch == '"' && code[i+1] == '"' && code[i+2] == '"') ||
-                          (ch == '\'' && code[i+1] == '\'' && code[i+2] == '\'')) -> {
+            i + 2 < n && (
+                (ch == '"' && code[i + 1] == '"' && code[i + 2] == '"') ||
+                    (ch == '\'' && code[i + 1] == '\'' && code[i + 2] == '\'')
+            ) -> {
                 val quote = code[i]
                 val start = i
                 i += 3
-                while (i + 2 < n && !(code[i] == quote && code[i+1] == quote && code[i+2] == quote)) i++
+                while (i + 2 < n && !(code[i] == quote && code[i + 1] == quote && code[i + 2] == quote)) i++
                 if (i + 2 < n) i += 3
                 tokens.add(HiToken(code.substring(start, i), TokenKind.STRING))
             }
@@ -591,8 +1388,8 @@ private fun tokenize(code: String, language: String): List<HiToken> {
             // ── 数字字面量 ──
             ch.isDigit() || (ch == '.' && i + 1 < n && code[i + 1].isDigit()) -> {
                 val start = i
-                if (ch == '0' && i + 1 < n && (code[i+1] == 'x' || code[i+1] == 'X')) {
-                    i += 2  // skip 0x
+                if (ch == '0' && i + 1 < n && (code[i + 1] == 'x' || code[i + 1] == 'X')) {
+                    i += 2 // skip 0x
                     while (i < n && code[i].let { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) i++
                 } else {
                     while (i < n && (code[i].isDigit() || code[i] == '.' || code[i] == '_')) i++
@@ -607,20 +1404,52 @@ private fun tokenize(code: String, language: String): List<HiToken> {
                 val start = i
                 while (i < n && (code[i].isLetterOrDigit() || code[i] == '_' || code[i] == '$')) i++
                 val word = code.substring(start, i)
-                val kind = when {
-                    word in keywords -> TokenKind.KEYWORD
-                    word[0].isUpperCase() -> TokenKind.TYPE
-                    i < n && code[i] == '(' -> TokenKind.FUNCTION
-                    else -> TokenKind.PLAIN
-                }
+                val kind =
+                    when {
+                        word in keywords -> TokenKind.KEYWORD
+                        word[0].isUpperCase() -> TokenKind.TYPE
+                        i < n && code[i] == '(' -> TokenKind.FUNCTION
+                        else -> TokenKind.PLAIN
+                    }
                 tokens.add(HiToken(word, kind))
             }
 
             // ── 运算符 / 标点 ──
-            ch in "+-*/%&|^~!=<>@:" || (ch == '.' && (i + 1 >= n || !code[i+1].isDigit())) -> {
+            ch in "+-*/%&|^~!=<>@:" || (ch == '.' && (i + 1 >= n || !code[i + 1].isDigit())) -> {
                 val start = i
                 // 多字符运算符
-                if (i + 1 < n && code.substring(i, i + 2) in setOf("==","!=","<=",">=","&&","||","++","--","->","::","=>","+=","-=","*=","/=","%=","&=","|=","^=","<<",">>","**","//","?.","!!","?:","?.")) {
+                if (i + 1 < n &&
+                    code.substring(i, i + 2) in
+                    setOf(
+                        "==",
+                        "!=",
+                        "<=",
+                        ">=",
+                        "&&",
+                        "||",
+                        "++",
+                        "--",
+                        "->",
+                        "::",
+                        "=>",
+                        "+=",
+                        "-=",
+                        "*=",
+                        "/=",
+                        "%=",
+                        "&=",
+                        "|=",
+                        "^=",
+                        "<<",
+                        ">>",
+                        "**",
+                        "//",
+                        "?.",
+                        "!!",
+                        "?:",
+                        "?.",
+                    )
+                ) {
                     i += 2
                 } else {
                     i++
@@ -685,7 +1514,12 @@ private fun buildInline(
     codeFg: Color,
 ): AnnotatedString {
     val sb = StringBuilder()
-    data class Slot(val pos: Int, val len: Int, val part: InlinePart)
+
+    data class Slot(
+        val pos: Int,
+        val len: Int,
+        val part: InlinePart,
+    )
     val slots = mutableListOf<Slot>()
 
     fun emit(part: InlinePart) {
@@ -712,20 +1546,36 @@ private fun buildInline(
             if (slot.len <= 0) continue
             val r = slot.pos until (slot.pos + slot.len)
             when (val p = slot.part) {
-                is InlinePart.Bold -> addStyle(SpanStyle(fontWeight = FontWeight.Bold), r.first, r.last + 1)
-                is InlinePart.Italic -> addStyle(SpanStyle(fontStyle = FontStyle.Italic), r.first, r.last + 1)
-                is InlinePart.Strikethrough -> addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough), r.first, r.last + 1)
-                is InlinePart.Code -> {
-                    addStyle(SpanStyle(
-                        fontFamily = FontFamily.Monospace,
-                        background = codeBg, color = codeFg,
-                        fontSize = (base.fontSize ?: 15.sp) * 0.92f,
-                    ), r.first, r.last + 1)
+                is InlinePart.Bold -> {
+                    addStyle(SpanStyle(fontWeight = FontWeight.Bold), r.first, r.last + 1)
                 }
+
+                is InlinePart.Italic -> {
+                    addStyle(SpanStyle(fontStyle = FontStyle.Italic), r.first, r.last + 1)
+                }
+
+                is InlinePart.Strikethrough -> {
+                    addStyle(SpanStyle(textDecoration = TextDecoration.LineThrough), r.first, r.last + 1)
+                }
+
+                is InlinePart.Code -> {
+                    addStyle(
+                        SpanStyle(
+                            fontFamily = FontFamily.Monospace,
+                            background = codeBg,
+                            color = codeFg,
+                            fontSize = (base.fontSize ?: 15.sp) * 0.92f,
+                        ),
+                        r.first,
+                        r.last + 1,
+                    )
+                }
+
                 is InlinePart.Link -> {
                     addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), r.first, r.last + 1)
                     addStringAnnotation("URL", p.url, r.first, r.last + 1)
                 }
+
                 is InlinePart.Text -> {}
             }
         }
@@ -823,7 +1673,10 @@ private fun parseInline(text: String): List<InlinePart> {
             else -> {
                 val start = i
                 while (i < n && text[i] != '`' && text[i] != '[' &&
-                    text[i] != '*' && text[i] != '_' && text[i] != '~') i++
+                    text[i] != '*' && text[i] != '_' && text[i] != '~'
+                ) {
+                    i++
+                }
                 if (i > start) parts.add(InlinePart.Text(text.substring(start, i)))
             }
         }
@@ -850,9 +1703,12 @@ private fun isTableSeparator(line: String): Boolean {
 }
 
 /** 从分隔行提取每列对齐 */
-private fun parseAlignments(sepLine: String): List<ColAlign> {
-    return sepLine.trim().removeSurrounding("|")
-        .split("|").map { col ->
+private fun parseAlignments(sepLine: String): List<ColAlign> =
+    sepLine
+        .trim()
+        .removeSurrounding("|")
+        .split("|")
+        .map { col ->
             val c = col.trim()
             val left = c.startsWith(":")
             val right = c.endsWith(":")
@@ -862,14 +1718,14 @@ private fun parseAlignments(sepLine: String): List<ColAlign> {
                 else -> ColAlign.LEFT
             }
         }
-}
 
 /** 解析一行表格单元格 */
-private fun parseCells(line: String): List<String> {
-    return line.trim().removeSurrounding("|")
-        .split("|")  // 简单 split；不支持单元格内转义 |
+private fun parseCells(line: String): List<String> =
+    line
+        .trim()
+        .removeSurrounding("|")
+        .split("|") // 简单 split；不支持单元格内转义 |
         .map { it.trim() }
-}
 
 private fun parseBlocks(raw: String): List<MdBlock> {
     val blocks = mutableListOf<MdBlock>()
@@ -909,13 +1765,16 @@ private fun parseBlocks(raw: String): List<MdBlock> {
 
         // 对齐列数：以表头为准，不足补齐空串
         val colCount = headers.size
-        blocks.add(MdBlock.Table(
-            headers = headers,
-            alignments = List(colCount) { alignments.getOrElse(it) { ColAlign.LEFT } },
-            rows = rows.map { row ->
-                List(colCount) { row.getOrElse(it) { "" } }
-            }
-        ))
+        blocks.add(
+            MdBlock.Table(
+                headers = headers,
+                alignments = List(colCount) { alignments.getOrElse(it) { ColAlign.LEFT } },
+                rows =
+                    rows.map { row ->
+                        List(colCount) { row.getOrElse(it) { "" } }
+                    },
+            ),
+        )
         tableBuf.clear()
     }
 
@@ -1014,7 +1873,10 @@ private fun parseBlocks(raw: String): List<MdBlock> {
  * 短暂显示 ✓「已复制」后恢复。
  */
 @Composable
-private fun CodeCopyButton(code: String, iconColor: Color) {
+private fun CodeCopyButton(
+    code: String,
+    iconColor: Color,
+) {
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     var copied by remember { mutableStateOf(false) }
@@ -1027,13 +1889,13 @@ private fun CodeCopyButton(code: String, iconColor: Color) {
                 copied = false
             }
         },
-        modifier = Modifier.size(24.dp)
+        modifier = Modifier.size(24.dp),
     ) {
         Icon(
             imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
             contentDescription = if (copied) "已复制" else "复制代码",
             tint = if (copied) Color(0xFF40A060) else iconColor,
-            modifier = Modifier.size(13.dp)
+            modifier = Modifier.size(13.dp),
         )
     }
 }

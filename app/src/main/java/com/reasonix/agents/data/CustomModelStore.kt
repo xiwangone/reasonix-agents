@@ -11,7 +11,6 @@ import com.google.gson.reflect.TypeToken
  * 持久化到 SharedPreferences（JSON），与服务端 GET /models 返回的模型合并展示。
  */
 object CustomModelStore {
-
     private const val TAG = "CustomModelStore"
     private const val PREFS_NAME = "reasonix_custom_models"
     private const val KEY_MODELS = "models_json"
@@ -30,7 +29,7 @@ object CustomModelStore {
         val key: String = "",
         val provider: String = "custom",
         val baseUrl: String = "",
-        val compat: String = "openai"
+        val compat: String = "openai",
     ) {
         /** 分组展示名：key 非空用 key，否则回退到 id/name。 */
         val groupLabel: String
@@ -38,8 +37,10 @@ object CustomModelStore {
     }
 
     fun load(context: Context): List<CustomModel> {
-        val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_MODELS, "") ?: ""
+        val raw =
+            context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_MODELS, "") ?: ""
         if (raw.isBlank()) return emptyList()
         return try {
             val type = object : TypeToken<List<CustomModel>>() {}.type
@@ -50,15 +51,22 @@ object CustomModelStore {
         }
     }
 
-    fun save(context: Context, models: List<CustomModel>) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun save(
+        context: Context,
+        models: List<CustomModel>,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_MODELS, gson.toJson(models))
             .apply()
     }
 
     /** 新增模型（id 去重，同名覆盖）；返回新列表。 */
-    fun add(context: Context, model: CustomModel): List<CustomModel> {
+    fun add(
+        context: Context,
+        model: CustomModel,
+    ): List<CustomModel> {
         val models = load(context).toMutableList()
         val id = model.id.ifBlank { model.name }
         models.removeAll { it.id == id || (it.name == model.name && it.name.isNotBlank()) }
@@ -69,7 +77,10 @@ object CustomModelStore {
     }
 
     /** 删除模型；返回新列表。 */
-    fun remove(context: Context, id: String): List<CustomModel> {
+    fun remove(
+        context: Context,
+        id: String,
+    ): List<CustomModel> {
         val result = load(context).filterNot { it.id == id }
         save(context, result)
         return result
@@ -77,11 +88,18 @@ object CustomModelStore {
 
     /** 本地记忆的「当前模型」（自定义模型选中后记录，重开保留）。 */
     fun getCurrent(context: Context): String =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_CURRENT, "") ?: ""
 
-    fun setCurrent(context: Context, model: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putString(KEY_CURRENT, model).apply()
+    fun setCurrent(
+        context: Context,
+        model: String,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_CURRENT, model)
+            .apply()
     }
 }

@@ -8,21 +8,20 @@ import android.util.Log
  * GitHub token 使用 [CredentialCrypto]（AES-GCM + AndroidKeyStore）加密存储，展示时脱敏。
  */
 object CiMonitorStore {
-
     private const val TAG = "CiMonitorStore"
     private const val PREFS_NAME = "reasonix_ci_monitor"
-    private const val KEY_ENABLED = "ci_enabled"            // 悬浮窗总开关
-    private const val KEY_GITHUB_TOKEN = "github_token"      // 只存本机，不明文外传
-    private const val KEY_OWNER = "ci_owner"                 // 仓库 owner，默认 xiwangone
-    private const val KEY_REPO = "ci_repo"                   // 仓库名，默认 reasonix-agents
-    private const val KEY_INTERVAL_MS = "ci_interval_ms"     // 刷新间隔 ms，默认 60_000
+    private const val KEY_ENABLED = "ci_enabled" // 悬浮窗总开关
+    private const val KEY_GITHUB_TOKEN = "github_token" // 只存本机，不明文外传
+    private const val KEY_OWNER = "ci_owner" // 仓库 owner，默认 xiwangone
+    private const val KEY_REPO = "ci_repo" // 仓库名，默认 reasonix-agents
+    private const val KEY_INTERVAL_MS = "ci_interval_ms" // 刷新间隔 ms，默认 60_000
 
     data class CiSettings(
         val enabled: Boolean = false,
         val githubToken: String = "",
         val owner: String = "xiwangone",
         val repo: String = "reasonix-agents",
-        val intervalMs: Long = 60_000L
+        val intervalMs: Long = 60_000L,
     )
 
     fun load(context: Context): CiSettings {
@@ -31,35 +30,51 @@ object CiMonitorStore {
         return CiSettings(
             enabled = prefs.getBoolean(KEY_ENABLED, false),
             // 旧版明文 → 读取后立即迁移为密文；密文解密失败则按空处理
-            githubToken = when {
-                storedToken.isEmpty() -> ""
-                CredentialCrypto.isEncrypted(storedToken) ->
-                    CredentialCrypto.decrypt(storedToken) ?: ""
-                else -> storedToken.also { plaintext ->
-                    // 迁移失败（如 KeyStore 异常）只保留内存明文，不落盘、不崩溃，下次 load 重试
-                    try {
-                        migratePlaintextToken(context, plaintext)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "token 加密迁移失败，下次加载重试", e)
+            githubToken =
+                when {
+                    storedToken.isEmpty() -> {
+                        ""
                     }
-                }
-            },
+
+                    CredentialCrypto.isEncrypted(storedToken) -> {
+                        CredentialCrypto.decrypt(storedToken) ?: ""
+                    }
+
+                    else -> {
+                        storedToken.also { plaintext ->
+                            // 迁移失败（如 KeyStore 异常）只保留内存明文，不落盘、不崩溃，下次 load 重试
+                            try {
+                                migratePlaintextToken(context, plaintext)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "token 加密迁移失败，下次加载重试", e)
+                            }
+                        }
+                    }
+                },
             owner = prefs.getString(KEY_OWNER, "xiwangone") ?: "xiwangone",
             repo = prefs.getString(KEY_REPO, "reasonix-agents") ?: "reasonix-agents",
-            intervalMs = prefs.getLong(KEY_INTERVAL_MS, 60_000L)
+            intervalMs = prefs.getLong(KEY_INTERVAL_MS, 60_000L),
         )
     }
 
     /** 将旧版明文 token 原地加密迁移，避免继续明文留存。 */
-    private fun migratePlaintextToken(context: Context, plaintext: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private fun migratePlaintextToken(
+        context: Context,
+        plaintext: String,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_GITHUB_TOKEN, CredentialCrypto.encrypt(plaintext))
             .apply()
     }
 
-    fun save(context: Context, s: CiSettings) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun save(
+        context: Context,
+        s: CiSettings,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_ENABLED, s.enabled)
             .putString(KEY_GITHUB_TOKEN, CredentialCrypto.encrypt(s.githubToken))
@@ -70,9 +85,10 @@ object CiMonitorStore {
     }
 
     /** 脱敏展示：前3后3+***；空或过短则原样 mask */
-    fun maskToken(token: String): String = when {
-        token.isEmpty() -> ""
-        token.length <= 8 -> "***"
-        else -> token.take(3) + "***" + token.takeLast(3)
-    }
+    fun maskToken(token: String): String =
+        when {
+            token.isEmpty() -> ""
+            token.length <= 8 -> "***"
+            else -> token.take(3) + "***" + token.takeLast(3)
+        }
 }

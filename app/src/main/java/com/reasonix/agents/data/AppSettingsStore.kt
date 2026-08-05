@@ -19,13 +19,12 @@ import android.content.Context
  * - httpWarningAcked：HTTP 明文一次性警告是否已确认
  */
 object AppSettingsStore {
-
     private const val PREFS_NAME = "reasonix_app_settings"
-    private const val KEY_THEME_PRESET = "theme_preset"           // 0=brand 1=material
-    private const val KEY_THEME_MODE = "theme_mode"               // 0=system 1=light 2=dark
-    private const val KEY_LANGUAGE = "language"                   // zh / en
-    private const val KEY_SHOW_REASONING = "show_reasoning"       // 默认 true
-    private const val KEY_SHOW_TOKENS = "show_tokens"             // 默认 true
+    private const val KEY_THEME_PRESET = "theme_preset" // 0=brand 1=material
+    private const val KEY_THEME_MODE = "theme_mode" // 0=system 1=light 2=dark
+    private const val KEY_LANGUAGE = "language" // zh / en
+    private const val KEY_SHOW_REASONING = "show_reasoning" // 默认 true
+    private const val KEY_SHOW_TOKENS = "show_tokens" // 默认 true
     private const val KEY_CONNECT_TIMEOUT_SEC = "connect_timeout_sec"
     private const val KEY_SSE_RECONNECT_ENABLED = "sse_reconnect_enabled"
     private const val KEY_SSE_RECONNECT_MAX_DELAY_SEC = "sse_reconnect_max_delay_sec"
@@ -47,7 +46,7 @@ object AppSettingsStore {
         val connectTimeoutSec: Int = 30,
         val sseReconnectEnabled: Boolean = true,
         val sseReconnectMaxDelaySec: Int = 30,
-        val httpWarningAcked: Boolean = false
+        val httpWarningAcked: Boolean = false,
     )
 
     fun load(context: Context): Settings {
@@ -61,12 +60,16 @@ object AppSettingsStore {
             connectTimeoutSec = prefs.getInt(KEY_CONNECT_TIMEOUT_SEC, 30),
             sseReconnectEnabled = prefs.getBoolean(KEY_SSE_RECONNECT_ENABLED, true),
             sseReconnectMaxDelaySec = prefs.getInt(KEY_SSE_RECONNECT_MAX_DELAY_SEC, 30),
-            httpWarningAcked = prefs.getBoolean(KEY_HTTP_WARNING_ACKED, false)
+            httpWarningAcked = prefs.getBoolean(KEY_HTTP_WARNING_ACKED, false),
         )
     }
 
-    fun save(context: Context, s: Settings) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun save(
+        context: Context,
+        s: Settings,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putInt(KEY_THEME_PRESET, s.themePreset)
             .putInt(KEY_THEME_MODE, s.themeMode)
@@ -80,33 +83,69 @@ object AppSettingsStore {
             .apply()
     }
 
-    fun setThemePreset(context: Context, preset: Int) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putInt(KEY_THEME_PRESET, preset).apply()
+    fun setThemePreset(
+        context: Context,
+        preset: Int,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_THEME_PRESET, preset)
+            .apply()
     }
 
-    fun setThemeMode(context: Context, mode: Int) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putInt(KEY_THEME_MODE, mode).apply()
+    fun setThemeMode(
+        context: Context,
+        mode: Int,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_THEME_MODE, mode)
+            .apply()
     }
 
-    fun setLanguage(context: Context, language: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putString(KEY_LANGUAGE, language).apply()
+    fun setLanguage(
+        context: Context,
+        language: String,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LANGUAGE, language)
+            .apply()
     }
 
-    fun setShowReasoning(context: Context, show: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_SHOW_REASONING, show).apply()
+    fun setShowReasoning(
+        context: Context,
+        show: Boolean,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_SHOW_REASONING, show)
+            .apply()
     }
 
-    fun setShowTokens(context: Context, show: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_SHOW_TOKENS, show).apply()
+    fun setShowTokens(
+        context: Context,
+        show: Boolean,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_SHOW_TOKENS, show)
+            .apply()
     }
 
-    fun setHttpWarningAcked(context: Context, acked: Boolean) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_HTTP_WARNING_ACKED, acked).apply()
+    fun setHttpWarningAcked(
+        context: Context,
+        acked: Boolean,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_HTTP_WARNING_ACKED, acked)
+            .apply()
     }
 }

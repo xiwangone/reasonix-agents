@@ -40,24 +40,26 @@ private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 fun SettingsThemeScreen(
     settings: AppSettingsStore.Settings,
     onSettingsChange: (AppSettingsStore.Settings) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏（返回 + 标题）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
@@ -66,7 +68,7 @@ fun SettingsThemeScreen(
                     text = "主题",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -76,24 +78,24 @@ fun SettingsThemeScreen(
             SectionTitle("配色风格")
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ThemeChip(
                     "品牌紫蓝",
                     settings.themePreset == AppSettingsStore.THEME_PRESET_BRAND,
-                    { onSettingsChange(settings.copy(themePreset = AppSettingsStore.THEME_PRESET_BRAND)) }
+                    { onSettingsChange(settings.copy(themePreset = AppSettingsStore.THEME_PRESET_BRAND)) },
                 )
                 ThemeChip(
                     "Material",
                     settings.themePreset == AppSettingsStore.THEME_PRESET_MATERIAL,
-                    { onSettingsChange(settings.copy(themePreset = AppSettingsStore.THEME_PRESET_MATERIAL)) }
+                    { onSettingsChange(settings.copy(themePreset = AppSettingsStore.THEME_PRESET_MATERIAL)) },
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "品牌紫蓝：Reasonix 品牌色系；Material：Material 标准蓝紫。",
                 fontSize = 10.sp,
-                color = Muted2
+                color = Muted2,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -102,7 +104,7 @@ fun SettingsThemeScreen(
             SectionTitle("明暗模式")
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ThemeChip("跟随系统", settings.themeMode == AppSettingsStore.THEME_MODE_SYSTEM, {
                     onSettingsChange(settings.copy(themeMode = AppSettingsStore.THEME_MODE_SYSTEM))
@@ -121,7 +123,7 @@ fun SettingsThemeScreen(
             SectionTitle("语言")
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ThemeChip("简体中文", settings.language == "zh", {
                     onSettingsChange(settings.copy(language = "zh"))
@@ -134,7 +136,7 @@ fun SettingsThemeScreen(
                 text = "当前版本仅提供中文界面，语言偏好已保存（预留）",
                 fontSize = 10.sp,
                 color = Muted2,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
     }

@@ -15,10 +15,12 @@ import java.util.concurrent.TimeUnit
  * 公开仓库无需 token。
  */
 class GitHubReleaseApi(
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val client: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build(),
 ) {
     private val gson = Gson()
 
@@ -26,7 +28,7 @@ class GitHubReleaseApi(
         val tagName: String = "",
         val name: String = "",
         @SerializedName("html_url") val htmlUrl: String = "",
-        @SerializedName("published_at") val publishedAt: String = ""
+        @SerializedName("published_at") val publishedAt: String = "",
     )
 
     /**
@@ -34,30 +36,33 @@ class GitHubReleaseApi(
      * @return ReleaseInfo；仓库暂无 Release（HTTP 404）返回 null（= 无更新）。
      * @throws Exception 网络错误 / 非 2xx（如 403 限流、5xx），由 UI 提示「网络错误，请稍后重试」。
      */
-    suspend fun checkLatest(repo: String = DEFAULT_REPO): ReleaseInfo? = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url("https://api.github.com/repos/$repo/releases/latest")
-            .header("Accept", "application/vnd.github+json")
-            .build()
-        try {
-            val resp = client.newCall(request).execute()
-            // 404 = 仓库暂无 Release：视为「无更新」，不抛异常
-            if (resp.code == 404) {
+    suspend fun checkLatest(repo: String = DEFAULT_REPO): ReleaseInfo? =
+        withContext(Dispatchers.IO) {
+            val request =
+                Request
+                    .Builder()
+                    .url("https://api.github.com/repos/$repo/releases/latest")
+                    .header("Accept", "application/vnd.github+json")
+                    .build()
+            try {
+                val resp = client.newCall(request).execute()
+                // 404 = 仓库暂无 Release：视为「无更新」，不抛异常
+                if (resp.code == 404) {
+                    resp.close()
+                    return@withContext null
+                }
+                if (!resp.isSuccessful) {
+                    resp.close()
+                    throw java.io.IOException("HTTP ${resp.code}")
+                }
+                val body = resp.body?.string() ?: return@withContext null
                 resp.close()
-                return@withContext null
+                gson.fromJson(body, ReleaseInfo::class.java)
+            } catch (e: Exception) {
+                // 网络异常（DNS / 超时 / IO）向上抛出，由 UI 提示网络错误
+                throw e
             }
-            if (!resp.isSuccessful) {
-                resp.close()
-                throw java.io.IOException("HTTP ${resp.code}")
-            }
-            val body = resp.body?.string() ?: return@withContext null
-            resp.close()
-            gson.fromJson(body, ReleaseInfo::class.java)
-        } catch (e: Exception) {
-            // 网络异常（DNS / 超时 / IO）向上抛出，由 UI 提示网络错误
-            throw e
         }
-    }
 
     companion object {
         const val DEFAULT_REPO = "xiwangone/reasonix-agents"
@@ -66,9 +71,14 @@ class GitHubReleaseApi(
          * 版本号对比（支持 "1.0"、"v1.0.1"、"1.0.1-beta" 等形态）。
          * @return 1=latest 更新；0=相同；-1=latest 更旧
          */
-        fun compareVersions(current: String, latest: String): Int {
+        fun compareVersions(
+            current: String,
+            latest: String,
+        ): Int {
             fun parse(v: String): List<Int> =
-                v.trim().trimStart('v', 'V')
+                v
+                    .trim()
+                    .trimStart('v', 'V')
                     .split('.', '-', '_')
                     .mapNotNull { it.toIntOrNull() }
 

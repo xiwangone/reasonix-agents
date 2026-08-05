@@ -40,7 +40,8 @@ object WebDavSyncManager {
     private const val WRITE_TIMEOUT_SEC = 30L
 
     private val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        OkHttpClient
+            .Builder()
             .connectTimeout(CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SEC, TimeUnit.SECONDS)
             .writeTimeout(WRITE_TIMEOUT_SEC, TimeUnit.SECONDS)
@@ -57,14 +58,18 @@ object WebDavSyncManager {
     // ── 上传 / 下载 ──
 
     /** 上传备份 JSON 到 WebDAV。 */
-    fun upload(context: Context, json: String): SyncResult {
+    fun upload(
+        context: Context,
+        json: String,
+    ): SyncResult {
         val settings = WebDavStore.load(context)
         if (!settings.isConfigured) {
             return SyncResult(false, "WebDAV 配置不完整：请填写服务器地址、账号、密码与远程路径")
         }
         return try {
             val request =
-                Request.Builder()
+                Request
+                    .Builder()
                     .url(buildUrl(settings))
                     .put(json.toByteArray(Charsets.UTF_8).toRequestBody("application/json".toMediaType()))
                     .header("Authorization", Credentials.basic(settings.username, settings.password))
@@ -89,20 +94,33 @@ object WebDavSyncManager {
         }
         return try {
             val request =
-                Request.Builder()
+                Request
+                    .Builder()
                     .url(buildUrl(settings))
                     .get()
                     .header("Authorization", Credentials.basic(settings.username, settings.password))
                     .build()
             client.newCall(request).execute().use { resp ->
                 when {
-                    resp.code == 401 || resp.code == 403 -> SyncResult(false, "认证失败：账号或密码错误（HTTP ${resp.code}）")
-                    resp.code == 404 -> SyncResult(false, "远程备份不存在（HTTP 404）：请先执行上传")
-                    !resp.isSuccessful -> SyncResult(false, "下载失败：HTTP ${resp.code}")
+                    resp.code == 401 || resp.code == 403 -> {
+                        SyncResult(false, "认证失败：账号或密码错误（HTTP ${resp.code}）")
+                    }
+
+                    resp.code == 404 -> {
+                        SyncResult(false, "远程备份不存在（HTTP 404）：请先执行上传")
+                    }
+
+                    !resp.isSuccessful -> {
+                        SyncResult(false, "下载失败：HTTP ${resp.code}")
+                    }
+
                     else -> {
                         val body = resp.body?.string() ?: ""
-                        if (body.isBlank()) SyncResult(false, "下载失败：远程备份内容为空")
-                        else SyncResult(true, "下载成功", body)
+                        if (body.isBlank()) {
+                            SyncResult(false, "下载失败：远程备份内容为空")
+                        } else {
+                            SyncResult(true, "下载成功", body)
+                        }
                     }
                 }
             }
@@ -112,12 +130,16 @@ object WebDavSyncManager {
     }
 
     /** 网络异常分类提示（超时 / 域名 / 连接 / 其他）。 */
-    private fun networkError(e: Exception, action: String): String = when (e) {
-        is SocketTimeoutException -> "${action}超时：请检查网络或服务器地址"
-        is UnknownHostException -> "${action}失败：无法解析服务器地址，请检查是否填写正确"
-        is ConnectException -> "${action}失败：无法连接服务器，请检查网络与地址"
-        else -> "${action}失败：${e.message ?: "网络错误"}"
-    }
+    private fun networkError(
+        e: Exception,
+        action: String,
+    ): String =
+        when (e) {
+            is SocketTimeoutException -> "${action}超时：请检查网络或服务器地址"
+            is UnknownHostException -> "${action}失败：无法解析服务器地址，请检查是否填写正确"
+            is ConnectException -> "${action}失败：无法连接服务器，请检查网络与地址"
+            else -> "${action}失败：${e.message ?: "网络错误"}"
+        }
 
     /** 拼接 WebDAV 完整 URL：服务器地址（去尾斜杠）+ 远程路径（去头斜杠）。 */
     private fun buildUrl(settings: WebDavStore.WebDavSettings): String {
@@ -150,7 +172,7 @@ object WebDavSyncManager {
                             username = last.username,
                             password = last.password,
                             token = last.token,
-                        )
+                        ),
                     )
             }
         }
@@ -170,7 +192,10 @@ object WebDavSyncManager {
      * 设置每天定时自动上传（RTC_WAKEUP + setInexactRepeating，省电）。
      * 关闭开关时取消已设闹钟。
      */
-    fun scheduleAutoSync(context: Context, settings: WebDavStore.WebDavSettings) {
+    fun scheduleAutoSync(
+        context: Context,
+        settings: WebDavStore.WebDavSettings,
+    ) {
         cancelAutoSync(context)
         if (!settings.autoSyncEnabled) return
         val (hour, minute) = parseTime(settings.autoSyncTime)
@@ -215,8 +240,18 @@ object WebDavSyncManager {
     /** 解析 "HH:mm"；非法输入回退默认 02:00。 */
     fun parseTime(time: String): Pair<Int, Int> {
         val parts = time.split(":")
-        val hour = parts.getOrNull(0)?.trim()?.toIntOrNull()?.coerceIn(0, 23) ?: 2
-        val minute = parts.getOrNull(1)?.trim()?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+        val hour =
+            parts
+                .getOrNull(0)
+                ?.trim()
+                ?.toIntOrNull()
+                ?.coerceIn(0, 23) ?: 2
+        val minute =
+            parts
+                .getOrNull(1)
+                ?.trim()
+                ?.toIntOrNull()
+                ?.coerceIn(0, 59) ?: 0
         return hour to minute
     }
 

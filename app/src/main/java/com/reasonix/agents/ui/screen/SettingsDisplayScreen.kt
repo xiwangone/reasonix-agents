@@ -38,24 +38,26 @@ private val Fg: Color @Composable get() = LocalPalette.current.fg
 fun SettingsDisplayScreen(
     settings: AppSettingsStore.Settings,
     onSettingsChange: (AppSettingsStore.Settings) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏（返回 + 标题）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
@@ -64,7 +66,7 @@ fun SettingsDisplayScreen(
                     text = "显示",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -76,14 +78,14 @@ fun SettingsDisplayScreen(
                 checked = settings.showReasoning,
                 onCheckedChange = { on ->
                     onSettingsChange(settings.copy(showReasoning = on))
-                }
+                },
             )
             SettingSwitch(
                 title = "显示 Token / 费用",
                 checked = settings.showTokens,
                 onCheckedChange = { on ->
                     onSettingsChange(settings.copy(showTokens = on))
-                }
+                },
             )
         }
     }

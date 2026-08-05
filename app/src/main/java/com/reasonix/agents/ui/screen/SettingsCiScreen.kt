@@ -57,24 +57,26 @@ private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 fun SettingsCiScreen(
     ciSettings: CiMonitorStore.CiSettings,
     onCiSettingsChange: (CiMonitorStore.CiSettings) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏（返回 + 标题）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
@@ -83,7 +85,7 @@ fun SettingsCiScreen(
                     text = "CI 监控",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -95,7 +97,7 @@ fun SettingsCiScreen(
                 checked = ciSettings.enabled,
                 onCheckedChange = { on ->
                     onCiSettingsChange(ciSettings.copy(enabled = on))
-                }
+                },
             )
             if (ciSettings.enabled) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -104,7 +106,7 @@ fun SettingsCiScreen(
                 InfoRow("GitHub Token", if (ciSettings.githubToken.isEmpty()) "未填写" else CiMonitorStore.maskToken(ciSettings.githubToken))
                 CiTokenInput(
                     currentToken = ciSettings.githubToken,
-                    onTokenChange = { t -> onCiSettingsChange(ciSettings.copy(githubToken = t)) }
+                    onTokenChange = { t -> onCiSettingsChange(ciSettings.copy(githubToken = t)) },
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -113,38 +115,42 @@ fun SettingsCiScreen(
                 CiTextField(
                     label = "Owner",
                     value = ciSettings.owner,
-                    onValueChange = { v -> onCiSettingsChange(ciSettings.copy(owner = v)) }
+                    onValueChange = { v -> onCiSettingsChange(ciSettings.copy(owner = v)) },
                 )
                 CiTextField(
                     label = "Repo",
                     value = ciSettings.repo,
-                    onValueChange = { v -> onCiSettingsChange(ciSettings.copy(repo = v)) }
+                    onValueChange = { v -> onCiSettingsChange(ciSettings.copy(repo = v)) },
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // 刷新间隔
-                InfoRow("刷新间隔", when (ciSettings.intervalMs) {
-                    30_000L -> "30 秒"
-                    60_000L -> "1 分钟"
-                    300_000L -> "5 分钟"
-                    else -> "${ciSettings.intervalMs / 1000} 秒"
-                })
+                InfoRow(
+                    "刷新间隔",
+                    when (ciSettings.intervalMs) {
+                        30_000L -> "30 秒"
+                        60_000L -> "1 分钟"
+                        300_000L -> "5 分钟"
+                        else -> "${ciSettings.intervalMs / 1000} 秒"
+                    },
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(30_000L to "30s", 60_000L to "1m", 300_000L to "5m").forEach { (ms, label) ->
                         val selected = ciSettings.intervalMs == ms
                         Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (selected) Accent.copy(alpha = 0.18f) else Panel)
-                                .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
-                                .clickable { onCiSettingsChange(ciSettings.copy(intervalMs = ms)) }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (selected) Accent.copy(alpha = 0.18f) else Panel)
+                                    .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
+                                    .clickable { onCiSettingsChange(ciSettings.copy(intervalMs = ms)) }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
                             Text(
                                 text = label,
                                 fontSize = 12.sp,
-                                color = if (selected) Accent else Fg
+                                color = if (selected) Accent else Fg,
                             )
                         }
                     }
@@ -154,12 +160,12 @@ fun SettingsCiScreen(
                 Text(
                     text = "悬浮球颜色：运行中=橙 成功=绿 失败=红 排队=蓝",
                     fontSize = 11.sp,
-                    color = Muted2
+                    color = Muted2,
                 )
                 Text(
                     text = "提示：Token 仅存本机，不会上传",
                     fontSize = 11.sp,
-                    color = Muted2
+                    color = Muted2,
                 )
             }
         }
@@ -167,43 +173,47 @@ fun SettingsCiScreen(
 }
 
 @Composable
-private fun CiTokenInput(currentToken: String, onTokenChange: (String) -> Unit) {
+private fun CiTokenInput(
+    currentToken: String,
+    onTokenChange: (String) -> Unit,
+) {
     var editing by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = if (editing) "新 Token" else "Token",
                 fontSize = 13.sp,
                 color = Muted,
-                modifier = Modifier.width(64.dp)
+                modifier = Modifier.width(64.dp),
             )
             if (editing) {
                 BasicTextField(
                     value = draft,
                     onValueChange = { draft = it },
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(Panel)
-                        .border(1.dp, Border, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .background(Panel)
+                            .border(1.dp, Border, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
                     textStyle = TextStyle(color = Fg, fontSize = 13.sp),
                     cursorBrush = SolidColor(Accent),
-                    singleLine = true
+                    singleLine = true,
                 )
                 Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Accent)
-                        .clickable {
-                            onTokenChange(draft.trim())
-                            editing = false
-                            draft = ""
-                        }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Accent)
+                            .clickable {
+                                onTokenChange(draft.trim())
+                                editing = false
+                                draft = ""
+                            }.padding(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Text("保存", fontSize = 12.sp, color = Color.White)
                 }
@@ -212,15 +222,16 @@ private fun CiTokenInput(currentToken: String, onTokenChange: (String) -> Unit) 
                     text = if (currentToken.isEmpty()) "点击填写" else CiMonitorStore.maskToken(currentToken),
                     fontSize = 13.sp,
                     color = if (currentToken.isEmpty()) Muted2 else Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Panel)
-                        .border(1.dp, Border, RoundedCornerShape(6.dp))
-                        .clickable { editing = true }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Panel)
+                            .border(1.dp, Border, RoundedCornerShape(6.dp))
+                            .clickable { editing = true }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Text(if (currentToken.isEmpty()) "填写" else "更换", fontSize = 12.sp, color = Accent)
                 }
@@ -231,34 +242,39 @@ private fun CiTokenInput(currentToken: String, onTokenChange: (String) -> Unit) 
             Text(
                 text = "输入 GitHub Personal Access Token（repo 权限）",
                 fontSize = 11.sp,
-                color = Muted2
+                color = Muted2,
             )
         }
     }
 }
 
 @Composable
-private fun CiTextField(label: String, value: String, onValueChange: (String) -> Unit) {
+private fun CiTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
             fontSize = 13.sp,
             color = Muted,
-            modifier = Modifier.width(64.dp)
+            modifier = Modifier.width(64.dp),
         )
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier
-                .weight(1f)
-                .background(Panel)
-                .border(1.dp, Border, RoundedCornerShape(6.dp))
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .background(Panel)
+                    .border(1.dp, Border, RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
             textStyle = TextStyle(color = Fg, fontSize = 13.sp),
-            singleLine = true
+            singleLine = true,
         )
     }
 }

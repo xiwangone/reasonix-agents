@@ -66,7 +66,7 @@ private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 fun TodoPanel(
     todos: List<TodoItem>,
     onRefresh: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(true) }
 
@@ -74,51 +74,55 @@ fun TodoPanel(
     val progress = if (todos.isEmpty()) 0f else doneCount.toFloat() / todos.size
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Panel)
-            .padding(vertical = 2.dp)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(Panel)
+                .padding(vertical = 2.dp),
     ) {
         // ── 头部 ──
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "任务进度",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Fg,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             if (todos.isNotEmpty()) {
                 Text(
                     text = "$doneCount/${todos.size}",
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = if (doneCount == todos.size) Success else Muted
+                    color = if (doneCount == todos.size) Success else Muted,
                 )
             }
             Icon(
                 imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                 contentDescription = if (expanded) "收起" else "展开",
                 tint = Muted,
-                modifier = Modifier
-                    .size(18.dp)
-                    .clickable { expanded = !expanded }
+                modifier =
+                    Modifier
+                        .size(18.dp)
+                        .clickable { expanded = !expanded },
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.Filled.Refresh,
                 contentDescription = "刷新",
                 tint = Muted,
-                modifier = Modifier
-                    .size(16.dp)
-                    .clickable { onRefresh() }
+                modifier =
+                    Modifier
+                        .size(16.dp)
+                        .clickable { onRefresh() },
             )
         }
 
@@ -126,12 +130,13 @@ fun TodoPanel(
             // ── 进度条 ──
             LinearProgressIndicator(
                 progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .height(4.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .height(4.dp),
                 color = Accent,
-                trackColor = AccentS
+                trackColor = AccentS,
             )
 
             // ── 列表 / 空态 ──
@@ -140,14 +145,15 @@ fun TodoPanel(
                     text = "暂无任务",
                     fontSize = 12.sp,
                     color = Muted2,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                 )
             } else {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                        .verticalScroll(rememberScrollState())
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     todos.forEach { todo -> TodoRow(todo) }
                 }
@@ -159,46 +165,57 @@ fun TodoPanel(
 @Composable
 private fun TodoRow(todo: TodoItem) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 状态图标
         when {
-            todo.isCompleted -> Icon(
-                imageVector = Icons.Filled.CheckCircle,
-                contentDescription = "已完成",
-                tint = Success,
-                modifier = Modifier.size(16.dp)
-            )
-            todo.isInProgress -> Box(
-                modifier = Modifier
-                    .size(16.dp)
-                    .clip(CircleShape)
-                    .background(Accent)
-            )
-            else -> Icon(
-                imageVector = Icons.Filled.RadioButtonUnchecked,
-                contentDescription = "待办",
-                tint = Muted2,
-                modifier = Modifier.size(16.dp)
-            )
+            todo.isCompleted -> {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = "已完成",
+                    tint = Success,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+
+            todo.isInProgress -> {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(Accent),
+                )
+            }
+
+            else -> {
+                Icon(
+                    imageVector = Icons.Filled.RadioButtonUnchecked,
+                    contentDescription = "待办",
+                    tint = Muted2,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = todo.content.ifBlank { "(无标题)" },
             fontSize = 13.sp,
-            color = when {
-                todo.isCompleted -> Muted2
-                todo.isInProgress -> Fg
-                else -> Fg2
-            },
+            color =
+                when {
+                    todo.isCompleted -> Muted2
+                    todo.isInProgress -> Fg
+                    else -> Fg2
+                },
             textDecoration = if (todo.isCompleted) TextDecoration.LineThrough else null,
             fontWeight = if (todo.isInProgress) FontWeight.Medium else FontWeight.Normal,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
     }
 }

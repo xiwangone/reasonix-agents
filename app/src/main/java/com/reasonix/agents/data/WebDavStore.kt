@@ -67,8 +67,12 @@ object WebDavStore {
     }
 
     /** 保存配置（密码加密后落盘；不覆盖同步状态字段）。 */
-    fun save(context: Context, settings: WebDavSettings) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun save(
+        context: Context,
+        settings: WebDavSettings,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_SERVER_URL, settings.serverUrl)
             .putString(KEY_USERNAME, settings.username)
@@ -80,8 +84,13 @@ object WebDavStore {
     }
 
     /** 记录一次同步结果（时间 + 成败 + 信息），供设置页「同步状态」展示。 */
-    fun recordSyncResult(context: Context, ok: Boolean, message: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun recordSyncResult(
+        context: Context,
+        ok: Boolean,
+        message: String,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putLong(KEY_LAST_SYNC_AT, System.currentTimeMillis())
             .putBoolean(KEY_LAST_SYNC_OK, ok)
@@ -89,18 +98,27 @@ object WebDavStore {
             .apply()
     }
 
-    private fun decryptOrMigrate(context: Context, stored: String): String {
+    private fun decryptOrMigrate(
+        context: Context,
+        stored: String,
+    ): String {
         if (stored.isEmpty()) return ""
         return when {
-            CredentialCrypto.isEncrypted(stored) -> CredentialCrypto.decrypt(stored) ?: ""
-            else -> stored.also { plaintext ->
-                try {
-                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .edit()
-                        .putString(KEY_PASSWORD, CredentialCrypto.encrypt(plaintext))
-                        .apply()
-                } catch (e: Exception) {
-                    Log.e(TAG, "明文迁移失败，下次加载重试", e)
+            CredentialCrypto.isEncrypted(stored) -> {
+                CredentialCrypto.decrypt(stored) ?: ""
+            }
+
+            else -> {
+                stored.also { plaintext ->
+                    try {
+                        context
+                            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            .edit()
+                            .putString(KEY_PASSWORD, CredentialCrypto.encrypt(plaintext))
+                            .apply()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "明文迁移失败，下次加载重试", e)
+                    }
                 }
             }
         }

@@ -41,24 +41,26 @@ private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 fun SettingsNetworkScreen(
     settings: AppSettingsStore.Settings,
     onSettingsChange: (AppSettingsStore.Settings) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏（返回 + 标题）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
@@ -67,7 +69,7 @@ fun SettingsNetworkScreen(
                     text = "网络",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -78,17 +80,17 @@ fun SettingsNetworkScreen(
                 text = "连接超时",
                 fontSize = 12.sp,
                 color = Muted,
-                modifier = Modifier.padding(bottom = 6.dp)
+                modifier = Modifier.padding(bottom = 6.dp),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(15 to "15 秒", 30 to "30 秒", 60 to "60 秒", 120 to "120 秒").forEach { (sec, label) ->
                     ThemeChip(
                         label,
                         settings.connectTimeoutSec == sec,
-                        { onSettingsChange(settings.copy(connectTimeoutSec = sec)) }
+                        { onSettingsChange(settings.copy(connectTimeoutSec = sec)) },
                     )
                 }
             }
@@ -98,7 +100,7 @@ fun SettingsNetworkScreen(
                 checked = settings.sseReconnectEnabled,
                 onCheckedChange = { on ->
                     onSettingsChange(settings.copy(sseReconnectEnabled = on))
-                }
+                },
             )
             if (settings.sseReconnectEnabled) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -106,17 +108,17 @@ fun SettingsNetworkScreen(
                     text = "重连退避上限",
                     fontSize = 12.sp,
                     color = Muted,
-                    modifier = Modifier.padding(bottom = 6.dp)
+                    modifier = Modifier.padding(bottom = 6.dp),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     listOf(10 to "10 秒", 30 to "30 秒", 60 to "60 秒", 120 to "120 秒").forEach { (sec, label) ->
                         ThemeChip(
                             label,
                             settings.sseReconnectMaxDelaySec == sec,
-                            { onSettingsChange(settings.copy(sseReconnectMaxDelaySec = sec)) }
+                            { onSettingsChange(settings.copy(sseReconnectMaxDelaySec = sec)) },
                         )
                     }
                 }
@@ -124,7 +126,7 @@ fun SettingsNetworkScreen(
                     text = "指数退避 1s→2s→4s…，达到上限后保持该间隔重试",
                     fontSize = 10.sp,
                     color = Muted2,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }

@@ -38,24 +38,26 @@ private val Fg: Color @Composable get() = LocalPalette.current.fg
 fun SettingsServerScreen(
     serverUrl: String,
     status: StatusInfo?,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏（返回 + 标题）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
@@ -64,7 +66,7 @@ fun SettingsServerScreen(
                     text = "服务器信息",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -81,7 +83,7 @@ fun SettingsServerScreen(
             Text(
                 text = "服务器信息来自 reasonix 服务端 /status 接口，只读展示。",
                 fontSize = 11.sp,
-                color = Fg
+                color = Fg,
             )
         }
     }

@@ -14,10 +14,12 @@ import java.util.concurrent.TimeUnit
  */
 class GitHubCiApi(
     private val token: String,
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val client: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build(),
 ) {
     private val gson = Gson()
 
@@ -27,43 +29,50 @@ class GitHubCiApi(
         val name: String = "",
         @SerializedName("head_sha") val headSha: String = "",
         @SerializedName("head_branch") val branch: String = "",
-        val status: String = "unknown",       // queued | in_progress | completed
-        val conclusion: String? = null,       // success | failure | cancelled | null(运行中)
+        val status: String = "unknown", // queued | in_progress | completed
+        val conclusion: String? = null, // success | failure | cancelled | null(运行中)
         @SerializedName("created_at") val createdAt: String = "",
-        @SerializedName("updated_at") val updatedAt: String = ""
+        @SerializedName("updated_at") val updatedAt: String = "",
     ) {
         /** 统一状态：success / failure / running / queued / cancelled / unknown */
         val state: String
-            get() = when {
-                status == "completed" && conclusion == "success" -> "success"
-                status == "completed" && conclusion == "failure" -> "failure"
-                status == "completed" && conclusion == "cancelled" -> "cancelled"
-                status == "in_progress" -> "running"
-                status == "queued" -> "queued"
-                else -> "unknown"
-            }
+            get() =
+                when {
+                    status == "completed" && conclusion == "success" -> "success"
+                    status == "completed" && conclusion == "failure" -> "failure"
+                    status == "completed" && conclusion == "cancelled" -> "cancelled"
+                    status == "in_progress" -> "running"
+                    status == "queued" -> "queued"
+                    else -> "unknown"
+                }
     }
 
-    suspend fun getLatestRun(owner: String, repo: String): CiRun? = withContext(Dispatchers.IO) {
-        val url = "https://api.github.com/repos/$owner/$repo/actions/runs?per_page=1"
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $token")
-            .header("Accept", "application/vnd.github+json")
-            .header("X-GitHub-Api-Version", "2022-11-28")
-            .build()
-        try {
-            val resp = client.newCall(request).execute()
-            if (!resp.isSuccessful) {
+    suspend fun getLatestRun(
+        owner: String,
+        repo: String,
+    ): CiRun? =
+        withContext(Dispatchers.IO) {
+            val url = "https://api.github.com/repos/$owner/$repo/actions/runs?per_page=1"
+            val request =
+                Request
+                    .Builder()
+                    .url(url)
+                    .header("Authorization", "Bearer $token")
+                    .header("Accept", "application/vnd.github+json")
+                    .header("X-GitHub-Api-Version", "2022-11-28")
+                    .build()
+            try {
+                val resp = client.newCall(request).execute()
+                if (!resp.isSuccessful) {
+                    resp.close()
+                    return@withContext null
+                }
+                val body = resp.body?.string() ?: return@withContext null
                 resp.close()
-                return@withContext null
+                val arr = gson.fromJson(body, Array<CiRun>::class.java) ?: return@withContext null
+                arr.firstOrNull()
+            } catch (e: Exception) {
+                null
             }
-            val body = resp.body?.string() ?: return@withContext null
-            resp.close()
-            val arr = gson.fromJson(body, Array<CiRun>::class.java) ?: return@withContext null
-            arr.firstOrNull()
-        } catch (e: Exception) {
-            null
         }
-    }
 }

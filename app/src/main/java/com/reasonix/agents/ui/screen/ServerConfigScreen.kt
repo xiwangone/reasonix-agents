@@ -1,5 +1,6 @@
 package com.reasonix.agents.ui.screen
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -56,7 +58,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -65,6 +69,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.reasonix.agents.R
 import com.reasonix.agents.data.AppSettingsStore
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.AuthType
@@ -74,14 +79,10 @@ import com.reasonix.agents.data.api.ConnectFailKind
 import com.reasonix.agents.data.api.ConnectResult
 import com.reasonix.agents.data.api.ReasonixApi
 import com.reasonix.agents.ui.theme.LocalPalette
-import com.reasonix.agents.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.layout.ContentScale
 
 // ═══════════════════════════════════════════════
 // 调色板 — 从 LocalPalette 读取（支持主题切换）
@@ -124,23 +125,24 @@ fun ServerConfigScreen(
      * 第五批 E-4：首次启动引导页选择的预填配置（如「使用示例服务器」）。
      * 非空时覆盖「上次连接配置」自动回填，作为表单初始值。
      */
-    prefillProfile: ServerProfile? = null
+    prefillProfile: ServerProfile? = null,
 ) {
     val context = LocalContext.current
     var connecting by remember { mutableStateOf(false) }
     var connectError by remember { mutableStateOf<String?>(null) }
     val saved = remember { ServerConfigStore.load(context) }
     // 预填优先级：引导页选择（ServerProfile）> 上次连接配置（Config 转 ServerProfile）
-    val initial: ServerProfile = prefillProfile ?: ServerProfile(
-        name = saved.ip.ifBlank { "上次连接" },
-        ip = saved.ip,
-        port = saved.port,
-        useHttps = saved.useHttps,
-        authType = saved.authType,
-        username = saved.username,
-        password = saved.password,
-        token = saved.token
-    )
+    val initial: ServerProfile =
+        prefillProfile ?: ServerProfile(
+            name = saved.ip.ifBlank { "上次连接" },
+            ip = saved.ip,
+            port = saved.port,
+            useHttps = saved.useHttps,
+            authType = saved.authType,
+            username = saved.username,
+            password = saved.password,
+            token = saved.token,
+        )
 
     val profileFocusRequester = remember { FocusRequester() }
     val addressFocusRequester = remember { FocusRequester() }
@@ -200,23 +202,26 @@ fun ServerConfigScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding(),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding()
+                .imePadding(),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .widthIn(max = 440.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.92f)
+                    .widthIn(max = 440.dp)
+                    .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // ── 顶部设置入口（批 A-2/A-5：主题预设/明暗/语言，全局生效）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Spacer(modifier = Modifier.weight(1f))
                 ThemeQuickToggle(settings = settings, onSettingsChange = onSettingsChange)
@@ -229,9 +234,10 @@ fun ServerConfigScreen(
                 painter = painterResource(R.drawable.logo),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(13.dp))
+                modifier =
+                    Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(13.dp)),
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -240,7 +246,7 @@ fun ServerConfigScreen(
                 text = "Reasonix",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Fg
+                color = Fg,
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -248,49 +254,51 @@ fun ServerConfigScreen(
             Text(
                 text = "AI 编程助手",
                 fontSize = 13.sp,
-                color = Fg2
+                color = Fg2,
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // ── 服务器配置卡片 ──
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Panel)
-                    .border(1.dp, Border, RoundedCornerShape(12.dp))
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Panel)
+                        .border(1.dp, Border, RoundedCornerShape(12.dp))
+                        .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = "连接服务器",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Fg
+                    color = Fg,
                 )
 
                 // ── 服务器配置（多配置管理，批 B-12）──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     // 配置名输入框（可编辑）
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bg2)
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
-                            .clickable { profileFocusRequester.requestFocus() }
-                            .padding(horizontal = 12.dp, vertical = 9.dp)
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Bg2)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                .clickable { profileFocusRequester.requestFocus() }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
                     ) {
                         if (profileName.isEmpty()) {
                             Text(
                                 text = "配置名（可选）",
                                 fontSize = 13.sp,
-                                color = Muted2
+                                color = Muted2,
                             )
                         }
                         BasicTextField(
@@ -299,9 +307,10 @@ fun ServerConfigScreen(
                             textStyle = TextStyle(color = Fg, fontSize = 13.sp),
                             cursorBrush = SolidColor(Accent),
                             singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(profileFocusRequester)
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(profileFocusRequester),
                         )
                     }
                     // 已保存配置下拉
@@ -316,31 +325,33 @@ fun ServerConfigScreen(
                             usernameInput = p.username
                             passwordInput = p.password
                             tokenInput = p.token
-                        }
+                        },
                     )
                     // 保存当前配置
                     IconButton(
                         onClick = {
-                            val profile = ServerProfile(
-                                name = profileName.ifBlank { "$resolvedIp:$resolvedPort" },
-                                ip = resolvedIp,
-                                port = resolvedPort,
-                                useHttps = useHttps,
-                                authType = authType.name,
-                                username = usernameInput,
-                                password = passwordInput,
-                                token = tokenInput
-                            )
+                            val profile =
+                                ServerProfile(
+                                    name = profileName.ifBlank { "$resolvedIp:$resolvedPort" },
+                                    ip = resolvedIp,
+                                    port = resolvedPort,
+                                    useHttps = useHttps,
+                                    authType = authType.name,
+                                    username = usernameInput,
+                                    password = passwordInput,
+                                    token = tokenInput,
+                                )
                             profiles = upsertProfile(profiles, profile)
                             ServerConfigStore.saveProfiles(context, profiles)
                             ServerConfigStore.saveLast(context, profile)
                             profileName = profile.name
                         },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bg2)
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        modifier =
+                            Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Bg2)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp)),
                     ) {
                         Icon(Icons.Default.Save, contentDescription = "保存配置", tint = Muted, modifier = Modifier.size(18.dp))
                     }
@@ -352,11 +363,12 @@ fun ServerConfigScreen(
                             ServerConfigStore.saveProfiles(context, profiles)
                             profileName = ""
                         },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bg2)
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        modifier =
+                            Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Bg2)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp)),
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = "删除配置", tint = Muted, modifier = Modifier.size(18.dp))
                     }
@@ -368,30 +380,32 @@ fun ServerConfigScreen(
                         text = "协议",
                         fontSize = 13.sp,
                         color = Muted,
-                        modifier = Modifier.width(48.dp)
+                        modifier = Modifier.width(48.dp),
                     )
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
                         SegmentedButton(
                             selected = !useHttps,
                             onClick = { if (useHttps) requestHttpSwitch() },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            colors = SegmentedButtonDefaults.colors(
-                                activeContainerColor = Accent.copy(alpha = 0.18f),
-                                activeContentColor = Accent,
-                                inactiveContainerColor = Bg2,
-                                inactiveContentColor = Muted
-                            )
+                            colors =
+                                SegmentedButtonDefaults.colors(
+                                    activeContainerColor = Accent.copy(alpha = 0.18f),
+                                    activeContentColor = Accent,
+                                    inactiveContainerColor = Bg2,
+                                    inactiveContentColor = Muted,
+                                ),
                         ) { Text("HTTP", fontSize = 14.sp) }
                         SegmentedButton(
                             selected = useHttps,
                             onClick = { useHttps = true },
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            colors = SegmentedButtonDefaults.colors(
-                                activeContainerColor = Accent.copy(alpha = 0.18f),
-                                activeContentColor = Accent,
-                                inactiveContainerColor = Bg2,
-                                inactiveContentColor = Muted
-                            )
+                            colors =
+                                SegmentedButtonDefaults.colors(
+                                    activeContainerColor = Accent.copy(alpha = 0.18f),
+                                    activeContentColor = Accent,
+                                    inactiveContainerColor = Bg2,
+                                    inactiveContentColor = Muted,
+                                ),
                         ) { Text("HTTPS", fontSize = 14.sp) }
                     }
                 }
@@ -402,22 +416,23 @@ fun ServerConfigScreen(
                         text = "地址",
                         fontSize = 13.sp,
                         color = Muted,
-                        modifier = Modifier.width(48.dp)
+                        modifier = Modifier.width(48.dp),
                     )
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bg2)
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
-                            .clickable { addressFocusRequester.requestFocus() }
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Bg2)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                .clickable { addressFocusRequester.requestFocus() }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
                         if (ipInput.isEmpty()) {
                             Text(
                                 text = "$defaultIp（可粘贴完整 URL，如 https://host:443）",
                                 fontSize = 14.sp,
-                                color = Muted2
+                                color = Muted2,
                             )
                         }
                         BasicTextField(
@@ -426,9 +441,10 @@ fun ServerConfigScreen(
                             textStyle = TextStyle(color = Fg, fontSize = 14.sp),
                             cursorBrush = SolidColor(Accent),
                             singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(addressFocusRequester)
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(addressFocusRequester),
                         )
                     }
                 }
@@ -439,22 +455,23 @@ fun ServerConfigScreen(
                         text = "端口",
                         fontSize = 13.sp,
                         color = Muted,
-                        modifier = Modifier.width(48.dp)
+                        modifier = Modifier.width(48.dp),
                     )
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bg2)
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
-                            .clickable { portFocusRequester.requestFocus() }
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Bg2)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                .clickable { portFocusRequester.requestFocus() }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
                         if (portInput.isEmpty()) {
                             Text(
                                 text = defaultPort,
                                 fontSize = 14.sp,
-                                color = Muted2
+                                color = Muted2,
                             )
                         }
                         BasicTextField(
@@ -464,9 +481,10 @@ fun ServerConfigScreen(
                             cursorBrush = SolidColor(Accent),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(portFocusRequester)
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(portFocusRequester),
                         )
                     }
                 }
@@ -477,11 +495,11 @@ fun ServerConfigScreen(
                         text = "认证",
                         fontSize = 13.sp,
                         color = Muted,
-                        modifier = Modifier.width(48.dp)
+                        modifier = Modifier.width(48.dp),
                     )
                     AuthTypeDropdown(
                         authType = authType,
-                        onSelect = { authType = it }
+                        onSelect = { authType = it },
                     )
                 }
 
@@ -492,16 +510,17 @@ fun ServerConfigScreen(
                             text = "用户",
                             fontSize = 13.sp,
                             color = Muted,
-                            modifier = Modifier.width(48.dp)
+                            modifier = Modifier.width(48.dp),
                         )
                         Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Bg2)
-                                .border(1.dp, Border, RoundedCornerShape(8.dp))
-                                .clickable { userFocusRequester.requestFocus() }
-                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Bg2)
+                                    .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                    .clickable { userFocusRequester.requestFocus() }
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
                         ) {
                             if (usernameInput.isEmpty()) {
                                 Text(text = "用户名", fontSize = 14.sp, color = Muted2)
@@ -512,9 +531,10 @@ fun ServerConfigScreen(
                                 textStyle = TextStyle(color = Fg, fontSize = 14.sp),
                                 cursorBrush = SolidColor(Accent),
                                 singleLine = true,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(userFocusRequester)
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .focusRequester(userFocusRequester),
                             )
                         }
                     }
@@ -524,12 +544,12 @@ fun ServerConfigScreen(
                         visible = passwordVisible,
                         onValueChange = { passwordInput = it },
                         onToggleVisible = { passwordVisible = !passwordVisible },
-                        placeholder = "密码"
+                        placeholder = "密码",
                     )
                     Text(
                         text = "Basic Auth 适用于服务端配置了用户名/密码的场景",
                         fontSize = 11.sp,
-                        color = Muted2
+                        color = Muted2,
                     )
                 }
 
@@ -541,12 +561,12 @@ fun ServerConfigScreen(
                         visible = tokenVisible,
                         onValueChange = { tokenInput = it },
                         onToggleVisible = { tokenVisible = !tokenVisible },
-                        placeholder = "Bearer Token"
+                        placeholder = "Bearer Token",
                     )
                     Text(
                         text = "Bearer Token 适用于 API Token / 密钥认证（如 GitHub Token 等）",
                         fontSize = 11.sp,
-                        color = Muted2
+                        color = Muted2,
                     )
                 }
 
@@ -556,13 +576,13 @@ fun ServerConfigScreen(
                         text = "地址",
                         fontSize = 13.sp,
                         color = Muted,
-                        modifier = Modifier.width(48.dp)
+                        modifier = Modifier.width(48.dp),
                     )
                     Text(
                         text = previewUrl,
                         fontSize = 13.sp,
                         color = if (ipInput.isBlank() && portInput.isBlank()) Muted2 else Fg2,
-                        textAlign = TextAlign.Start
+                        textAlign = TextAlign.Start,
                     )
                 }
 
@@ -571,7 +591,7 @@ fun ServerConfigScreen(
                     Text(
                         text = "⚠ HTTP 明文不安全，推荐 HTTPS（数据以明文传输，仅建议在内网/本机使用）",
                         fontSize = 11.sp,
-                        color = Warning
+                        color = Warning,
                     )
                 }
 
@@ -579,58 +599,67 @@ fun ServerConfigScreen(
 
                 // ── 连接按钮 ──
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (canConnect) Accent else Panel2)
-                        .then(
-                            if (canConnect && !connecting) Modifier.clickable {
-                                val url = previewUrl
-                                val auth = buildAuth(authType, usernameInput, passwordInput, tokenInput)
-                                connecting = true
-                                connectError = null
-                                CoroutineScope(Dispatchers.Main).launch {
-                                    val result = withContext(Dispatchers.IO) {
-                                        try {
-                                            ReasonixApi(url, auth, settings.connectTimeoutSec).diagnose()
-                                        } catch (e: Exception) {
-                                            ConnectResult.Fail(ConnectFailKind.UNKNOWN, "连接失败：${e.message ?: "未知错误"}")
-                                        }
-                                    }
-                                    connecting = false
-                                    when (result) {
-                                        is ConnectResult.Ok -> {
-                                            val profile = ServerProfile(
-                                                name = profileName.ifBlank { "$resolvedIp:$resolvedPort" },
-                                                ip = resolvedIp,
-                                                port = resolvedPort,
-                                                useHttps = useHttps,
-                                                authType = authType.name,
-                                                username = usernameInput,
-                                                password = passwordInput,
-                                                token = tokenInput
-                                            )
-                                            // 批 B-12：记住上次连接配置 + 同步到命名配置
-                                            ServerConfigStore.saveLast(context, profile)
-                                            if (profileName.isNotBlank()) {
-                                                profiles = upsertProfile(profiles, profile)
-                                                ServerConfigStore.saveProfiles(context, profiles)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (canConnect) Accent else Panel2)
+                            .then(
+                                if (canConnect && !connecting) {
+                                    Modifier.clickable {
+                                        val url = previewUrl
+                                        val auth = buildAuth(authType, usernameInput, passwordInput, tokenInput)
+                                        connecting = true
+                                        connectError = null
+                                        CoroutineScope(Dispatchers.Main).launch {
+                                            val result =
+                                                withContext(Dispatchers.IO) {
+                                                    try {
+                                                        ReasonixApi(url, auth, settings.connectTimeoutSec).diagnose()
+                                                    } catch (e: Exception) {
+                                                        ConnectResult.Fail(ConnectFailKind.UNKNOWN, "连接失败：${e.message ?: "未知错误"}")
+                                                    }
+                                                }
+                                            connecting = false
+                                            when (result) {
+                                                is ConnectResult.Ok -> {
+                                                    val profile =
+                                                        ServerProfile(
+                                                            name = profileName.ifBlank { "$resolvedIp:$resolvedPort" },
+                                                            ip = resolvedIp,
+                                                            port = resolvedPort,
+                                                            useHttps = useHttps,
+                                                            authType = authType.name,
+                                                            username = usernameInput,
+                                                            password = passwordInput,
+                                                            token = tokenInput,
+                                                        )
+                                                    // 批 B-12：记住上次连接配置 + 同步到命名配置
+                                                    ServerConfigStore.saveLast(context, profile)
+                                                    if (profileName.isNotBlank()) {
+                                                        profiles = upsertProfile(profiles, profile)
+                                                        ServerConfigStore.saveProfiles(context, profiles)
+                                                    }
+                                                    onConnect(url, auth)
+                                                }
+
+                                                is ConnectResult.Fail -> {
+                                                    connectError = result.message
+                                                }
                                             }
-                                            onConnect(url, auth)
                                         }
-                                        is ConnectResult.Fail -> connectError = result.message
                                     }
-                                }
-                            } else Modifier
-                        )
-                        .padding(vertical = 13.dp),
-                    contentAlignment = Alignment.Center
+                                } else {
+                                    Modifier
+                                },
+                            ).padding(vertical = 13.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = if (connecting) "连接中…" else "连接",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (canConnect) Color.White else Muted
+                        color = if (canConnect) Color.White else Muted,
                     )
                 }
 
@@ -640,7 +669,7 @@ fun ServerConfigScreen(
                     Text(
                         text = err,
                         fontSize = 11.sp,
-                        color = Color(0xFFFF6B6B)
+                        color = Color(0xFFFF6B6B),
                     )
                 }
 
@@ -651,14 +680,14 @@ fun ServerConfigScreen(
                     text = "关于",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Fg
+                    color = Fg,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "本项目（reasonix-agents）",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Fg2
+                    color = Fg2,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 LinkText("Reasonix Agents · AI 协助维护版（非官方 / 非原版发布） — github.com/xiwangone/reasonix-agents")
@@ -667,7 +696,7 @@ fun ServerConfigScreen(
                     text = "并列项目（RikkaHub Agents）",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Fg2
+                    color = Fg2,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 LinkText("RikkaHub Agents — github.com/xiwangone/rikkahub-agents")
@@ -676,7 +705,7 @@ fun ServerConfigScreen(
                     text = "上游项目",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Fg2
+                    color = Fg2,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 LinkText("协议上游: github.com/esengine/DeepSeek-Reasonix")
@@ -693,7 +722,7 @@ fun ServerConfigScreen(
                 Text(
                     "HTTP 流量为明文传输，公网环境下数据可能被窃听/篡改，推荐使用 HTTPS。\n\n确定要继续使用 HTTP 吗？（仅首次确认，之后不再提示）",
                     color = Fg2,
-                    fontSize = 13.sp
+                    fontSize = 13.sp,
                 )
             },
             confirmButton = {
@@ -711,7 +740,7 @@ fun ServerConfigScreen(
             dismissButton = {
                 TextButton(onClick = { showHttpWarning = false }) { Text("改用 HTTPS", color = Muted) }
             },
-            containerColor = Panel
+            containerColor = Panel,
         )
     }
 }
@@ -724,7 +753,7 @@ fun ServerConfigScreen(
 @Composable
 internal fun ThemeQuickToggle(
     settings: AppSettingsStore.Settings,
-    onSettingsChange: (AppSettingsStore.Settings) -> Unit
+    onSettingsChange: (AppSettingsStore.Settings) -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         // 主题预设：品牌紫蓝 / Material
@@ -732,41 +761,45 @@ internal fun ThemeQuickToggle(
             icon = { Icon(Icons.Default.Palette, contentDescription = "主题预设", tint = Muted, modifier = Modifier.size(18.dp)) },
             label = if (settings.themePreset == AppSettingsStore.THEME_PRESET_MATERIAL) "Material" else "品牌紫蓝",
             onClick = {
-                val next = if (settings.themePreset == AppSettingsStore.THEME_PRESET_MATERIAL) {
-                    AppSettingsStore.THEME_PRESET_BRAND
-                } else {
-                    AppSettingsStore.THEME_PRESET_MATERIAL
-                }
+                val next =
+                    if (settings.themePreset == AppSettingsStore.THEME_PRESET_MATERIAL) {
+                        AppSettingsStore.THEME_PRESET_BRAND
+                    } else {
+                        AppSettingsStore.THEME_PRESET_MATERIAL
+                    }
                 onSettingsChange(settings.copy(themePreset = next))
-            }
+            },
         )
         // 明暗：跟随系统 / 浅色 / 深色
         QuickIconButton(
             icon = {
                 Icon(
-                    imageVector = when (settings.themeMode) {
-                        AppSettingsStore.THEME_MODE_DARK -> Icons.Default.DarkMode
-                        AppSettingsStore.THEME_MODE_LIGHT -> Icons.Default.LightMode
-                        else -> Icons.Default.BrightnessAuto
-                    },
+                    imageVector =
+                        when (settings.themeMode) {
+                            AppSettingsStore.THEME_MODE_DARK -> Icons.Default.DarkMode
+                            AppSettingsStore.THEME_MODE_LIGHT -> Icons.Default.LightMode
+                            else -> Icons.Default.BrightnessAuto
+                        },
                     contentDescription = "明暗",
                     tint = Muted,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
             },
-            label = when (settings.themeMode) {
-                AppSettingsStore.THEME_MODE_DARK -> "深色"
-                AppSettingsStore.THEME_MODE_LIGHT -> "浅色"
-                else -> "跟随系统"
-            },
+            label =
+                when (settings.themeMode) {
+                    AppSettingsStore.THEME_MODE_DARK -> "深色"
+                    AppSettingsStore.THEME_MODE_LIGHT -> "浅色"
+                    else -> "跟随系统"
+                },
             onClick = {
-                val next = when (settings.themeMode) {
-                    AppSettingsStore.THEME_MODE_SYSTEM -> AppSettingsStore.THEME_MODE_LIGHT
-                    AppSettingsStore.THEME_MODE_LIGHT -> AppSettingsStore.THEME_MODE_DARK
-                    else -> AppSettingsStore.THEME_MODE_SYSTEM
-                }
+                val next =
+                    when (settings.themeMode) {
+                        AppSettingsStore.THEME_MODE_SYSTEM -> AppSettingsStore.THEME_MODE_LIGHT
+                        AppSettingsStore.THEME_MODE_LIGHT -> AppSettingsStore.THEME_MODE_DARK
+                        else -> AppSettingsStore.THEME_MODE_SYSTEM
+                    }
                 onSettingsChange(settings.copy(themeMode = next))
-            }
+            },
         )
         // 语言（当前仅中文，偏好持久化预留）
         QuickIconButton(
@@ -775,7 +808,7 @@ internal fun ThemeQuickToggle(
             onClick = {
                 val next = if (settings.language == "en") "zh" else "en"
                 onSettingsChange(settings.copy(language = next))
-            }
+            },
         )
     }
 }
@@ -784,16 +817,17 @@ internal fun ThemeQuickToggle(
 private fun QuickIconButton(
     icon: @Composable () -> Unit,
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Bg2)
-            .border(1.dp, Border, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Bg2)
+                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         icon()
         Spacer(modifier = Modifier.height(2.dp))
@@ -805,18 +839,19 @@ private fun QuickIconButton(
 @Composable
 private fun ServerProfilesDropdown(
     profiles: List<ServerProfile>,
-    onSelect: (ServerProfile) -> Unit
+    onSelect: (ServerProfile) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(Bg2)
-                .border(1.dp, Border, RoundedCornerShape(8.dp))
-                .clickable { expanded = true }
-                .padding(horizontal = 10.dp, vertical = 9.dp),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Bg2)
+                    .border(1.dp, Border, RoundedCornerShape(8.dp))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.ContentCopy, contentDescription = null, tint = Muted, modifier = Modifier.size(14.dp))
@@ -828,12 +863,12 @@ private fun ServerProfilesDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = Panel
+            containerColor = Panel,
         ) {
             if (profiles.isEmpty()) {
                 DropdownMenuItem(
                     text = { Text("暂无已保存配置", fontSize = 12.sp, color = Muted2) },
-                    onClick = { expanded = false }
+                    onClick = { expanded = false },
                 )
             } else {
                 profiles.forEach { p ->
@@ -844,14 +879,14 @@ private fun ServerProfilesDropdown(
                                 Text(
                                     "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}",
                                     fontSize = 10.sp,
-                                    color = Muted2
+                                    color = Muted2,
                                 )
                             }
                         },
                         onClick = {
                             expanded = false
                             onSelect(p)
-                        }
+                        },
                     )
                 }
             }
@@ -863,28 +898,30 @@ private fun ServerProfilesDropdown(
 @Composable
 private fun AuthTypeDropdown(
     authType: AuthType,
-    onSelect: (AuthType) -> Unit
+    onSelect: (AuthType) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(Bg2)
-                .border(1.dp, Border, RoundedCornerShape(8.dp))
-                .clickable { expanded = true }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Bg2)
+                    .border(1.dp, Border, RoundedCornerShape(8.dp))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = when (authType) {
-                        AuthType.BASIC -> "Basic Auth"
-                        AuthType.BEARER -> "Bearer Token"
-                        AuthType.NONE -> "无认证"
-                    },
+                    text =
+                        when (authType) {
+                            AuthType.BASIC -> "Basic Auth"
+                            AuthType.BEARER -> "Bearer Token"
+                            AuthType.NONE -> "无认证"
+                        },
                     fontSize = 14.sp,
-                    color = Fg
+                    color = Fg,
                 )
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(16.dp))
             }
@@ -892,19 +929,28 @@ private fun AuthTypeDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = Panel
+            containerColor = Panel,
         ) {
             DropdownMenuItem(
                 text = { Text("无认证（直连）", fontSize = 13.sp, color = Fg) },
-                onClick = { expanded = false; onSelect(AuthType.NONE) }
+                onClick = {
+                    expanded = false
+                    onSelect(AuthType.NONE)
+                },
             )
             DropdownMenuItem(
                 text = { Text("Basic Auth（用户名/密码）", fontSize = 13.sp, color = Fg) },
-                onClick = { expanded = false; onSelect(AuthType.BASIC) }
+                onClick = {
+                    expanded = false
+                    onSelect(AuthType.BASIC)
+                },
             )
             DropdownMenuItem(
                 text = { Text("Bearer Token", fontSize = 13.sp, color = Fg) },
-                onClick = { expanded = false; onSelect(AuthType.BEARER) }
+                onClick = {
+                    expanded = false
+                    onSelect(AuthType.BEARER)
+                },
             )
         }
     }
@@ -919,7 +965,7 @@ private fun PasswordField(
     onValueChange: (String) -> Unit,
     onToggleVisible: () -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -927,16 +973,17 @@ private fun PasswordField(
             text = label,
             fontSize = 13.sp,
             color = Muted,
-            modifier = Modifier.width(48.dp)
+            modifier = Modifier.width(48.dp),
         )
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Bg2)
-                .border(1.dp, Border, RoundedCornerShape(8.dp))
-                .clickable { focusRequester.requestFocus() }
-                .padding(start = 14.dp, top = 10.dp, bottom = 10.dp)
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Bg2)
+                    .border(1.dp, Border, RoundedCornerShape(8.dp))
+                    .clickable { focusRequester.requestFocus() }
+                    .padding(start = 14.dp, top = 10.dp, bottom = 10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.weight(1f)) {
@@ -950,9 +997,10 @@ private fun PasswordField(
                         cursorBrush = SolidColor(Accent),
                         singleLine = true,
                         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
                     )
                 }
                 IconButton(onClick = onToggleVisible, modifier = Modifier.size(34.dp)) {
@@ -960,7 +1008,7 @@ private fun PasswordField(
                         imageVector = if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         contentDescription = if (visible) "隐藏$label" else "显示$label",
                         tint = Muted,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -973,17 +1021,20 @@ private fun PasswordField(
 private fun LinkText(text: String) {
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     // 批 C-2：优先提取文本中的 URL（http(s):// 或 github.com/... 形式），避免整段文本被当作链接
-    val url = Regex("https?://\\S+|[A-Za-z0-9][A-Za-z0-9.-]*\\.[A-Za-z]{2,}/\\S+")
-        .find(text)?.value
-        ?: text.substringAfter(": ").ifBlank { text }
+    val url =
+        Regex("https?://\\S+|[A-Za-z0-9][A-Za-z0-9.-]*\\.[A-Za-z]{2,}/\\S+")
+            .find(text)
+            ?.value
+            ?: text.substringAfter(": ").ifBlank { text }
     Text(
         text = text,
         fontSize = 11.sp,
         color = Accent.copy(alpha = 0.85f),
-        modifier = Modifier.clickable {
-            val href = if (url.startsWith("http")) url else "https://$url"
-            uriHandler.openUri(href)
-        }
+        modifier =
+            Modifier.clickable {
+                val href = if (url.startsWith("http")) url else "https://$url"
+                uriHandler.openUri(href)
+            },
     )
 }
 
@@ -994,10 +1045,11 @@ private fun LinkText(text: String) {
 /** 解析完整服务器 URL（批 A-3）：https://host:443/path → (useHttps, host, port)。非法输入返回 null。 */
 internal fun parseServerUrl(raw: String): Triple<Boolean, String, String>? {
     val input = raw.trim()
-    val match = Regex(
-        "^(https?)://([^/:\\s]+)(?::(\\d{1,5}))?(/.*)?$",
-        RegexOption.IGNORE_CASE
-    ).find(input) ?: return null
+    val match =
+        Regex(
+            "^(https?)://([^/:\\s]+)(?::(\\d{1,5}))?(/.*)?$",
+            RegexOption.IGNORE_CASE,
+        ).find(input) ?: return null
     val scheme = match.groupValues[1].lowercase()
     val host = match.groupValues[2]
     val port = match.groupValues[3]
@@ -1007,7 +1059,10 @@ internal fun parseServerUrl(raw: String): Triple<Boolean, String, String>? {
 }
 
 /** 保存/覆盖命名配置（同名覆盖）。 */
-internal fun upsertProfile(profiles: List<ServerProfile>, profile: ServerProfile): List<ServerProfile> {
+internal fun upsertProfile(
+    profiles: List<ServerProfile>,
+    profile: ServerProfile,
+): List<ServerProfile> {
     val result = profiles.toMutableList()
     result.removeAll { it.name == profile.name && profile.name.isNotBlank() }
     result.add(profile)
@@ -1019,13 +1074,22 @@ internal fun buildAuth(
     type: AuthType,
     username: String,
     password: String,
-    token: String
-): AuthInfo? = when (type) {
-    AuthType.BASIC -> if (username.isNotBlank() || password.isNotBlank()) {
-        AuthInfo(AuthType.BASIC, username, password)
-    } else {
-        null
+    token: String,
+): AuthInfo? =
+    when (type) {
+        AuthType.BASIC -> {
+            if (username.isNotBlank() || password.isNotBlank()) {
+                AuthInfo(AuthType.BASIC, username, password)
+            } else {
+                null
+            }
+        }
+
+        AuthType.BEARER -> {
+            if (token.isNotBlank()) AuthInfo(AuthType.BEARER, token = token) else null
+        }
+
+        AuthType.NONE -> {
+            null
+        }
     }
-    AuthType.BEARER -> if (token.isNotBlank()) AuthInfo(AuthType.BEARER, token = token) else null
-    AuthType.NONE -> null
-}

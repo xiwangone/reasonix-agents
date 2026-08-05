@@ -72,17 +72,18 @@ private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val versionName = remember {
-        try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
-        } catch (e: Exception) {
-            "1.0"
+    val versionName =
+        remember {
+            try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
+            } catch (e: Exception) {
+                "1.0"
+            }
         }
-    }
 
     var checking by remember { mutableStateOf(false) }
     var checkResult by remember { mutableStateOf<String?>(null) }
@@ -95,53 +96,56 @@ fun AboutScreen(
         if (checking) return
         checking = true
         CoroutineScope(Dispatchers.Main).launch {
-            val result = withContext(Dispatchers.IO) {
-                try {
-                    val release = GitHubReleaseApi().checkLatest()
-                    if (release == null || release.tagName.isBlank()) {
-                        // 批 C-6：无更新提示「暂时没有更新」
-                        "暂时没有更新"
-                    } else {
-                        val cmp = GitHubReleaseApi.compareVersions(versionName, release.tagName)
-                        // 批 C-6：有更新保持弹窗提示下载
-                        if (cmp > 0) {
-                            "发现新版本 v${release.tagName}（当前 v$versionName）\n\n${release.name}\n\n点击「前往下载」跳转 Release 页面。"
-                        } else {
+            val result =
+                withContext(Dispatchers.IO) {
+                    try {
+                        val release = GitHubReleaseApi().checkLatest()
+                        if (release == null || release.tagName.isBlank()) {
+                            // 批 C-6：无更新提示「暂时没有更新」
                             "暂时没有更新"
+                        } else {
+                            val cmp = GitHubReleaseApi.compareVersions(versionName, release.tagName)
+                            // 批 C-6：有更新保持弹窗提示下载
+                            if (cmp > 0) {
+                                "发现新版本 v${release.tagName}（当前 v$versionName）\n\n${release.name}\n\n点击「前往下载」跳转 Release 页面。"
+                            } else {
+                                "暂时没有更新"
+                            }
                         }
+                    } catch (e: Exception) {
+                        // 批 C-6：网络错误提示「网络错误，请稍后重试」
+                        "网络错误，请稍后重试"
                     }
-                } catch (e: Exception) {
-                    // 批 C-6：网络错误提示「网络错误，请稍后重试」
-                    "网络错误，请稍后重试"
                 }
-            }
             checking = false
             checkResult = result
         }
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "返回",
-                        tint = Fg
+                        tint = Fg,
                     )
                 }
                 Text(
@@ -149,7 +153,7 @@ fun AboutScreen(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -158,18 +162,20 @@ fun AboutScreen(
             // ── Logo + 版本 ──
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(Accent, Violet)
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
+                    modifier =
+                        Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                brush =
+                                    Brush.linearGradient(
+                                        colors = listOf(Accent, Violet),
+                                    ),
+                            ),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text("R", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
@@ -182,7 +188,7 @@ fun AboutScreen(
                     "DeepSeek-Reasonix 协议的 Android 原生客户端（Kotlin + Compose）",
                     fontSize = 11.sp,
                     color = Muted,
-                    modifier = Modifier.padding(horizontal = 24.dp)
+                    modifier = Modifier.padding(horizontal = 24.dp),
                 )
             }
 
@@ -190,20 +196,21 @@ fun AboutScreen(
 
             // ── 检测更新 ──
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Panel)
-                    .border(1.dp, Border, RoundedCornerShape(10.dp))
-                    .clickable { checkUpdate() }
-                    .padding(horizontal = 16.dp, vertical = 13.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Panel)
+                        .border(1.dp, Border, RoundedCornerShape(10.dp))
+                        .clickable { checkUpdate() }
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = if (checking) "检查中…" else "检查更新",
                     fontSize = 14.sp,
                     color = Accent,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Muted, modifier = Modifier.size(16.dp))
             }
@@ -218,7 +225,7 @@ fun AboutScreen(
                 Text(
                     "Reasonix Agents · AI 协助维护版\n❌ 非官方发布 · ❌ 非原版发布\n代码来源可信（MIT），由 AI 协助合并上游并持续编译",
                     fontSize = 11.sp,
-                    color = Muted2
+                    color = Muted2,
                 )
             }
 
@@ -230,7 +237,7 @@ fun AboutScreen(
                         "与本仓库并列独立维护。",
                     fontSize = 12.sp,
                     color = Fg2,
-                    lineHeight = 18.sp
+                    lineHeight = 18.sp,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 AboutLink("github.com/xiwangone/rikkahub-agents") {
@@ -252,9 +259,10 @@ fun AboutScreen(
                 "MIT License · Reasonix Agents",
                 fontSize = 11.sp,
                 color = Muted2,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
             )
         }
     }
@@ -279,7 +287,7 @@ fun AboutScreen(
             dismissButton = {
                 TextButton(onClick = { checkResult = null }) { Text("关闭", color = Muted) }
             },
-            containerColor = Panel
+            containerColor = Panel,
         )
     }
 }
@@ -289,21 +297,25 @@ fun AboutScreen(
 // ═══════════════════════════════════════════════
 
 @Composable
-private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun SectionCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Panel)
-            .border(1.dp, Border, RoundedCornerShape(12.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(Panel)
+                .border(1.dp, Border, RoundedCornerShape(12.dp))
+                .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
             text = title,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Fg
+            color = Fg,
         )
         content()
     }
@@ -311,19 +323,23 @@ private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Un
 }
 
 @Composable
-private fun AboutLink(text: String, onClick: () -> Unit) {
+private fun AboutLink(
+    text: String,
+    onClick: () -> Unit,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp)
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onClick)
+                .padding(vertical = 4.dp),
     ) {
         Text(
             text = text,
             fontSize = 12.sp,
             color = Accent,
-            modifier = Modifier.weight(1f, fill = false)
+            modifier = Modifier.weight(1f, fill = false),
         )
         Spacer(modifier = Modifier.width(4.dp))
         Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Muted2, modifier = Modifier.size(13.dp))

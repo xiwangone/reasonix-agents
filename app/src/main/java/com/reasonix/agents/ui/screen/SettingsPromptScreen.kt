@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -69,7 +70,7 @@ fun SettingsPromptScreen(
     onAddPrompt: (String, Boolean) -> Unit = { _, _ -> },
     onRemovePrompt: (String) -> Unit = {},
     onSetCurrentPrompt: (String) -> Unit = {},
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
 ) {
     // ── 提示词区块状态（第四批逻辑原样保留，仅迁移到二级页）──
     var showPromptHint by remember { mutableStateOf(false) }
@@ -120,21 +121,24 @@ fun SettingsPromptScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding()
+                .imePadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 顶栏（返回 + 标题）──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
@@ -143,7 +147,7 @@ fun SettingsPromptScreen(
                     text = "提示词",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -152,21 +156,22 @@ fun SettingsPromptScreen(
             Text(
                 text = "自定义提示词会附加在系统提示词之后，随每条消息发送。最多 ${PromptStore.MAX_PROMPTS} 条。",
                 fontSize = 11.sp,
-                color = Muted2
+                color = Muted2,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 IconButton(
                     onClick = { onAddClick() },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Bg2)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                    modifier =
+                        Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Bg2)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp)),
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "添加提示词", tint = Accent, modifier = Modifier.size(18.dp))
                 }
@@ -177,7 +182,7 @@ fun SettingsPromptScreen(
                 Text(
                     text = "添加你的提示词：可写入常驻指令（如代码风格、回答偏好、输出格式等），保存后可切换选用，随消息自动生效。",
                     fontSize = 11.sp,
-                    color = Muted2
+                    color = Muted2,
                 )
             }
             if (limitHint) {
@@ -185,7 +190,7 @@ fun SettingsPromptScreen(
                 Text(
                     text = "已到上限无法添加，请删除后再试",
                     fontSize = 11.sp,
-                    color = Danger
+                    color = Danger,
                 )
             }
 
@@ -193,12 +198,13 @@ fun SettingsPromptScreen(
             if (draftActive) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Panel)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
-                        .padding(12.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Panel)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp))
+                            .padding(12.dp),
                 ) {
                     Column {
                         Text("新提示词", fontSize = 11.sp, color = Muted)
@@ -211,13 +217,14 @@ fun SettingsPromptScreen(
                             },
                             textStyle = TextStyle(color = Fg, fontSize = 13.sp, lineHeight = 18.sp),
                             cursorBrush = SolidColor(Accent),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 72.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Bg2)
-                                .border(1.dp, if (draftError) Danger else Border, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 72.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Bg2)
+                                    .border(1.dp, if (draftError) Danger else Border, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
                         )
                         if (draftError) {
                             Spacer(modifier = Modifier.height(2.dp))
@@ -226,7 +233,7 @@ fun SettingsPromptScreen(
                         // 保存 / 切换 / 取消
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
+                            horizontalArrangement = Arrangement.End,
                         ) {
                             TextButton(onClick = { saveDraft(select = false) }) { Text("保存", fontSize = 13.sp, color = Accent) }
                             TextButton(onClick = { saveDraft(select = true) }) { Text("切换", fontSize = 13.sp, color = Accent) }
@@ -242,23 +249,24 @@ fun SettingsPromptScreen(
                 customPrompts.forEachIndexed { index, prompt ->
                     val selected = prompt.id == currentPromptId
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (selected) Accent.copy(alpha = 0.06f) else Panel)
-                            .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
-                            .padding(12.dp)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (selected) Accent.copy(alpha = 0.06f) else Panel)
+                                .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
+                                .padding(12.dp),
                     ) {
                         Column {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
                                     text = "提示词 ${index + 1}",
                                     fontSize = 11.sp,
                                     color = Muted,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 )
                                 if (selected) {
                                     Text("使用中", fontSize = 11.sp, color = Accent, fontWeight = FontWeight.Medium)
@@ -269,18 +277,18 @@ fun SettingsPromptScreen(
                                 text = prompt.content,
                                 fontSize = 12.sp,
                                 color = Fg2,
-                                lineHeight = 17.sp
+                                lineHeight = 17.sp,
                             )
                             // 切换 / 删除
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
+                                horizontalArrangement = Arrangement.End,
                             ) {
                                 TextButton(onClick = { onSetCurrentPrompt(prompt.id) }) {
                                     Text(
                                         text = if (selected) "取消使用" else "切换",
                                         fontSize = 13.sp,
-                                        color = if (selected) Muted else Accent
+                                        color = if (selected) Muted else Accent,
                                     )
                                 }
                                 TextButton(onClick = { onRemovePrompt(prompt.id) }) {
@@ -296,7 +304,7 @@ fun SettingsPromptScreen(
                 Text(
                     text = "暂无提示词，点击上方「添加你的提示词」创建",
                     fontSize = 12.sp,
-                    color = Muted2
+                    color = Muted2,
                 )
             }
         }

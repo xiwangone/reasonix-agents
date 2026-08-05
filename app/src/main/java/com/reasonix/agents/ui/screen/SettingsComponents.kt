@@ -52,25 +52,30 @@ internal fun SectionTitle(title: String) {
         text = title,
         fontSize = 13.sp,
         color = Accent,
-        modifier = Modifier.padding(bottom = 8.dp)
+        modifier = Modifier.padding(bottom = 8.dp),
     )
 }
 
 @Composable
-internal fun ThemeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+internal fun ThemeChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) Accent else Panel)
-            .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (selected) Accent else Panel)
+                .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
+                .clickable { onClick() }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             fontSize = 13.sp,
-            color = if (selected) Color.White else Muted
+            color = if (selected) Color.White else Muted,
         )
     }
 }
@@ -79,73 +84,83 @@ internal fun ThemeChip(label: String, selected: Boolean, onClick: () -> Unit) {
 internal fun SettingSwitch(
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
             fontSize = 14.sp,
             color = Fg,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
         )
     }
 }
 
 @Composable
-internal fun InfoRow(label: String, value: String) {
+internal fun InfoRow(
+    label: String,
+    value: String,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 5.dp),
-        verticalAlignment = Alignment.Top
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         Text(
             text = label,
             fontSize = 13.sp,
             color = Muted,
-            modifier = Modifier.width(90.dp)
+            modifier = Modifier.width(90.dp),
         )
         Text(
             text = value,
             fontSize = 13.sp,
             color = Fg2,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
     }
 }
 
 /** 可点击的 InfoRow（仓库链接跳转浏览器，批 A-6）。 */
 @Composable
-internal fun ClickableInfoRow(label: String, value: String, onClick: () -> Unit) {
+internal fun ClickableInfoRow(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 5.dp),
-        verticalAlignment = Alignment.Top
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onClick)
+                .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         Text(
             text = label,
             fontSize = 13.sp,
             color = Muted,
-            modifier = Modifier.width(90.dp)
+            modifier = Modifier.width(90.dp),
         )
         Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = value,
                 fontSize = 13.sp,
                 color = Accent,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Muted2, modifier = Modifier.size(13.dp))
         }
@@ -153,7 +168,10 @@ internal fun ClickableInfoRow(label: String, value: String, onClick: () -> Unit)
 }
 
 @Composable
-internal fun LabeledField(label: String, content: @Composable () -> Unit) {
+internal fun LabeledField(
+    label: String,
+    content: @Composable () -> Unit,
+) {
     Column {
         Text(text = label, fontSize = 11.sp, color = Muted, modifier = Modifier.padding(bottom = 4.dp))
         content()
@@ -165,18 +183,19 @@ internal fun LabeledField(label: String, content: @Composable () -> Unit) {
 internal fun SimpleDropdown(
     label: String,
     options: List<String>,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
-                .background(Panel)
-                .border(1.dp, Border, RoundedCornerShape(6.dp))
-                .clickable { expanded = true }
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Panel)
+                    .border(1.dp, Border, RoundedCornerShape(6.dp))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = label, fontSize = 13.sp, color = Fg, modifier = Modifier.weight(1f))
@@ -186,7 +205,7 @@ internal fun SimpleDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = Panel
+            containerColor = Panel,
         ) {
             options.forEach { opt ->
                 DropdownMenuItem(
@@ -194,7 +213,7 @@ internal fun SimpleDropdown(
                     onClick = {
                         expanded = false
                         onSelect(opt)
-                    }
+                    },
                 )
             }
         }
@@ -202,11 +221,12 @@ internal fun SimpleDropdown(
 }
 
 /** 兼容方式中文标签。 */
-internal fun compatLabel(compat: String): String = when (compat) {
-    "openai" -> "OpenAI"
-    "deepseek" -> "DeepSeek-Reasonix"
-    else -> "其他"
-}
+internal fun compatLabel(compat: String): String =
+    when (compat) {
+        "openai" -> "OpenAI"
+        "deepseek" -> "DeepSeek-Reasonix"
+        else -> "其他"
+    }
 
 /**
  * 设置入口卡片（第四批：设置组件化）。
@@ -217,17 +237,18 @@ internal fun SettingEntry(
     icon: ImageVector,
     title: String,
     subtitle: String? = null,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Bg2)
-            .border(1.dp, Border, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Bg2)
+                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
         Spacer(modifier = Modifier.width(8.dp))

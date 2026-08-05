@@ -37,7 +37,6 @@ import kotlinx.coroutines.launch
  * - 再点击缩回圆点；支持拖动（位置保持），长按停止服务。
  */
 class CiMonitorService : Service() {
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val handler = Handler(Looper.getMainLooper())
     private var windowManager: WindowManager? = null
@@ -82,7 +81,11 @@ class CiMonitorService : Service() {
         scheduleRefresh(0)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         if (intent?.action == ACTION_STOP) {
             stopSelf()
             return START_NOT_STICKY
@@ -112,41 +115,45 @@ class CiMonitorService : Service() {
         // 状态圆点（空闲态，批七：24dp 小圆，红=失败 / 绿=成功 / 黄=运行中）
         val dot = View(this)
         dot.layoutParams = FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
-        dot.background = android.graphics.drawable.GradientDrawable().apply {
-            shape = android.graphics.drawable.GradientDrawable.OVAL
-            setColor(stateColor(currentState))
-        }
+        dot.background =
+            android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(stateColor(currentState))
+            }
         root.addView(dot)
 
         // 展开面板（点击后，批七：180×44dp 黑底半透明 alpha=0.6 + 圆角 10dp）
         val panel = FrameLayout(this)
         panel.layoutParams = FrameLayout.LayoutParams(dp(180), dp(44), Gravity.CENTER)
-        panel.background = android.graphics.drawable.GradientDrawable().apply {
-            cornerRadius = dp(10).toFloat()
-            // Color.BLACK.copy(alpha = 0.6f) → 0x99 000000
-            setColor(Color.argb(153, 0, 0, 0))
-        }
+        panel.background =
+            android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(10).toFloat()
+                // Color.BLACK.copy(alpha = 0.6f) → 0x99 000000
+                setColor(Color.argb(153, 0, 0, 0))
+            }
         val stateText = TextView(this)
         stateText.text = statusLine()
         stateText.setTextColor(Color.WHITE)
         stateText.textSize = 13f
         stateText.gravity = Gravity.CENTER
-        stateText.layoutParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        )
+        stateText.layoutParams =
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL,
+            )
         panel.addView(stateText)
         val timeText = TextView(this)
         timeText.text = "上次构建: $lastRunTimeText"
         timeText.setTextColor(Color.argb(210, 255, 255, 255))
         timeText.textSize = 10f
         timeText.gravity = Gravity.CENTER
-        timeText.layoutParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-        )
+        timeText.layoutParams =
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+            )
         panel.addView(timeText)
         panel.visibility = View.GONE
         root.addView(panel)
@@ -158,20 +165,23 @@ class CiMonitorService : Service() {
         }
         setupDrag(root)
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else
-                WindowManager.LayoutParams.TYPE_PHONE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 24
-            y = 240
-        }
+        val params =
+            WindowManager
+                .LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    } else {
+                        WindowManager.LayoutParams.TYPE_PHONE
+                    },
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT,
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.START
+                    x = 24
+                    y = 240
+                }
 
         bubble = root
         runCatching { windowManager?.addView(root, params) }
@@ -189,13 +199,17 @@ class CiMonitorService : Service() {
                     initialTouchY = event.rawY
                     false
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     params.x = initialX + (event.rawX - initialTouchX).toInt()
                     params.y = initialY + (event.rawY - initialTouchY).toInt()
                     runCatching { windowManager?.updateViewLayout(view, params) }
                     true
                 }
-                else -> false
+
+                else -> {
+                    false
+                }
             }
         }
     }
@@ -217,16 +231,21 @@ class CiMonitorService : Service() {
     // ── 状态与刷新 ──
 
     /** 展开面板状态文字：「CI: 运行中/成功/失败」（批七）。 */
-    private fun statusLine(): String = "CI: " + when (currentState) {
-        "success" -> "成功"
-        "failure" -> "失败"
-        "cancelled" -> "已取消"
-        "running", "queued" -> "运行中"
-        else -> "未知"
-    }
+    private fun statusLine(): String =
+        "CI: " +
+            when (currentState) {
+                "success" -> "成功"
+                "failure" -> "失败"
+                "cancelled" -> "已取消"
+                "running", "queued" -> "运行中"
+                else -> "未知"
+            }
 
     private fun scheduleRefresh(delayMs: Long) {
-        handler.postDelayed({ refreshNow(); scheduleRefresh(CiMonitorStore.load(this).intervalMs) }, delayMs)
+        handler.postDelayed({
+            refreshNow()
+            scheduleRefresh(CiMonitorStore.load(this).intervalMs)
+        }, delayMs)
     }
 
     private fun refreshNow() {
@@ -296,23 +315,33 @@ class CiMonitorService : Service() {
     }
 
     /** 三色状态映射（批七）：绿=成功 红=失败 黄=运行中；排队归运行中、取消归失败；未知为灰。 */
-    private fun stateColor(state: String): Int = when (state) {
-        "success" -> Color.rgb(64, 160, 96)      // 绿
-        "failure" -> Color.rgb(224, 70, 54)      // 红
-        "cancelled" -> Color.rgb(224, 70, 54)    // 红（已取消归失败色）
-        "running", "queued" -> Color.rgb(230, 190, 40) // 黄
-        else -> Color.rgb(140, 140, 140)         // 灰（未知/未配置）
-    }
+    private fun stateColor(state: String): Int =
+        when (state) {
+            "success" -> Color.rgb(64, 160, 96)
+
+            // 绿
+            "failure" -> Color.rgb(224, 70, 54)
+
+            // 红
+            "cancelled" -> Color.rgb(224, 70, 54)
+
+            // 红（已取消归失败色）
+            "running", "queued" -> Color.rgb(230, 190, 40)
+
+            // 黄
+            else -> Color.rgb(140, 140, 140) // 灰（未知/未配置）
+        }
 
     // ── 通知 ──
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "CI 监控",
-                NotificationManager.IMPORTANCE_LOW
-            )
+            val channel =
+                NotificationChannel(
+                    CHANNEL_ID,
+                    "CI 监控",
+                    NotificationManager.IMPORTANCE_LOW,
+                )
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(channel)
         }
@@ -320,21 +349,28 @@ class CiMonitorService : Service() {
 
     private fun buildNotification(text: String): Notification {
         val stopIntent = Intent(this, CiMonitorService::class.java).setAction(ACTION_STOP)
-        val stopPi = PendingIntent.getService(
-            this, 0, stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val stopPi =
+            PendingIntent.getService(
+                this,
+                0,
+                stopIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
         val openIntent = Intent(this, MainActivity::class.java)
-        val openPi = PendingIntent.getActivity(
-            this, 1, openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
+        val openPi =
+            PendingIntent.getActivity(
+                this,
+                1,
+                openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        val builder =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(this, CHANNEL_ID)
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(this)
+            }
         return builder
             .setContentTitle("CI 监控")
             .setContentText(text)

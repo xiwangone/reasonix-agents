@@ -82,15 +82,17 @@ class MainActivity : ComponentActivity() {
             var ciSettings by remember { mutableStateOf(CiMonitorStore.load(context)) }
             val systemDark = isSystemInDarkTheme()
             // 批 A-2 主题预设体系：风格（品牌紫蓝/Material）× 明暗（跟随系统/浅/深）
-            val dark = when (settings.themeMode) {
-                AppSettingsStore.THEME_MODE_LIGHT -> false
-                AppSettingsStore.THEME_MODE_DARK -> true
-                else -> systemDark
-            }
-            val palette = when (settings.themePreset) {
-                AppSettingsStore.THEME_PRESET_MATERIAL -> if (dark) MaterialDarkPalette else MaterialLightPalette
-                else -> if (dark) DarkPalette else LightPalette
-            }
+            val dark =
+                when (settings.themeMode) {
+                    AppSettingsStore.THEME_MODE_LIGHT -> false
+                    AppSettingsStore.THEME_MODE_DARK -> true
+                    else -> systemDark
+                }
+            val palette =
+                when (settings.themePreset) {
+                    AppSettingsStore.THEME_PRESET_MATERIAL -> if (dark) MaterialDarkPalette else MaterialLightPalette
+                    else -> if (dark) DarkPalette else LightPalette
+                }
             // 批 B-13：主题变化时切换 launcher 图标
             LaunchedEffect(settings.themePreset, settings.themeMode) {
                 AppIconSwitcher.apply(context, settings.themePreset, settings.themeMode)
@@ -99,101 +101,107 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalPalette provides palette) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = palette.bg
+                    color = palette.bg,
                 ) {
-                var serverConfigured by remember { mutableStateOf(false) }
-                var serverUrl by remember { mutableStateOf("http://127.0.0.1:8920") }
-                var serverAuth by remember { mutableStateOf<AuthInfo?>(null) }
+                    var serverConfigured by remember { mutableStateOf(false) }
+                    var serverUrl by remember { mutableStateOf("http://127.0.0.1:8920") }
+                    var serverAuth by remember { mutableStateOf<AuthInfo?>(null) }
 
-                // 第五批 E-4：首次启动引导页——没有任何已保存服务器配置时展示
-                // 「配置自己的服务器 / 使用示例服务器」两个并列选项，默认不强制使用示例
-                val hasSavedServer = remember {
-                    val appContext = context.applicationContext
-                    ServerConfigStore.load(appContext).ip.isNotBlank() ||
-                        ServerConfigStore.loadProfiles(appContext).isNotEmpty()
-                }
-                var showFirstLaunch by remember { mutableStateOf(!hasSavedServer) }
-                var prefillProfile by remember { mutableStateOf<ServerConfigStore.ServerProfile?>(null) }
+                    // 第五批 E-4：首次启动引导页——没有任何已保存服务器配置时展示
+                    // 「配置自己的服务器 / 使用示例服务器」两个并列选项，默认不强制使用示例
+                    val hasSavedServer =
+                        remember {
+                            val appContext = context.applicationContext
+                            ServerConfigStore.load(appContext).ip.isNotBlank() ||
+                                ServerConfigStore.loadProfiles(appContext).isNotEmpty()
+                        }
+                    var showFirstLaunch by remember { mutableStateOf(!hasSavedServer) }
+                    var prefillProfile by remember { mutableStateOf<ServerConfigStore.ServerProfile?>(null) }
 
-                if (!serverConfigured) {
-                    if (showFirstLaunch) {
-                        FirstLaunchScreen(
-                            settings = settings,
-                            onSettingsChange = { newSettings ->
-                                settings = newSettings
-                                AppSettingsStore.save(context, newSettings)
-                            },
-                            onConfigureOwn = {
-                                prefillProfile = null
-                                showFirstLaunch = false
-                            },
-                            onUseExample = {
-                                // 预填示例服务器（本地默认部署地址），进入连接页可修改
-                                prefillProfile = ServerConfigStore.ServerProfile(
-                                    name = "示例服务器",
-                                    ip = EXAMPLE_SERVER_IP,
-                                    port = EXAMPLE_SERVER_PORT,
-                                    useHttps = false
-                                )
-                                showFirstLaunch = false
-                            },
-                            // 批七：部署说明链接 —— AndroidBrowserIntent 打开仓库 README（含部署教程章节）
-                            onOpenDeployDocs = {
-                                context.startActivity(
-                                    Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse("https://github.com/xiwangone/reasonix-agents")
+                    if (!serverConfigured) {
+                        if (showFirstLaunch) {
+                            FirstLaunchScreen(
+                                settings = settings,
+                                onSettingsChange = { newSettings ->
+                                    settings = newSettings
+                                    AppSettingsStore.save(context, newSettings)
+                                },
+                                onConfigureOwn = {
+                                    prefillProfile = null
+                                    showFirstLaunch = false
+                                },
+                                onUseExample = {
+                                    // 预填示例服务器（本地默认部署地址），进入连接页可修改
+                                    prefillProfile =
+                                        ServerConfigStore.ServerProfile(
+                                            name = "示例服务器",
+                                            ip = EXAMPLE_SERVER_IP,
+                                            port = EXAMPLE_SERVER_PORT,
+                                            useHttps = false,
+                                        )
+                                    showFirstLaunch = false
+                                },
+                                // 批七：部署说明链接 —— AndroidBrowserIntent 打开仓库 README（含部署教程章节）
+                                onOpenDeployDocs = {
+                                    context.startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse("https://github.com/xiwangone/reasonix-agents"),
+                                        ),
                                     )
-                                )
-                            }
-                        )
+                                },
+                            )
+                        } else {
+                            // 启动引导：未配置服务器时先进入连接页（登录页，批 A-5 含主题/语言入口）
+                            ServerConfigScreen(
+                                settings = settings,
+                                onSettingsChange = { newSettings ->
+                                    settings = newSettings
+                                    AppSettingsStore.save(context, newSettings)
+                                },
+                                prefillProfile = prefillProfile,
+                                onConnect = { url, auth ->
+                                    serverUrl = url
+                                    serverAuth = auth
+                                    serverConfigured = true
+                                },
+                            )
+                        }
                     } else {
-                        // 启动引导：未配置服务器时先进入连接页（登录页，批 A-5 含主题/语言入口）
-                        ServerConfigScreen(
+                        // 主框架：底部 Tab 导航（Chat / Files / Settings）+ About 页
+                        ReasonixApp(
                             settings = settings,
-                            onSettingsChange = { newSettings ->
+                            initialServerUrl = serverUrl,
+                            initialAuth = serverAuth,
+                            onSettingsChanged = { newSettings ->
                                 settings = newSettings
                                 AppSettingsStore.save(context, newSettings)
                             },
-                            prefillProfile = prefillProfile,
-                            onConnect = { url, auth ->
-                                serverUrl = url
-                                serverAuth = auth
-                                serverConfigured = true
-                            }
+                            onCiSettingsChanged = { newCi ->
+                                ciSettings = newCi
+                                CiMonitorStore.save(context, newCi)
+                                syncCiMonitor(context, newCi)
+                            },
                         )
                     }
-                } else {
-                    // 主框架：底部 Tab 导航（Chat / Files / Settings）+ About 页
-                    ReasonixApp(
-                        settings = settings,
-                        initialServerUrl = serverUrl,
-                        initialAuth = serverAuth,
-                        onSettingsChanged = { newSettings ->
-                            settings = newSettings
-                            AppSettingsStore.save(context, newSettings)
-                        },
-                        onCiSettingsChanged = { newCi ->
-                            ciSettings = newCi
-                            CiMonitorStore.save(context, newCi)
-                            syncCiMonitor(context, newCi)
-                        }
-                    )
                 }
-            }
             }
         }
     }
 
     /** 根据设置启动/停止 CI 悬浮窗；未授权悬浮窗权限时引导授权 */
-    private fun syncCiMonitor(context: android.content.Context, s: CiMonitorStore.CiSettings) {
+    private fun syncCiMonitor(
+        context: android.content.Context,
+        s: CiMonitorStore.CiSettings,
+    ) {
         if (s.enabled) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
                 // 引导用户去授权悬浮窗
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
+                val intent =
+                    Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName"),
+                    )
                 startActivity(intent)
                 return
             }
@@ -223,13 +231,14 @@ private fun ReasonixApp(
     initialServerUrl: String,
     initialAuth: AuthInfo?,
     onSettingsChanged: (AppSettingsStore.Settings) -> Unit,
-    onCiSettingsChanged: (CiMonitorStore.CiSettings) -> Unit
+    onCiSettingsChanged: (CiMonitorStore.CiSettings) -> Unit,
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as android.app.Application
-    val chatViewModel: ChatViewModel = viewModel(
-        factory = ChatViewModel.Factory(application, initialServerUrl, initialAuth)
-    )
+    val chatViewModel: ChatViewModel =
+        viewModel(
+            factory = ChatViewModel.Factory(application, initialServerUrl, initialAuth),
+        )
     val navController = rememberNavController()
 
     val palette = LocalPalette.current
@@ -252,7 +261,10 @@ private fun ReasonixApp(
 
             // About 页与设置二级界面隐藏底部导航栏（第四批：设置组件化）
             if (currentRoute != Screens.ABOUT && currentRoute?.startsWith("settings_") != true) {
-                NavigationBar(containerColor = palette.bg2) {
+                NavigationBar(
+                    containerColor = palette.bg2,
+                    modifier = Modifier.height(56.dp),
+                ) {
                     Screens.tabs.forEach { tab ->
                         val selected = currentRoute == tab.route
                         NavigationBarItem(
@@ -261,29 +273,31 @@ private fun ReasonixApp(
                             icon = {
                                 Icon(
                                     imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = tab.label
+                                    contentDescription = tab.label,
                                 )
                             },
                             label = { Text(tab.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = palette.accent,
-                                selectedTextColor = palette.fg,
-                                indicatorColor = palette.accent.copy(alpha = 0.16f),
-                                unselectedIconColor = palette.muted,
-                                unselectedTextColor = palette.muted
-                            )
+                            colors =
+                                NavigationBarItemDefaults.colors(
+                                    selectedIconColor = palette.accent,
+                                    selectedTextColor = palette.fg,
+                                    indicatorColor = palette.accent.copy(alpha = 0.16f),
+                                    unselectedIconColor = palette.muted,
+                                    unselectedTextColor = palette.muted,
+                                ),
                         )
                     }
                 }
             }
-        }
+        },
     ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = Screens.startDestination,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             composable(Screens.CHAT) {
                 ChatScreen(
@@ -292,12 +306,15 @@ private fun ReasonixApp(
                     onNavigateToSettings = { navigateToTopLevel(Screens.SETTINGS) },
                     onNavigateToAbout = { navController.navigate(Screens.ABOUT) },
                     onNavigateToServerConfig = { navController.navigate(Screens.SERVER_CONFIG) },
-                    viewModel = chatViewModel
+                    viewModel = chatViewModel,
                 )
             }
             composable(Screens.FILES) {
                 FilesScreen(
-                    messages = chatViewModel.uiState.collectAsState().value.messages
+                    messages =
+                        chatViewModel.uiState
+                            .collectAsState()
+                            .value.messages,
                 )
             }
             composable(Screens.SETTINGS) {
@@ -315,19 +332,20 @@ private fun ReasonixApp(
                     onOpenCli = { navController.navigate(Screens.SETTINGS_CLI) },
                     onOpenDeploy = {
                         // 部署自己的服务：AndroidBrowserIntent 打开仓库 README 部署说明
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/xiwangone/reasonix-agents#快速开始")
-                        )
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/xiwangone/reasonix-agents#快速开始"),
+                            )
                         context.startActivity(intent)
                     },
                     onOpenAbout = { navController.navigate(Screens.ABOUT) },
-                    onClose = null
+                    onClose = null,
                 )
             }
             composable(Screens.ABOUT) {
                 AboutScreen(
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             // ── 设置二级界面（第四批：设置组件化）──
@@ -339,7 +357,7 @@ private fun ReasonixApp(
                         chatViewModel.updateSettings(newSettings)
                         onSettingsChanged(newSettings)
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screens.SETTINGS_MODEL) {
@@ -352,7 +370,7 @@ private fun ReasonixApp(
                     onRefreshModels = { chatViewModel.reloadModels() },
                     onAddCustomModel = { model -> chatViewModel.addCustomModel(model) },
                     onRemoveCustomModel = { id -> chatViewModel.removeCustomModel(id) },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screens.SETTINGS_DISPLAY) {
@@ -363,7 +381,7 @@ private fun ReasonixApp(
                         chatViewModel.updateSettings(newSettings)
                         onSettingsChanged(newSettings)
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screens.SETTINGS_NETWORK) {
@@ -374,7 +392,7 @@ private fun ReasonixApp(
                         chatViewModel.updateSettings(newSettings)
                         onSettingsChanged(newSettings)
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screens.SETTINGS_SERVER) {
@@ -382,7 +400,7 @@ private fun ReasonixApp(
                 SettingsServerScreen(
                     serverUrl = state.serverUrl,
                     status = state.status,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screens.SETTINGS_CI) {
@@ -393,7 +411,7 @@ private fun ReasonixApp(
                         chatViewModel.updateCiSettings(newCi)
                         onCiSettingsChanged(newCi)
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             // ── 设置二级界面（第五批）──
@@ -405,7 +423,7 @@ private fun ReasonixApp(
                         chatViewModel.updateSettings(newSettings)
                         onSettingsChanged(newSettings)
                     },
-                    viewModel = chatViewModel
+                    viewModel = chatViewModel,
                 )
             }
             composable(Screens.SETTINGS_CLI) {
@@ -415,7 +433,7 @@ private fun ReasonixApp(
                     onCliSettingsChange = { newCli ->
                         chatViewModel.updateCliSettings(newCli)
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             // ── 设置二级界面（第八批）：坚果云 WebDAV 同步 ──
@@ -427,7 +445,7 @@ private fun ReasonixApp(
                         chatViewModel.updateSettings(newSettings)
                         onSettingsChanged(newSettings)
                     },
-                    viewModel = chatViewModel
+                    viewModel = chatViewModel,
                 )
             }
             // ── 设置二级界面（第六批）：系统提示词（只读）──
@@ -435,7 +453,7 @@ private fun ReasonixApp(
                 val state by chatViewModel.uiState.collectAsState()
                 SettingsSystemPromptScreen(
                     systemPrompt = state.systemPrompt,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             // ── 设置二级界面（批七）：提示词（自定义提示词，查看/添加/保存/切换/删除）──
@@ -447,7 +465,7 @@ private fun ReasonixApp(
                     onAddPrompt = { content, select -> chatViewModel.addPrompt(content, select) },
                     onRemovePrompt = { id -> chatViewModel.removePrompt(id) },
                     onSetCurrentPrompt = { id -> chatViewModel.setCurrentPrompt(id) },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             // ── 服务器配置页（批 C-1：配置列表「新增配置」跳转新建；连接成功后切回 Chat 并应用）──
@@ -458,7 +476,7 @@ private fun ReasonixApp(
                     onConnect = { url, auth ->
                         navController.popBackStack()
                         chatViewModel.configureServer(url, auth)
-                    }
+                    },
                 )
             }
         }

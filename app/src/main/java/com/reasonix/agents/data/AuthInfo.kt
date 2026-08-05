@@ -10,11 +10,11 @@ package com.reasonix.agents.data
 enum class AuthType {
     NONE,
     BASIC,
-    BEARER;
+    BEARER,
+    ;
 
     companion object {
-        fun from(name: String?): AuthType =
-            entries.firstOrNull { it.name == name } ?: NONE
+        fun from(name: String?): AuthType = entries.firstOrNull { it.name == name } ?: NONE
     }
 }
 
@@ -23,7 +23,7 @@ data class AuthInfo(
     val type: AuthType = AuthType.NONE,
     val username: String = "",
     val password: String = "",
-    val token: String = ""
+    val token: String = "",
 ) {
     val isActive: Boolean get() = type != AuthType.NONE
 }

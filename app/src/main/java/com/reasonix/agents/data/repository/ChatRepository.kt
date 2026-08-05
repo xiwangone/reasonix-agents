@@ -13,14 +13,14 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class ChatRepository(
     private val api: ReasonixApi,
-    private val sseClient: ReasonixSseClient
+    private val sseClient: ReasonixSseClient,
 ) {
     /** 连接参数（批 B-11/12）：认证方式 + REST 超时 + SSE 重连开关/退避上限 */
     data class ConnectionConfig(
         val auth: AuthInfo? = null,
         val connectTimeoutSec: Int = 30,
         val sseReconnectEnabled: Boolean = true,
-        val sseReconnectMaxDelaySec: Int = 30
+        val sseReconnectMaxDelaySec: Int = 30,
     )
 
     constructor(baseUrl: String, config: ConnectionConfig = ConnectionConfig()) : this(
@@ -29,8 +29,8 @@ class ChatRepository(
             baseUrl,
             config.auth,
             config.sseReconnectEnabled,
-            config.sseReconnectMaxDelaySec * 1000L
-        )
+            config.sseReconnectMaxDelaySec * 1000L,
+        ),
     )
 
     // ── SSE 事件流 ──
@@ -57,7 +57,9 @@ class ChatRepository(
     suspend fun diagnose(): ConnectResult = api.diagnose()
 
     suspend fun getModels(): ModelsResponse? = api.getModels()
+
     suspend fun setModel(model: String) = api.setModel(model)
+
     suspend fun getSystemPrompt(): String? = api.getSystemPrompt()
 
     suspend fun getSessions(): List<SessionInfo> = api.getSessions()
@@ -72,22 +74,33 @@ class ChatRepository(
 
     suspend fun getCheckpoints(): List<CheckpointInfo> = api.getCheckpoints()
 
-    suspend fun rewind(turn: Int, scope: String = "both") = api.rewind(turn, scope)
+    suspend fun rewind(
+        turn: Int,
+        scope: String = "both",
+    ) = api.rewind(turn, scope)
 
-    suspend fun fork(turn: Int, name: String = "") = api.fork(turn, name)
+    suspend fun fork(
+        turn: Int,
+        name: String = "",
+    ) = api.fork(turn, name)
 
-    suspend fun summarize(turn: Int, mode: String) = api.summarize(turn, mode)
+    suspend fun summarize(
+        turn: Int,
+        mode: String,
+    ) = api.summarize(turn, mode)
 
     suspend fun approve(
         id: String,
         allow: Boolean,
         session: Boolean = false,
         persist: Boolean = false,
-        scope: String = ""
+        scope: String = "",
     ) = api.approve(id, allow, session, persist, scope)
 
-    suspend fun answer(id: String, answers: List<Map<String, Any>>) =
-        api.answer(id, answers)
+    suspend fun answer(
+        id: String,
+        answers: List<Map<String, Any>>,
+    ) = api.answer(id, answers)
 
     suspend fun setPlan(on: Boolean) = api.setPlan(on)
 

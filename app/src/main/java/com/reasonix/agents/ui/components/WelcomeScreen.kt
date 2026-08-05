@@ -1,5 +1,6 @@
 package com.reasonix.agents.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,16 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.reasonix.agents.ui.theme.LocalPalette
 import com.reasonix.agents.R
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.layout.ContentScale
+import com.reasonix.agents.ui.theme.LocalPalette
 
 // ═══════════════════════════════════════════════
 // 调色板
@@ -50,26 +50,28 @@ private val Border: Color @Composable get() = LocalPalette.current.border
 @Composable
 fun WelcomeScreen(
     onPromptClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // ── Logo（品牌图标）──
             Image(
                 painter = painterResource(R.drawable.logo),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(13.dp))
+                modifier =
+                    Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(13.dp)),
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -80,7 +82,7 @@ fun WelcomeScreen(
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Fg,
-                letterSpacing = (-0.72).sp
+                letterSpacing = (-0.72).sp,
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -89,7 +91,7 @@ fun WelcomeScreen(
             Text(
                 text = "AI 编程助手",
                 fontSize = 13.sp,
-                color = Fg2
+                color = Fg2,
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -97,11 +99,11 @@ fun WelcomeScreen(
             // ── 键盘提示 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(18.dp)
+                        horizontalArrangement = Arrangement.spacedBy(18.dp),
                     ) {
                         HintBadge(kbd = "/", label = "命令")
                         HintBadge(kbd = "Shift+Tab", label = "Plan")
@@ -116,7 +118,7 @@ fun WelcomeScreen(
             // ── 示例提问 ──
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(7.dp)
+                verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
                 ExamplePrompt("解释项目结构", onClick = onPromptClick)
                 ExamplePrompt("查找并修复错误", onClick = onPromptClick)
@@ -130,26 +132,29 @@ fun WelcomeScreen(
  * 键盘提示徽章：`<kbd>key</kbd> label`
  */
 @Composable
-private fun HintBadge(kbd: String, label: String) {
+private fun HintBadge(
+    kbd: String,
+    label: String,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Surface(
             shape = RoundedCornerShape(4.dp),
             color = Panel2,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+            border = androidx.compose.foundation.BorderStroke(1.dp, Border),
         ) {
             Text(
                 text = kbd,
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
-                color = Fg2
+                color = Fg2,
             )
         }
         Spacer(modifier = Modifier.width(5.dp))
         Text(
             text = label,
             fontSize = 12.sp,
-            color = Muted
+            color = Muted,
         )
     }
 }
@@ -158,32 +163,37 @@ private fun HintBadge(kbd: String, label: String) {
  * 示例提问卡片：左侧 3dp accent 色条 + 文字，点击后填入输入框并发送。
  */
 @Composable
-private fun ExamplePrompt(text: String, onClick: (String) -> Unit) {
+private fun ExamplePrompt(
+    text: String,
+    onClick: (String) -> Unit,
+) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .clickable { onClick(text) },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .clickable { onClick(text) },
         shape = RoundedCornerShape(6.dp),
         color = Bg2,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border),
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(18.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(Accent)
+                modifier =
+                    Modifier
+                        .width(3.dp)
+                        .height(18.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Accent),
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = text,
                 fontSize = 12.sp,
-                color = Fg2
+                color = Fg2,
             )
         }
     }

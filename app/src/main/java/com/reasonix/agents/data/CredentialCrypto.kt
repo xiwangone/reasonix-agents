@@ -22,7 +22,6 @@ import javax.crypto.spec.GCMParameterSpec
  * - 解密失败返回 null（如换机恢复后密钥不存在），调用方按空值处理。
  */
 object CredentialCrypto {
-
     private const val TAG = "CredentialCrypto"
 
     private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
@@ -64,7 +63,7 @@ object CredentialCrypto {
             cipher.init(
                 Cipher.DECRYPT_MODE,
                 getOrCreateKey(),
-                GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
+                GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv),
             )
             String(cipher.doFinal(ciphertext), Charsets.UTF_8)
         } catch (e: Exception) {
@@ -79,14 +78,14 @@ object CredentialCrypto {
         (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER)
         generator.init(
-            KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-            )
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            KeyGenParameterSpec
+                .Builder(
+                    KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)
-                .build()
+                .build(),
         )
         return generator.generateKey()
     }

@@ -93,17 +93,18 @@ fun SettingsScreen(
     onOpenDeploy: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     onClose: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val versionName = remember {
-        try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
-        } catch (e: Exception) {
-            "1.0"
+    val versionName =
+        remember {
+            try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
+            } catch (e: Exception) {
+                "1.0"
+            }
         }
-    }
 
     var checkingUpdate by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<String?>(null) }
@@ -112,63 +113,67 @@ fun SettingsScreen(
         if (checkingUpdate) return
         checkingUpdate = true
         CoroutineScope(Dispatchers.Main).launch {
-            val result = withContext(Dispatchers.IO) {
-                try {
-                    val release = GitHubReleaseApi().checkLatest()
-                    if (release == null || release.tagName.isBlank()) {
-                        // 批 C-6：无更新提示「暂时没有更新」
-                        "暂时没有更新"
-                    } else {
-                        val cmp = GitHubReleaseApi.compareVersions(versionName, release.tagName)
-                        // 批 C-6：有更新保持弹窗提示下载
-                        if (cmp > 0) {
-                            "发现新版本 v${release.tagName}（当前 v$versionName）\n\n点击「前往下载」跳转 Release 页面。"
-                        } else {
+            val result =
+                withContext(Dispatchers.IO) {
+                    try {
+                        val release = GitHubReleaseApi().checkLatest()
+                        if (release == null || release.tagName.isBlank()) {
+                            // 批 C-6：无更新提示「暂时没有更新」
                             "暂时没有更新"
+                        } else {
+                            val cmp = GitHubReleaseApi.compareVersions(versionName, release.tagName)
+                            // 批 C-6：有更新保持弹窗提示下载
+                            if (cmp > 0) {
+                                "发现新版本 v${release.tagName}（当前 v$versionName）\n\n点击「前往下载」跳转 Release 页面。"
+                            } else {
+                                "暂时没有更新"
+                            }
                         }
+                    } catch (e: Exception) {
+                        // 批 C-6：网络错误提示「网络错误，请稍后重试」
+                        "网络错误，请稍后重试"
                     }
-                } catch (e: Exception) {
-                    // 批 C-6：网络错误提示「网络错误，请稍后重试」
-                    "网络错误，请稍后重试"
                 }
-            }
             checkingUpdate = false
             updateResult = result
         }
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding(),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
         ) {
             // ── 标题栏 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "设置",
                     fontSize = 20.sp,
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 if (onClose != null) {
                     Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Panel)
-                            .border(1.dp, Border, RoundedCornerShape(8.dp))
-                            .clickable { onClose() }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Panel)
+                                .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                .clickable { onClose() }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text("关闭", fontSize = 13.sp, color = Muted)
                     }
@@ -183,7 +188,7 @@ fun SettingsScreen(
                 Icons.Default.Edit,
                 "提示词",
                 "自定义提示词：添加 / 保存 / 切换 / 删除（最多 ${PromptStore.MAX_PROMPTS} 条）",
-                onClick = onOpenPrompt
+                onClick = onOpenPrompt,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -195,7 +200,7 @@ fun SettingsScreen(
                 Icons.Default.Info,
                 "系统提示词",
                 "服务端系统提示词（只读，完整查看）",
-                onClick = onOpenSystemPrompt
+                onClick = onOpenSystemPrompt,
             )
             Spacer(modifier = Modifier.height(6.dp))
             SettingEntry(Icons.Default.Palette, "主题", "配色风格 / 明暗模式 / 语言", onClick = onOpenTheme)
@@ -237,14 +242,15 @@ fun SettingsScreen(
             InfoRow("版本", "Reasonix Agents v$versionName")
             // 检查更新按钮
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Bg2)
-                    .border(1.dp, Border, RoundedCornerShape(8.dp))
-                    .clickable { checkUpdate() }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Bg2)
+                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        .clickable { checkUpdate() }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -252,20 +258,21 @@ fun SettingsScreen(
                     text = if (checkingUpdate) "检查中…" else "检查更新",
                     fontSize = 13.sp,
                     color = Accent,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
             // 关于页入口
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Bg2)
-                    .border(1.dp, Border, RoundedCornerShape(8.dp))
-                    .clickable { onOpenAbout() }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Bg2)
+                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        .clickable { onOpenAbout() }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Default.Info, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -273,7 +280,7 @@ fun SettingsScreen(
                     text = "关于本应用（版本 / 项目 / 并列项目）",
                     fontSize = 13.sp,
                     color = Accent,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Muted2, modifier = Modifier.size(14.dp))
             }
@@ -311,7 +318,7 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { updateResult = null }) { Text("关闭", color = Muted) }
             },
-            containerColor = Panel
+            containerColor = Panel,
         )
     }
 }

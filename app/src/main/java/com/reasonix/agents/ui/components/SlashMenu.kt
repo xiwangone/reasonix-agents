@@ -40,28 +40,29 @@ private val Muted2: Color @Composable get() = LocalPalette.current.muted2
 data class SlashCommand(
     val name: String,
     val description: String,
-    val action: String
+    val action: String,
 )
 
-private val COMMANDS = listOf(
-    SlashCommand("help", "显示可用命令", "/help"),
-    SlashCommand("plan", "切换计划模式", "/plan"),
-    SlashCommand("yolo", "切换 YOLO 模式", "/yolo"),
-    SlashCommand("auto", "切换到自动模式", "/auto"),
-    SlashCommand("compact", "压缩对话", "/compact"),
-    SlashCommand("rewind", "回退对话", "/rewind"),
-    SlashCommand("fork", "在当前轮次分叉对话", "/fork"),
-    SlashCommand("new", "新建会话", "/new"),
-    SlashCommand("stats", "显示统计", "/stats"),
-    SlashCommand("status", "显示服务器状态", "/status"),
-    SlashCommand("sessions", "列出会话", "/sessions"),
-    SlashCommand("summarize", "总结对话", "/summarize"),
-    SlashCommand("resume", "恢复会话", "/resume "),
-    SlashCommand("delete", "删除会话", "/delete "),
-    SlashCommand("compact", "设置压缩自动模式", "/compact auto"),
-    SlashCommand("compact", "设置压缩手动模式", "/compact manual"),
-    SlashCommand("theme", "切换主题", "/theme"),
-)
+private val COMMANDS =
+    listOf(
+        SlashCommand("help", "显示可用命令", "/help"),
+        SlashCommand("plan", "切换计划模式", "/plan"),
+        SlashCommand("yolo", "切换 YOLO 模式", "/yolo"),
+        SlashCommand("auto", "切换到自动模式", "/auto"),
+        SlashCommand("compact", "压缩对话", "/compact"),
+        SlashCommand("rewind", "回退对话", "/rewind"),
+        SlashCommand("fork", "在当前轮次分叉对话", "/fork"),
+        SlashCommand("new", "新建会话", "/new"),
+        SlashCommand("stats", "显示统计", "/stats"),
+        SlashCommand("status", "显示服务器状态", "/status"),
+        SlashCommand("sessions", "列出会话", "/sessions"),
+        SlashCommand("summarize", "总结对话", "/summarize"),
+        SlashCommand("resume", "恢复会话", "/resume "),
+        SlashCommand("delete", "删除会话", "/delete "),
+        SlashCommand("compact", "设置压缩自动模式", "/compact auto"),
+        SlashCommand("compact", "设置压缩手动模式", "/compact manual"),
+        SlashCommand("theme", "切换主题", "/theme"),
+    )
 
 // ═══════════════════════════════════════════════
 // SlashMenu
@@ -81,15 +82,16 @@ fun SlashMenu(
     prefix: String,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val filtered = remember(prefix) {
-        if (prefix.isBlank()) {
-            COMMANDS
-        } else {
-            COMMANDS.filter { it.name.startsWith(prefix, ignoreCase = true) }
+    val filtered =
+        remember(prefix) {
+            if (prefix.isBlank()) {
+                COMMANDS
+            } else {
+                COMMANDS.filter { it.name.startsWith(prefix, ignoreCase = true) }
+            }
         }
-    }
 
     if (filtered.isEmpty()) {
         onDismiss()
@@ -97,13 +99,14 @@ fun SlashMenu(
     }
 
     Surface(
-        modifier = modifier
-            .width(260.dp)
-            .clip(RoundedCornerShape(8.dp)),
+        modifier =
+            modifier
+                .width(260.dp)
+                .clip(RoundedCornerShape(8.dp)),
         shape = RoundedCornerShape(8.dp),
         color = Card,
         border = androidx.compose.foundation.BorderStroke(1.dp, Border),
-        shadowElevation = 8.dp
+        shadowElevation = 8.dp,
     ) {
         Column(modifier = Modifier.padding(4.dp)) {
             // 提示行
@@ -113,19 +116,19 @@ fun SlashMenu(
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.6.sp,
                 color = Muted2,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             )
 
             // 命令列表
             LazyColumn(
-                modifier = Modifier.heightIn(max = 220.dp)
+                modifier = Modifier.heightIn(max = 220.dp),
             ) {
                 items(filtered.take(12)) { cmd ->
                     SlashCommandRow(
                         command = cmd,
                         onClick = {
                             onSelect(cmd.action)
-                        }
+                        },
                     )
                 }
             }
@@ -136,7 +139,7 @@ fun SlashMenu(
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 color = Muted2,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             )
         }
     }
@@ -145,15 +148,16 @@ fun SlashMenu(
 @Composable
 private fun SlashCommandRow(
     command: SlashCommand,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 命令名
         Text(
@@ -161,7 +165,7 @@ private fun SlashCommandRow(
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace,
-            color = Fg
+            color = Fg,
         )
         Spacer(modifier = Modifier.width(10.dp))
         // 描述
@@ -169,7 +173,7 @@ private fun SlashCommandRow(
             text = command.description,
             fontSize = 12.sp,
             color = Muted,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
     }
 }

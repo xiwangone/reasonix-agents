@@ -1,11 +1,11 @@
 package com.reasonix.agents.ui.screen
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,7 +25,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -40,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.CustomModelStore
@@ -93,7 +93,7 @@ fun ChatScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
     onNavigateToServerConfig: () -> Unit = {},
-    viewModel: ChatViewModel = viewModel()
+    viewModel: ChatViewModel = viewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -114,22 +114,25 @@ fun ChatScreen(
     val context = LocalContext.current
     var showExportDialog by remember { mutableStateOf(false) }
     var exportFormat by remember { mutableStateOf("文本") }
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("*/*")
-    ) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        val content = if (exportFormat == "JSON") {
-            SessionExporter.buildJson(state.messages)
-        } else {
-            SessionExporter.buildText(state.messages)
+    val exportLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("*/*"),
+        ) { uri ->
+            uri ?: return@rememberLauncherForActivityResult
+            val content =
+                if (exportFormat == "JSON") {
+                    SessionExporter.buildJson(state.messages)
+                } else {
+                    SessionExporter.buildText(state.messages)
+                }
+            val ok = SessionExporter.write(context, uri, content)
+            android.widget.Toast
+                .makeText(
+                    context,
+                    if (ok) "会话已导出" else "导出失败",
+                    android.widget.Toast.LENGTH_SHORT,
+                ).show()
         }
-        val ok = SessionExporter.write(context, uri, content)
-        android.widget.Toast.makeText(
-            context,
-            if (ok) "会话已导出" else "导出失败",
-            android.widget.Toast.LENGTH_SHORT
-        ).show()
-    }
 
     fun startExport(format: String) {
         exportFormat = format
@@ -143,110 +146,132 @@ fun ChatScreen(
     var ocrFailedPath by remember { mutableStateOf<String?>(null) }
 
     // 相册选择：PickVisualMedia（Android 13+ Photo Picker，低版本自动回退系统选择器）
-    val pickImageLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            imageProcessing = true
-            // ① 拷贝到内部存储（避免选择器 Uri 权限失效）
-            val saved = withContext(Dispatchers.IO) {
-                ImageOcr.copyToInternal(context, uri)
-            }
-            if (saved == null) {
+    val pickImageLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.PickVisualMedia(),
+        ) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                imageProcessing = true
+                // ① 拷贝到内部存储（避免选择器 Uri 权限失效）
+                val saved =
+                    withContext(Dispatchers.IO) {
+                        ImageOcr.copyToInternal(context, uri)
+                    }
+                if (saved == null) {
+                    imageProcessing = false
+                    android.widget.Toast
+                        .makeText(context, "图片读取失败", android.widget.Toast.LENGTH_SHORT)
+                        .show()
+                    return@launch
+                }
+                // ② 采样解码（防 OOM）
+                val bitmap =
+                    withContext(Dispatchers.IO) {
+                        ImageOcr.decodeSampledBitmap(saved)
+                    }
+                if (bitmap == null) {
+                    imageProcessing = false
+                    android.widget.Toast
+                        .makeText(context, "图片读取失败", android.widget.Toast.LENGTH_SHORT)
+                        .show()
+                    return@launch
+                }
+                // ③ 本地 OCR（ML Kit 中文识别）
+                val ocrText =
+                    withContext(Dispatchers.IO) {
+                        ImageOcr.recognize(context, bitmap)
+                    }
                 imageProcessing = false
-                android.widget.Toast.makeText(context, "图片读取失败", android.widget.Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            // ② 采样解码（防 OOM）
-            val bitmap = withContext(Dispatchers.IO) {
-                ImageOcr.decodeSampledBitmap(saved)
-            }
-            if (bitmap == null) {
-                imageProcessing = false
-                android.widget.Toast.makeText(context, "图片读取失败", android.widget.Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            // ③ 本地 OCR（ML Kit 中文识别）
-            val ocrText = withContext(Dispatchers.IO) {
-                ImageOcr.recognize(context, bitmap)
-            }
-            imageProcessing = false
-            if (ocrText.isNullOrBlank()) {
-                // 识别失败：提示，可选发送原图（无文字）
-                android.widget.Toast.makeText(context, "图片识别失败", android.widget.Toast.LENGTH_SHORT).show()
-                ocrFailedPath = saved
-            } else {
-                // 识别成功：识别文本作为消息发送（图片+文字展示在消息中）
-                android.widget.Toast.makeText(context, "识别成功，正在发送…", android.widget.Toast.LENGTH_SHORT).show()
-                viewModel.sendImageMessage(ocrText, saved)
+                if (ocrText.isNullOrBlank()) {
+                    // 识别失败：提示，可选发送原图（无文字）
+                    android.widget.Toast
+                        .makeText(context, "图片识别失败", android.widget.Toast.LENGTH_SHORT)
+                        .show()
+                    ocrFailedPath = saved
+                } else {
+                    // 识别成功：识别文本作为消息发送（图片+文字展示在消息中）
+                    android.widget.Toast
+                        .makeText(context, "识别成功，正在发送…", android.widget.Toast.LENGTH_SHORT)
+                        .show()
+                    viewModel.sendImageMessage(ocrText, saved)
+                }
             }
         }
-    }
 
     // 全局键盘事件处理
     BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Bg)
-            .safeDrawingPadding()
-            .imePadding()
-            .onKeyEvent { event ->
-                if (event.type == KeyEventType.KeyUp) return@onKeyEvent false
-                when {
-                    // / 聚焦输入框
-                    event.key == Key.Slash && state.isStreaming -> {
-                        viewModel.onInputChange("/")
-                        focusRequester.requestFocus()
-                        true
-                    }
-                    // Esc → 取消流式 / 双 Esc 倒带
-                    event.key == Key.Escape -> {
-                        if (state.isStreaming) {
-                            viewModel.cancelStreaming()
-                        } else {
-                            viewModel.tryDoubleEscRewind()
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Bg)
+                .safeDrawingPadding()
+                .imePadding()
+                .onKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyUp) return@onKeyEvent false
+                    when {
+                        // / 聚焦输入框
+                        event.key == Key.Slash && state.isStreaming -> {
+                            viewModel.onInputChange("/")
+                            focusRequester.requestFocus()
+                            true
                         }
-                        true
+
+                        // Esc → 取消流式 / 双 Esc 倒带
+                        event.key == Key.Escape -> {
+                            if (state.isStreaming) {
+                                viewModel.cancelStreaming()
+                            } else {
+                                viewModel.tryDoubleEscRewind()
+                            }
+                            true
+                        }
+
+                        // Shift+Tab → 切计划模式
+                        event.key == Key.Tab && event.isShiftPressed && !state.isStreaming -> {
+                            viewModel.togglePlanMode()
+                            true
+                        }
+
+                        // Ctrl+Y → 切 YOLO
+                        event.key == Key.Y && event.isCtrlPressed && !state.isStreaming -> {
+                            val newMode = if (state.toolApprovalMode == "yolo") "auto" else "yolo"
+                            viewModel.setToolApprovalMode(newMode)
+                            true
+                        }
+
+                        else -> {
+                            false
+                        }
                     }
-                    // Shift+Tab → 切计划模式
-                    event.key == Key.Tab && event.isShiftPressed && !state.isStreaming -> {
-                        viewModel.togglePlanMode()
-                        true
-                    }
-                    // Ctrl+Y → 切 YOLO
-                    event.key == Key.Y && event.isCtrlPressed && !state.isStreaming -> {
-                        val newMode = if (state.toolApprovalMode == "yolo") "auto" else "yolo"
-                        viewModel.setToolApprovalMode(newMode)
-                        true
-                    }
-                    else -> false
-                }
-            }
+                },
     ) {
         // ── 主内容区 ──
         Column(modifier = Modifier.fillMaxSize()) {
             // ── 顶部栏（批 A-2：左上品牌 logo / 右上 关于 + 设置 入口）──
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 // 左侧：品牌 logo（随主题渐变）+ 应用名 + 连接状态点；点击弹出「保存的配置」列表（批 C-1）
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { showConfigsDialog = true }
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { showConfigsDialog = true }
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(brush = Brush.linearGradient(colors = listOf(Accent, Violet))),
-                        contentAlignment = Alignment.Center
+                        modifier =
+                            Modifier
+                                .size(26.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(brush = Brush.linearGradient(colors = listOf(Accent, Violet))),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text("R", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
@@ -255,33 +280,36 @@ fun ChatScreen(
                         text = "Reasonix",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Fg
+                        color = Fg,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     // 连接健康状态点（绿=已连接 / 黄=重连中 / 红=断开 / 灰=就绪）
-                    val dotColor = when {
-                        state.connectionState == ConnectionState.RECONNECTING -> Warning
-                        state.connectionState == ConnectionState.DISCONNECTED && state.isStreaming -> Danger
-                        state.connectionState == ConnectionState.CONNECTED -> Success
-                        else -> Muted2
-                    }
+                    val dotColor =
+                        when {
+                            state.connectionState == ConnectionState.RECONNECTING -> Warning
+                            state.connectionState == ConnectionState.DISCONNECTED && state.isStreaming -> Danger
+                            state.connectionState == ConnectionState.CONNECTED -> Success
+                            else -> Muted2
+                        }
                     Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(dotColor)
+                        modifier =
+                            Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(dotColor),
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 // 模型选择器（批 C-3：按 key 分组选择模型）
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Panel2)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
-                        .clickable { showModelPicker = true }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Panel2)
+                            .border(1.dp, Border, RoundedCornerShape(8.dp))
+                            .clickable { showModelPicker = true }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text(
                         text = state.currentModel.ifEmpty { "选择模型" },
@@ -290,27 +318,19 @@ fun ChatScreen(
                         color = if (state.currentModel.isEmpty()) Muted2 else Fg2,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 120.dp)
+                        modifier = Modifier.widthIn(max = 120.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(13.dp))
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                // 右侧：关于 + 设置入口
-                IconButton(onClick = onNavigateToAbout, modifier = Modifier.size(34.dp)) {
-                    Icon(
-                        imageVector = Icons.Filled.Info,
-                        contentDescription = "关于",
-                        tint = Muted,
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
+                // 右侧：设置入口（关于入口统一在设置页中）
                 IconButton(onClick = onNavigateToSettings, modifier = Modifier.size(34.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Settings,
                         contentDescription = "设置",
                         tint = Muted,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(19.dp),
                     )
                 }
             }
@@ -321,40 +341,43 @@ fun ChatScreen(
                         viewModel.onInputChange(prompt)
                         viewModel.sendMessage()
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             } else {
-            // Todo 面板：有任务时显示在消息列表上方
-            if (state.todos.isNotEmpty()) {
-                TodoPanel(
-                    todos = state.todos,
-                    onRefresh = { viewModel.loadTodos() },
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
-            }
-            MessageList(
-                items = state.messages,
-                modifier = Modifier.weight(1f),
-                balance = state.status?.balance?.display,
-                onApprove = { session, persist, scope ->
-                    val approval = state.messages.lastOrNull {
-                        it is com.reasonix.agents.data.model.ChatItem.ApprovalCard
-                    } as? com.reasonix.agents.data.model.ChatItem.ApprovalCard
-                    approval?.let { viewModel.approveTool(it.id, session, persist, scope) }
-                },
-                onDeny = {
-                    val approval = state.messages.lastOrNull {
-                        it is com.reasonix.agents.data.model.ChatItem.ApprovalCard
-                    } as? com.reasonix.agents.data.model.ChatItem.ApprovalCard
-                    approval?.let { viewModel.denyTool(it.id) }
-                },
-                onAskSubmit = { answers ->
-                    val ask = state.messages.lastOrNull {
-                        it is com.reasonix.agents.data.model.ChatItem.AskCard
-                    } as? com.reasonix.agents.data.model.ChatItem.AskCard
-                    ask?.let { viewModel.submitAskAnswers(it.id, answers) }
+                // Todo 面板：有任务时显示在消息列表上方
+                if (state.todos.isNotEmpty()) {
+                    TodoPanel(
+                        todos = state.todos,
+                        onRefresh = { viewModel.loadTodos() },
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
                 }
-            )
+                MessageList(
+                    items = state.messages,
+                    modifier = Modifier.weight(1f),
+                    balance = state.status?.balance?.display,
+                    onApprove = { session, persist, scope ->
+                        val approval =
+                            state.messages.lastOrNull {
+                                it is com.reasonix.agents.data.model.ChatItem.ApprovalCard
+                            } as? com.reasonix.agents.data.model.ChatItem.ApprovalCard
+                        approval?.let { viewModel.approveTool(it.id, session, persist, scope) }
+                    },
+                    onDeny = {
+                        val approval =
+                            state.messages.lastOrNull {
+                                it is com.reasonix.agents.data.model.ChatItem.ApprovalCard
+                            } as? com.reasonix.agents.data.model.ChatItem.ApprovalCard
+                        approval?.let { viewModel.denyTool(it.id) }
+                    },
+                    onAskSubmit = { answers ->
+                        val ask =
+                            state.messages.lastOrNull {
+                                it is com.reasonix.agents.data.model.ChatItem.AskCard
+                            } as? com.reasonix.agents.data.model.ChatItem.AskCard
+                        ask?.let { viewModel.submitAskAnswers(it.id, answers) }
+                    },
+                )
             }
 
             // 底部输入区域
@@ -382,9 +405,13 @@ fun ChatScreen(
                 imageProcessing = imageProcessing,
                 onPickImage = {
                     pickImageLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                     )
-                }
+                },
+                onQuickAction = { template ->
+                    viewModel.onInputChange(template)
+                    focusRequester.requestFocus()
+                },
             )
         }
 
@@ -393,7 +420,7 @@ fun ChatScreen(
             visible = state.showSidebar,
             enter = slideInHorizontally(initialOffsetX = { -it }),
             exit = slideOutHorizontally(targetOffsetX = { -it }),
-            modifier = Modifier.zIndex(10f)
+            modifier = Modifier.zIndex(10f),
         ) {
             Sidebar(
                 sessions = state.sessions,
@@ -414,28 +441,35 @@ fun ChatScreen(
                 onRewind = { viewModel.showRewindPicker() },
                 onFork = { viewModel.showRewindPicker() },
                 onStats = { viewModel.showStatsDialog() },
-                onExport = { viewModel.toggleSidebar(); showExportDialog = true },
-                modifier = Modifier.width(220.dp)
+                onExport = {
+                    viewModel.toggleSidebar()
+                    showExportDialog = true
+                },
+                modifier = Modifier.width(220.dp),
             )
         }
 
         // ── 侧边栏遮罩 ──
         if (state.showSidebar) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(9f)
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .clickable { viewModel.toggleSidebar() }
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .zIndex(9f)
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable { viewModel.toggleSidebar() },
             )
         }
 
         // ── Slash 菜单（悬浮在输入框上方，向上展开） ──
-        val slashPrefix = remember(state.inputText) {
-            if (state.inputText.startsWith("/") && !state.inputText.contains(" ")) {
-                state.inputText.removePrefix("/")
-            } else null
-        }
+        val slashPrefix =
+            remember(state.inputText) {
+                if (state.inputText.startsWith("/") && !state.inputText.contains(" ")) {
+                    state.inputText.removePrefix("/")
+                } else {
+                    null
+                }
+            }
         if (slashPrefix != null) {
             SlashMenu(
                 prefix = slashPrefix,
@@ -444,31 +478,33 @@ fun ChatScreen(
                     focusRequester.requestFocus()
                 },
                 onDismiss = {},
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = 100.dp)
-                    .zIndex(8f)
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 16.dp, bottom = 100.dp)
+                        .zIndex(8f),
             )
         }
 
         // ── 侧边栏切换按钮（左侧 2/5 高度处） ──
         Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = maxHeight * 0.4f, start = 8.dp)
-                .zIndex(5f)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Bg2.copy(alpha = 0.9f))
-                .border(1.dp, Border, CircleShape)
-                .clickable { viewModel.toggleSidebar() },
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = maxHeight * 0.4f, start = 8.dp)
+                    .zIndex(5f)
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Bg2.copy(alpha = 0.9f))
+                    .border(1.dp, Border, CircleShape)
+                    .clickable { viewModel.toggleSidebar() },
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = if (state.showSidebar) Icons.Default.Close else Icons.Default.Menu,
                 contentDescription = if (state.showSidebar) "Close sidebar" else "Open sidebar",
                 tint = if (state.showSidebar) Accent else Muted,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(26.dp),
             )
         }
 
@@ -479,7 +515,7 @@ fun ChatScreen(
                 onRewind = { turn, scope -> viewModel.rewindTo(turn, scope) },
                 onFork = { turn -> viewModel.forkAt(turn) },
                 onSummarize = { turn, mode -> viewModel.summarizeAt(turn, mode) },
-                onDismiss = { viewModel.dismissRewindPicker() }
+                onDismiss = { viewModel.dismissRewindPicker() },
             )
         }
 
@@ -492,7 +528,7 @@ fun ChatScreen(
                 cumulativeCost = state.cumulativeCost,
                 cumulativeCacheHit = state.cumulativeCacheHit,
                 cumulativeCacheMiss = state.cumulativeCacheMiss,
-                onDismiss = { viewModel.dismissStatsDialog() }
+                onDismiss = { viewModel.dismissStatsDialog() },
             )
         }
 
@@ -506,21 +542,34 @@ fun ChatScreen(
                         Text(
                             "当前会话共 ${state.messages.size} 条消息，选择导出格式：",
                             fontSize = 13.sp,
-                            color = Fg2
+                            color = Fg2,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("文本" to "Markdown 风格可读文本", "JSON" to "结构化数据（便于程序处理）").forEach { (fmt, desc) ->
                                 Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(if (exportFormat == fmt) Accent.copy(alpha = 0.15f) else Panel2)
-                                        .border(1.dp, if (exportFormat == fmt) Accent else Border, RoundedCornerShape(8.dp))
-                                        .clickable { exportFormat = fmt }
-                                        .padding(10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (exportFormat == fmt) Accent.copy(alpha = 0.15f) else Panel2)
+                                            .border(1.dp, if (exportFormat == fmt) Accent else Border, RoundedCornerShape(8.dp))
+                                            .clickable { exportFormat = fmt }
+                                            .padding(10.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
-                                    Text(fmt, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (exportFormat == fmt) Accent else Fg)
+                                    Text(
+                                        fmt,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color =
+                                            if (exportFormat ==
+                                                fmt
+                                            ) {
+                                                Accent
+                                            } else {
+                                                Fg
+                                            },
+                                    )
                                     Text(desc, fontSize = 10.sp, color = Muted2)
                                 }
                             }
@@ -536,7 +585,7 @@ fun ChatScreen(
                 dismissButton = {
                     TextButton(onClick = { showExportDialog = false }) { Text("取消", color = Muted) }
                 },
-                containerColor = Panel
+                containerColor = Panel,
             )
         }
 
@@ -549,7 +598,7 @@ fun ChatScreen(
                     Text(
                         "未能识别图片中的文字，是否发送原始图片（无文字）？",
                         fontSize = 13.sp,
-                        color = Fg2
+                        color = Fg2,
                     )
                 },
                 confirmButton = {
@@ -561,7 +610,7 @@ fun ChatScreen(
                 dismissButton = {
                     TextButton(onClick = { ocrFailedPath = null }) { Text("取消", color = Muted) }
                 },
-                containerColor = Panel
+                containerColor = Panel,
             )
         }
 
@@ -579,7 +628,7 @@ fun ChatScreen(
                     showConfigsDialog = false
                     onNavigateToServerConfig()
                 },
-                onDismiss = { showConfigsDialog = false }
+                onDismiss = { showConfigsDialog = false },
             )
         }
 
@@ -593,7 +642,12 @@ fun ChatScreen(
                     showModelPicker = false
                     viewModel.setModel(model)
                 },
-                onDismiss = { showModelPicker = false }
+                onRemoveModel = { name ->
+                    // 通过 name 查找对应的自定义模型 id 并删除
+                    val cm = state.customModels.find { it.name == name }
+                    if (cm != null) viewModel.removeCustomModel(cm.id)
+                },
+                onDismiss = { showModelPicker = false },
             )
         }
     }
@@ -609,7 +663,7 @@ private fun SavedConfigsDialog(
     currentServerUrl: String,
     onSelect: (ServerConfigStore.ServerProfile) -> Unit,
     onAddNew: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     // 第五批 E-4：按协议分组展示（HTTP / HTTPS），当前连接高亮并标记「当前」
     val grouped = profiles.groupBy { if (it.useHttps) "HTTPS" else "HTTP" }
@@ -621,13 +675,13 @@ private fun SavedConfigsDialog(
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (profiles.isEmpty()) {
                     Text(
                         "暂无保存的配置，点击下方「新增配置」创建",
                         fontSize = 13.sp,
-                        color = Muted2
+                        color = Muted2,
                     )
                 } else {
                     groupOrder.forEach { group ->
@@ -640,33 +694,36 @@ private fun SavedConfigsDialog(
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.4.sp,
                             color = Muted,
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(top = 2.dp),
                         )
                         items.forEach { p ->
-                            val isCurrent = currentServerUrl ==
-                                "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}"
+                            val isCurrent =
+                                currentServerUrl ==
+                                    "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}"
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isCurrent) AccentS else Panel)
-                                    .border(1.dp, if (isCurrent) Accent.copy(alpha = 0.6f) else Border, RoundedCornerShape(8.dp))
-                                    .clickable { onSelect(p) }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isCurrent) AccentS else Panel)
+                                        .border(1.dp, if (isCurrent) Accent.copy(alpha = 0.6f) else Border, RoundedCornerShape(8.dp))
+                                        .clickable { onSelect(p) }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = p.label,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Fg
+                                        color = Fg,
                                     )
                                     Text(
-                                        text = "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}" +
-                                            if (p.authType != "NONE") " · ${p.authType}" else "",
+                                        text =
+                                            "${if (p.useHttps) "https" else "http"}://${p.ip}:${p.port}" +
+                                                if (p.authType != "NONE") " · ${p.authType}" else "",
                                         fontSize = 11.sp,
-                                        color = Muted2
+                                        color = Muted2,
                                     )
                                 }
                                 if (isCurrent) {
@@ -674,14 +731,14 @@ private fun SavedConfigsDialog(
                                         "当前",
                                         fontSize = 10.sp,
                                         color = Accent,
-                                        modifier = Modifier.padding(end = 4.dp)
+                                        modifier = Modifier.padding(end = 4.dp),
                                     )
                                 }
                                 Icon(
                                     Icons.Default.KeyboardArrowRight,
                                     contentDescription = "切换",
                                     tint = if (isCurrent) Accent else Muted2,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                             }
                         }
@@ -699,7 +756,7 @@ private fun SavedConfigsDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("关闭", color = Muted) }
         },
-        containerColor = Panel
+        containerColor = Panel,
     )
 }
 
@@ -710,7 +767,7 @@ private fun SavedConfigsDialog(
 /** 模型分组：label 为分组名，items 为 (显示名, 选择值) 列表。 */
 private data class ModelGroup(
     val label: String,
-    val items: List<Pair<String, String>>
+    val items: List<Pair<String, String>>,
 )
 
 @Composable
@@ -719,19 +776,28 @@ private fun ModelPickerDialog(
     customModels: List<CustomModelStore.CustomModel>,
     currentModel: String,
     onSelect: (String) -> Unit,
-    onDismiss: () -> Unit
+    onRemoveModel: ((String) -> Unit)? = null,
+    onDismiss: () -> Unit,
 ) {
     // 分组：自定义模型按 key 分组（批 C-4）；服务端模型按 provider 分组
-    val groups = remember(models, customModels) {
-        val custom = customModels.groupBy { it.groupLabel }
-            .map { (key, list) -> ModelGroup(key, list.map { it.name to it.name }) }
-        val server = models.groupBy { it.provider.ifBlank { "服务器模型" } }
-            .map { (provider, list) ->
-                ModelGroup(provider, list.map { m -> (m.model.ifEmpty { m.ref }) to m.ref })
-            }
-        custom + server
-    }
+    val groups =
+        remember(models, customModels) {
+            val custom =
+                customModels
+                    .groupBy { it.groupLabel }
+                    .map { (key, list) -> ModelGroup(key, list.map { it.name to it.name }) }
+            val server =
+                models
+                    .groupBy { it.provider.ifBlank { "服务器模型" } }
+                    .map { (provider, list) ->
+                        ModelGroup(provider, list.map { m -> (m.model.ifEmpty { m.ref }) to m.ref })
+                    }
+            custom + server
+        }
     var currentGroup by remember { mutableStateOf<ModelGroup?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf<String?>(null) }
+    // 自定义模型名称集合（用于判断是否可删除）
+    val customModelNames = remember(customModels) { customModels.map { it.name }.toSet() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -743,14 +809,14 @@ private fun ModelPickerDialog(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
                             tint = Muted,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
                 Text(
                     text = currentGroup?.label ?: "选择模型（按 key 分组）",
                     color = Fg,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
         },
@@ -761,24 +827,30 @@ private fun ModelPickerDialog(
                 // 第一层：分组列表
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     groups.forEach { g ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Panel)
-                                .border(1.dp, Border, RoundedCornerShape(8.dp))
-                                .clickable { currentGroup = g }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Panel)
+                                    .border(1.dp, Border, RoundedCornerShape(8.dp))
+                                    .clickable { currentGroup = g }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(g.label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Fg)
                                 Text("${g.items.size} 个模型", fontSize = 10.sp, color = Muted2)
                             }
-                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Muted2, modifier = Modifier.size(18.dp))
+                            Icon(
+                                Icons.Default.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = Muted2,
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
                     }
                 }
@@ -786,27 +858,44 @@ private fun ModelPickerDialog(
                 // 第二层：组内模型列表
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     currentGroup?.items?.forEach { (display, value) ->
                         val selected = value == currentModel || display == currentModel
+                        val canDelete = onRemoveModel != null && value in customModelNames
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (selected) AccentS else Panel)
-                                .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
-                                .clickable { onSelect(value) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (selected) AccentS else Panel)
+                                    .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
+                                    .combinedClickable(
+                                        onClick = { onSelect(value) },
+                                        onLongClick = if (canDelete) ({ showDeleteConfirm = value }) else null,
+                                    ).padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 text = display,
                                 fontSize = 13.sp,
                                 color = if (selected) Accent else Fg,
                                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
+                            if (canDelete) {
+                                IconButton(
+                                    onClick = { showDeleteConfirm = value },
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "删除模型",
+                                        tint = Muted,
+                                        modifier = Modifier.size(15.dp),
+                                    )
+                                }
+                            }
                             if (selected) {
                                 Icon(Icons.Default.Check, contentDescription = "当前模型", tint = Accent, modifier = Modifier.size(16.dp))
                             }
@@ -818,8 +907,27 @@ private fun ModelPickerDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("关闭", color = Muted) }
         },
-        containerColor = Panel
+        containerColor = Panel,
     )
+
+    // ── 删除模型确认对话框 ──
+    showDeleteConfirm?.let { modelName ->
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = null },
+            title = { Text("删除模型", color = Fg) },
+            text = { Text("确定要删除模型「$modelName」吗？删除后需重新添加。", fontSize = 13.sp, color = Fg2) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRemoveModel?.invoke(modelName)
+                    showDeleteConfirm = null
+                }) { Text("删除", color = Danger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = null }) { Text("取消", color = Muted) }
+            },
+            containerColor = Panel,
+        )
+    }
 }
 
 // ═══════════════════════════════════════════════
@@ -841,7 +949,7 @@ private fun Sidebar(
     onFork: () -> Unit,
     onStats: () -> Unit,
     onExport: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     // 第五批 E-2：会话多选模式——长按进入，支持全选 / 批量删除 / 单条删除
     var selectionMode by remember { mutableStateOf(false) }
@@ -866,29 +974,33 @@ private fun Sidebar(
     val allSelected = sessions.isNotEmpty() && selectedNames.size == sessions.size
 
     Column(
-        modifier = modifier
-            .fillMaxHeight()
-            .background(Bg2)
-            .border(1.dp, Border)
+        modifier =
+            modifier
+                .fillMaxHeight()
+                .background(Bg2)
+                .border(1.dp, Border),
     ) {
         // ── Brand ──
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp)
-                .padding(bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.linearGradient(
-                            colors = listOf(Accent, Violet)
-                        )
-                    ),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(
+                            brush =
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    colors = listOf(Accent, Violet),
+                                ),
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
                 Text("R", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
@@ -924,26 +1036,27 @@ private fun Sidebar(
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 0.6.sp,
             color = Muted,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
         )
 
         // ── 多选操作栏（第五批 E-2）：已选 N 项 + 全选 + 批量删除 + 退出 ──
         if (selectionMode) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(AccentS)
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(AccentS)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     "已选 ${selectedNames.size} 项",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Accent,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = {
                     selectedNames = if (allSelected) emptySet() else sessions.map { it.name }.toSet()
@@ -970,18 +1083,19 @@ private fun Sidebar(
 
         // ── 会话列表 ──
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 6.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(horizontal = 6.dp)
+                    .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
             if (sessions.isEmpty()) {
                 Text(
                     "无会话",
                     fontSize = 12.sp,
                     color = Muted2,
-                    modifier = Modifier.padding(10.dp)
+                    modifier = Modifier.padding(10.dp),
                 )
             } else {
                 sessions.forEach { session ->
@@ -992,14 +1106,15 @@ private fun Sidebar(
                         selected = session.name in selectedNames,
                         onSelect = { onSelectSession(session.path) },
                         onToggleSelect = {
-                            selectedNames = if (session.name in selectedNames) {
-                                selectedNames - session.name
-                            } else {
-                                selectedNames + session.name
-                            }
+                            selectedNames =
+                                if (session.name in selectedNames) {
+                                    selectedNames - session.name
+                                } else {
+                                    selectedNames + session.name
+                                }
                         },
                         onLongPress = { enterSelection(session.name) },
-                        onDelete = { onDeleteSession(session.name) }
+                        onDelete = { onDeleteSession(session.name) },
                     )
                 }
             }
@@ -1009,9 +1124,14 @@ private fun Sidebar(
         HorizontalDivider(color = Border, thickness = 1.dp)
 
         Column(modifier = Modifier.padding(8.dp)) {
-            Text("状态", fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.6.sp, color = Muted,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+            Text(
+                "状态",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.6.sp,
+                color = Muted,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
 
             // 上下文用量条
             val used = status?.used ?: 0
@@ -1021,28 +1141,31 @@ private fun Sidebar(
                 Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
                     // 3 段颜色进度条
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(99.dp))
-                            .background(Panel2)
-                    ) {
-                        val barColor = when {
-                            pct > 0.83f -> Danger
-                            pct > 0.6f  -> Warning
-                            else        -> Accent
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(pct)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
                                 .height(3.dp)
                                 .clip(RoundedCornerShape(99.dp))
-                                .background(barColor)
+                                .background(Panel2),
+                    ) {
+                        val barColor =
+                            when {
+                                pct > 0.83f -> Danger
+                                pct > 0.6f -> Warning
+                                else -> Accent
+                            }
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth(pct)
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(99.dp))
+                                    .background(barColor),
                         )
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(fmtTok(used), fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Muted2)
                         Text(fmtTok(window), fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Muted2)
@@ -1056,14 +1179,14 @@ private fun Sidebar(
                 val cachePct = (status!!.cacheHit.toFloat() / cacheTotal * 100).toInt()
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 1.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text("缓存", fontSize = 11.sp, color = Muted2)
                     Text(
                         "$cachePct%",
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = if (cachePct > 50) Success else Muted2
+                        color = if (cachePct > 50) Success else Muted2,
                     )
                 }
             }
@@ -1071,14 +1194,14 @@ private fun Sidebar(
             if (cumulativeCost > 0.0) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 1.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text("费用", fontSize = 11.sp, color = Muted2)
                     Text(
                         fmtMoney(cumulativeCost),
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = Fg2
+                        color = Fg2,
                     )
                 }
             }
@@ -1086,14 +1209,14 @@ private fun Sidebar(
             status?.balance?.display?.let { bal ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 1.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text("余额", fontSize = 11.sp, color = Muted2)
                     Text(
                         bal,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = Fg2
+                        color = Fg2,
                     )
                 }
             }
@@ -1103,20 +1226,21 @@ private fun Sidebar(
             // 状态指示器
             Row(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(5.dp)
-                        .clip(CircleShape)
-                        .background(if (isStreaming) Accent else Muted2)
+                    modifier =
+                        Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(if (isStreaming) Accent else Muted2),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = status?.label ?: "-",
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = Muted
+                    color = Muted,
                 )
             }
         }
@@ -1124,23 +1248,28 @@ private fun Sidebar(
 }
 
 @Composable
-private fun SidebarItem(label: String, onClick: () -> Unit, accent: Boolean = false) {
+private fun SidebarItem(
+    label: String,
+    onClick: () -> Unit,
+    accent: Boolean = false,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (accent) Accent else Card)
-            .clickable(onClick = onClick)
-            // 批七：加大 padding，扩大点击热区
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (accent) Accent else Card)
+                .clickable(onClick = onClick)
+                // 批七：加大 padding，扩大点击热区
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             label,
             // 批七：字号 13 → 15sp，提升可读性与点击体验
             fontSize = 15.sp,
             fontWeight = if (accent) FontWeight.Medium else FontWeight.Normal,
-            color = if (accent) Color.White else Fg2
+            color = if (accent) Color.White else Fg2,
         )
     }
 }
@@ -1163,48 +1292,48 @@ private fun SessionRow(
     onSelect: () -> Unit,
     onToggleSelect: () -> Unit,
     onLongPress: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .background(
-                when {
-                    selected -> AccentS
-                    session.current && !selectionMode -> AccentS
-                    else -> Card
-                }
-            )
-            .combinedClickable(
-                onClick = {
-                    if (selectionMode) {
-                        onToggleSelect()
-                    } else if (!isStreaming && !session.current) {
-                        onSelect()
-                    }
-                },
-                onLongClick = onLongPress
-            )
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .background(
+                    when {
+                        selected -> AccentS
+                        session.current && !selectionMode -> AccentS
+                        else -> Card
+                    },
+                ).combinedClickable(
+                    onClick = {
+                        if (selectionMode) {
+                            onToggleSelect()
+                        } else if (!isStreaming && !session.current) {
+                            onSelect()
+                        }
+                    },
+                    onLongClick = onLongPress,
+                ).padding(horizontal = 6.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         // 多选模式：勾选指示器
         if (selectionMode) {
             Box(
-                modifier = Modifier
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .background(if (selected) Accent else CardHover)
-                    .border(1.dp, if (selected) Accent else Border, CircleShape),
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(if (selected) Accent else CardHover)
+                        .border(1.dp, if (selected) Accent else Border, CircleShape),
+                contentAlignment = Alignment.Center,
             ) {
                 if (selected) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(12.dp),
                     )
                 }
             }
@@ -1219,22 +1348,23 @@ private fun SessionRow(
             color = if (selected || (session.current && !selectionMode)) Accent else Fg2,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
 
         // 多选模式：单条删除按钮（IconButton 修复点击区域，独立消费点击）
         if (selectionMode) {
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                modifier =
+                    Modifier
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(6.dp)),
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "删除会话",
                     tint = Danger,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(15.dp),
                 )
             }
         }
@@ -1265,152 +1395,175 @@ private fun Footer(
     balance: String?,
     focusRequester: FocusRequester,
     imageProcessing: Boolean,
-    onPickImage: () -> Unit
+    onPickImage: () -> Unit,
+    onQuickAction: ((String) -> Unit)? = null,
 ) {
     val scrollState = rememberScrollState()
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Bg)
-            .border(1.dp, Border)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(Bg)
+                .border(1.dp, Border),
     ) {
-            // ── 工具栏 ──
-            Row(
-                modifier = Modifier
+        // ── 工具栏 ──
+        Row(
+            modifier =
+                Modifier
                     .fillMaxWidth()
                     .horizontalScroll(scrollState)
                     .padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // Auto
-                ToolbarButton("Auto", active = toolApprovalMode == "auto", accent = false) { onToggleAuto?.invoke() }
-                // Plan
-                ToolbarButton("Plan", active = planMode, accent = false) { onTogglePlan() }
-                // YOLO
-                ToolbarButton("YOLO", active = toolApprovalMode == "yolo", danger = true) { onToggleBypass?.invoke() }
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            // Auto
+            ToolbarButton("Auto", active = toolApprovalMode == "auto", accent = false) { onToggleAuto?.invoke() }
+            // Plan
+            ToolbarButton("Plan", active = planMode, accent = false) { onTogglePlan() }
+            // YOLO
+            ToolbarButton("YOLO", active = toolApprovalMode == "yolo", danger = true) { onToggleBypass?.invoke() }
 
-                // 分隔
+            // ── 快捷任务模板（run 常用功能点击项）──
+            if (onQuickAction != null) {
+                Spacer(modifier = Modifier.width(2.dp))
                 Box(modifier = Modifier.width(1.dp).height(16.dp).background(Border))
+                Spacer(modifier = Modifier.width(2.dp))
+                QuickActionButton("解释代码", onClick = { onQuickAction("请解释以下代码的功能和结构：") })
+                QuickActionButton("修复错误", onClick = { onQuickAction("请查找并修复以下代码中的错误：") })
+                QuickActionButton("编写测试", onClick = { onQuickAction("请为以下代码编写单元测试：") })
+                QuickActionButton("代码审查", onClick = { onQuickAction("请对以下代码进行代码审查，指出潜在问题和改进建议：") })
+                QuickActionButton("优化性能", onClick = { onQuickAction("请分析以下代码的性能瓶颈并给出优化建议：") })
+            }
 
-                // 状态（连接健康度：绿=已连接 / 黄=重连中 / 红=流式中断开 / 灰=就绪）
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val (dotColor, statusText) = when {
+            // 分隔
+            Box(modifier = Modifier.width(1.dp).height(16.dp).background(Border))
+
+            // 状态（连接健康度：绿=已连接 / 黄=重连中 / 红=流式中断开 / 灰=就绪）
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val (dotColor, statusText) =
+                    when {
                         connectionState == ConnectionState.RECONNECTING -> Warning to "重连中…"
                         connectionState == ConnectionState.DISCONNECTED && isStreaming -> Danger to "连接断开"
                         isStreaming -> Accent to "思考中…"
                         connectionState == ConnectionState.CONNECTED -> Success to "已连接"
                         else -> Muted2 to "就绪"
                     }
-                    Box(
-                        modifier = Modifier
+                Box(
+                    modifier =
+                        Modifier
                             .size(5.dp)
                             .clip(CircleShape)
-                            .background(dotColor)
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = statusText,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = Muted
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // turn info + balance
-                if (cumulativeTokens > 0) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "T:${fmtTok(cumulativeTokens)}",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = Muted2
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-
-                if (cumulativeCost > 0.0) {
-                    Text(
-                        text = fmtMoney(cumulativeCost),
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = Muted2
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-
-                balance?.let { b ->
-                    Text(
-                        text = b,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = Success,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-
-                // 服务器地址
+                            .background(dotColor),
+                )
+                Spacer(modifier = Modifier.width(5.dp))
                 Text(
-                    text = serverUrl,
+                    text = statusText,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = Muted2
+                    color = Muted,
                 )
             }
 
-            // ── 输入框（输入区 + 独立发送按钮）──
-            Row(
-                modifier = Modifier
+            Spacer(modifier = Modifier.weight(1f))
+
+            // turn info + balance
+            if (cumulativeTokens > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "T:${fmtTok(cumulativeTokens)}",
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = Muted2,
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            if (cumulativeCost > 0.0) {
+                Text(
+                    text = fmtMoney(cumulativeCost),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = Muted2,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            balance?.let { b ->
+                Text(
+                    text = b,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = Success,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            // 服务器地址
+            Text(
+                text = serverUrl,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                color = Muted2,
+            )
+        }
+
+        // ── 输入框（输入区 + 独立发送按钮）──
+        Row(
+            modifier =
+                Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 输入区：独立背景/边框，整块可点击输入
-                Row(
-                    modifier = Modifier
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 输入区：独立背景/边框，整块可点击输入
+            Row(
+                modifier =
+                    Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(14.dp))
                         .background(Card)
                         .border(1.dp, BorderStr, RoundedCornerShape(14.dp))
                         .padding(start = 14.dp, top = 2.dp, bottom = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     "›",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Accent,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
                 )
                 Spacer(modifier = Modifier.width(6.dp))
 
                 BasicTextField(
                     value = inputText,
                     onValueChange = onInputChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester)
-                        .padding(vertical = 10.dp)
-                        .onKeyEvent { event ->
-                            if (event.type == KeyEventType.KeyUp &&
-                                event.key == Key.Enter &&
-                                !event.isShiftPressed &&
-                                inputText.isNotBlank()
-                            ) {
-                                onSend()
-                                true
-                            } else false
-                        },
-                    textStyle = TextStyle(
-                        color = Fg,
-                        fontSize = 15.sp,
-                        lineHeight = 22.sp
-                    ),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .focusRequester(focusRequester)
+                            .padding(vertical = 10.dp)
+                            .onKeyEvent { event ->
+                                if (event.type == KeyEventType.KeyUp &&
+                                    event.key == Key.Enter &&
+                                    !event.isShiftPressed &&
+                                    inputText.isNotBlank()
+                                ) {
+                                    onSend()
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
+                    textStyle =
+                        TextStyle(
+                            color = Fg,
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                        ),
                     cursorBrush = SolidColor(Accent),
                     singleLine = false,
                     maxLines = 5,
@@ -1420,93 +1573,117 @@ private fun Footer(
                                 Text(
                                     "输入消息…  / 查看命令",
                                     color = Muted2,
-                                    fontSize = 15.sp
+                                    fontSize = 15.sp,
                                 )
                             }
                             innerTextField()
                         }
-                    }
+                    },
                 )
+            }
 
-                }
+            Spacer(modifier = Modifier.width(8.dp))
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // 图片按钮（第六批：相册选择 + 本地 OCR；处理中显示进度）
-                IconButton(
-                    onClick = onPickImage,
-                    enabled = !imageProcessing,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
+            // 图片按钮（第六批：相册选择 + 本地 OCR；处理中显示进度）
+            IconButton(
+                onClick = onPickImage,
+                enabled = !imageProcessing,
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
                             .size(32.dp)
                             .clip(RoundedCornerShape(9.dp))
                             .background(if (imageProcessing) Panel2 else Bg2)
                             .border(1.dp, BorderStr, RoundedCornerShape(9.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (imageProcessing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(15.dp),
-                                strokeWidth = 2.dp,
-                                color = Accent
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Image,
-                                contentDescription = "发送图片",
-                                tint = Muted,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (imageProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(15.dp),
+                            strokeWidth = 2.dp,
+                            color = Accent,
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Image,
+                            contentDescription = "发送图片",
+                            tint = Muted,
+                            modifier = Modifier.size(19.dp),
+                        )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(4.dp))
 
-                // 发送/停止按钮（独立于输入区）
-                if (isStreaming) {
-                    IconButton(
-                        onClick = onCancel,
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
+            // 发送/停止按钮（独立于输入区）
+            if (isStreaming) {
+                IconButton(
+                    onClick = onCancel,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
                                 .size(32.dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Danger),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(14.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(Color.White)
-                            )
-                        }
-                    }
-                } else {
-                    IconButton(
-                        onClick = onSend,
-                        enabled = inputText.isNotBlank(),
-                        modifier = Modifier.size(44.dp)
+                        contentAlignment = Alignment.Center,
                     ) {
                         Box(
-                            modifier = Modifier
+                            modifier =
+                                Modifier
+                                    .size(14.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(Color.White),
+                        )
+                    }
+                }
+            } else {
+                IconButton(
+                    onClick = onSend,
+                    enabled = inputText.isNotBlank(),
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
                                 .size(32.dp)
                                 .clip(RoundedCornerShape(9.dp))
                                 .background(
-                                    if (inputText.isNotBlank()) Accent else Panel2
+                                    if (inputText.isNotBlank()) Accent else Panel2,
                                 ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        }
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun QuickActionButton(
+    label: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = Bg2,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border),
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick),
+    ) {
+        Text(
+            label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Normal,
+            color = Muted,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
 }
 
 @Composable
@@ -1515,28 +1692,30 @@ private fun ToolbarButton(
     active: Boolean,
     accent: Boolean = false,
     danger: Boolean = false,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(6.dp),
-        color = when {
-            active && danger -> DangerS
-            active -> AccentS
-            else -> Bg2
-        },
+        color =
+            when {
+                active && danger -> DangerS
+                active -> AccentS
+                else -> Bg2
+            },
         border = if (active) null else androidx.compose.foundation.BorderStroke(1.dp, Border),
-        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick)
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick),
     ) {
         Text(
             label,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
-            color = when {
-                active && danger -> Danger
-                active -> Accent
-                else -> Muted
-            },
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+            color =
+                when {
+                    active && danger -> Danger
+                    active -> Accent
+                    else -> Muted
+                },
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
         )
     }
 }
@@ -1545,11 +1724,11 @@ private fun ToolbarButton(
 // 工具函数
 // ═══════════════════════════════════════════════
 
-private fun fmtTok(n: Long): String =
-    if (n >= 1000) "%.1fk".format(n / 1000.0) else "$n"
+private fun fmtTok(n: Long): String = if (n >= 1000) "%.1fk".format(n / 1000.0) else "$n"
 
-private fun fmtMoney(n: Double): String = when {
-    n >= 1.0   -> "¥%.2f".format(n)
-    n >= 0.01  -> "¥%.4f".format(n)
-    else       -> "¥%.6f".format(n)
-}
+private fun fmtMoney(n: Double): String =
+    when {
+        n >= 1.0 -> "¥%.2f".format(n)
+        n >= 0.01 -> "¥%.4f".format(n)
+        else -> "¥%.6f".format(n)
+    }

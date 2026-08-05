@@ -18,14 +18,18 @@ import com.reasonix.agents.R
  * 未授权时静默跳过，不影响主流程。
  */
 object NotificationHelper {
-
     private const val CHANNEL_ID = "reasonix_tasks"
     private const val CHANNEL_NAME = "Reasonix 任务通知"
     private const val NOTIFICATION_ID = 1001
     private const val SYNC_NOTIFICATION_ID = 1002
 
     /** 发送通用系统通知（后台坚果云同步失败提醒等）；无通知权限时静默返回。 */
-    fun notify(context: Context, title: String, summary: String, id: Int = SYNC_NOTIFICATION_ID) {
+    fun notify(
+        context: Context,
+        title: String,
+        summary: String,
+        id: Int = SYNC_NOTIFICATION_ID,
+    ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -33,14 +37,16 @@ object NotificationHelper {
             return
         }
         ensureChannel(context)
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_reasonix)
-            .setContentTitle(title)
-            .setContentText(summary)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
+        val notification =
+            NotificationCompat
+                .Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_reasonix)
+                .setContentTitle(title)
+                .setContentText(summary)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
         try {
             NotificationManagerCompat.from(context).notify(id, notification)
         } catch (e: Exception) {
@@ -56,14 +62,17 @@ object NotificationHelper {
                 NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply { description = "Agent 多步任务完成时提醒" }
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ).apply { description = "Agent 多步任务完成时提醒" },
             )
         }
     }
 
     /** 发送任务完成通知；无通知权限时静默返回。 */
-    fun notifyTaskDone(context: Context, summary: String) {
+    fun notifyTaskDone(
+        context: Context,
+        summary: String,
+    ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -71,14 +80,16 @@ object NotificationHelper {
             return
         }
         ensureChannel(context)
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_reasonix)
-            .setContentTitle("✅ Reasonix 任务完成")
-            .setContentText(summary)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
+        val notification =
+            NotificationCompat
+                .Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_reasonix)
+                .setContentTitle("✅ Reasonix 任务完成")
+                .setContentText(summary)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
         try {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
         } catch (e: Exception) {

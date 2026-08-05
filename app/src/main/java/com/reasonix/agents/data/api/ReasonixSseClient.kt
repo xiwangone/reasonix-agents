@@ -26,8 +26,10 @@ import java.util.concurrent.atomic.AtomicBoolean
  * SSE HTTP 层错误（非 2xx，如 404/401）。不重连，直接以该异常终止事件流，
  * 由上层（ChatViewModel）转为明确错误提示。
  */
-class SseHttpException(val code: Int, url: String) :
-    IOException("SSE 连接失败：HTTP $code（$url）")
+class SseHttpException(
+    val code: Int,
+    url: String,
+) : IOException("SSE 连接失败：HTTP $code（$url）")
 
 /**
  * SSE 客户端 — 连接 /events 端点，实时接收服务端推送的消息流。
@@ -45,11 +47,13 @@ class ReasonixSseClient(
     private val auth: AuthInfo? = null,
     private val reconnectEnabled: Boolean = true,
     private val maxReconnectDelayMs: Long = 30_000L,
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(120, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .writeTimeout(120, TimeUnit.SECONDS)
-        .build()
+    private val client: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(120, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .build(),
 ) {
     private val gson = Gson()
     private var eventSource: EventSource? = null
@@ -58,94 +62,117 @@ class ReasonixSseClient(
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
     /** Authorization 头：Basic（用户名:密码）或 Bearer（Token）；未配置认证时为 null。 */
-    private val authHeader: String? = when (auth?.type) {
-        AuthType.BASIC -> "Basic " + Base64.encodeToString(
-            "${auth.username}:${auth.password}".toByteArray(), Base64.NO_WRAP
-        )
-        AuthType.BEARER -> "Bearer ${auth.token}"
-        else -> null
-    }
+    private val authHeader: String? =
+        when (auth?.type) {
+            AuthType.BASIC -> {
+                "Basic " +
+                    Base64.encodeToString(
+                        "${auth.username}:${auth.password}".toByteArray(),
+                        Base64.NO_WRAP,
+                    )
+            }
+
+            AuthType.BEARER -> {
+                "Bearer ${auth.token}"
+            }
+
+            else -> {
+                null
+            }
+        }
 
     /**
      * 连接 SSE 并返回事件 Flow。
      * 调用方 collect 时自动连接，取消 collect 时自动断开。
      * 网络错误时由 retryWhen 指数退避自动重连；HTTP 错误直接以异常结束。
      */
-    fun connect(): Flow<SseEvent> = callbackFlow {
-        val active = AtomicBoolean(true)
+    fun connect(): Flow<SseEvent> =
+        callbackFlow {
+            val active = AtomicBoolean(true)
 
-        val builder = Request.Builder()
-            .url("$baseUrl/events")
-            .header("Accept", "text/event-stream")
-        authHeader?.let { builder.header("Authorization", it) }
-        val request = builder
-            .build()
+            val builder =
+                Request
+                    .Builder()
+                    .url("$baseUrl/events")
+                    .header("Accept", "text/event-stream")
+            authHeader?.let { builder.header("Authorization", it) }
+            val request =
+                builder
+                    .build()
 
-        val listener = object : EventSourceListener() {
-            override fun onOpen(eventSource: EventSource, response: Response) {
-                _connectionState.value = ConnectionState.CONNECTED
-            }
+            val listener =
+                object : EventSourceListener() {
+                    override fun onOpen(
+                        eventSource: EventSource,
+                        response: Response,
+                    ) {
+                        _connectionState.value = ConnectionState.CONNECTED
+                    }
 
-            override fun onEvent(
-                eventSource: EventSource,
-                id: String?,
-                type: String?,
-                data: String
-            ) {
-                try {
-                    val event = gson.fromJson(data, SseEvent::class.java)
-                    trySend(event)
-                } catch (_: Exception) {
-                    // 解析失败则忽略
+                    override fun onEvent(
+                        eventSource: EventSource,
+                        id: String?,
+                        type: String?,
+                        data: String,
+                    ) {
+                        try {
+                            val event = gson.fromJson(data, SseEvent::class.java)
+                            trySend(event)
+                        } catch (_: Exception) {
+                            // 解析失败则忽略
+                        }
+                    }
+
+                    override fun onFailure(
+                        eventSource: EventSource,
+                        t: Throwable?,
+                        response: Response?,
+                    ) {
+                        if (!active.get()) return
+                        val httpError = response != null && !response.isSuccessful
+                        _connectionState.value =
+                            if (httpError) {
+                                ConnectionState.DISCONNECTED
+                            } else {
+                                ConnectionState.RECONNECTING
+                            }
+                        if (httpError) {
+                            close(SseHttpException(response.code, request.url.toString()))
+                        } else {
+                            close(t ?: IOException("SSE 连接中断"))
+                        }
+                    }
+
+                    override fun onClosed(eventSource: EventSource) {
+                        if (!active.get()) return
+                        // 服务端主动关闭连接 → 以异常结束本次订阅，交由 retryWhen 走重连
+                        _connectionState.value = ConnectionState.RECONNECTING
+                        close(IOException("SSE 连接已关闭"))
+                    }
                 }
-            }
 
-            override fun onFailure(
-                eventSource: EventSource,
-                t: Throwable?,
-                response: Response?
-            ) {
-                if (!active.get()) return
-                val httpError = response != null && !response.isSuccessful
-                _connectionState.value =
-                    if (httpError) ConnectionState.DISCONNECTED
-                    else ConnectionState.RECONNECTING
-                if (httpError) {
-                    close(SseHttpException(response.code, request.url.toString()))
-                } else {
-                    close(t ?: IOException("SSE 连接中断"))
-                }
-            }
+            val factory = EventSources.createFactory(client)
+            eventSource = factory.newEventSource(request, listener)
 
-            override fun onClosed(eventSource: EventSource) {
-                if (!active.get()) return
-                // 服务端主动关闭连接 → 以异常结束本次订阅，交由 retryWhen 走重连
-                _connectionState.value = ConnectionState.RECONNECTING
-                close(IOException("SSE 连接已关闭"))
+            awaitClose {
+                active.set(false)
+                eventSource?.cancel()
+                eventSource = null
+                _connectionState.value = ConnectionState.DISCONNECTED
+            }
+        }.retryWhen { cause, attempt ->
+            // HTTP 层错误（404/401 等）不重连；开关关闭时不重连；网络/流中断按指数退避重连
+            if (cause is SseHttpException || !reconnectEnabled) {
+                false
+            } else {
+                // attempt: 0→1s, 1→2s, 2→4s… 指数退避，封顶 maxReconnectDelayMs（默认 30s）
+                val delayMs =
+                    (1000L shl attempt.coerceAtMost(30L).toInt())
+                        .coerceAtMost(maxReconnectDelayMs.coerceAtLeast(1000L))
+                delay(delayMs)
+                true
             }
         }
-
-        val factory = EventSources.createFactory(client)
-        eventSource = factory.newEventSource(request, listener)
-
-        awaitClose {
-            active.set(false)
-            eventSource?.cancel()
-            eventSource = null
-            _connectionState.value = ConnectionState.DISCONNECTED
-        }
-    }.retryWhen { cause, attempt ->
-        // HTTP 层错误（404/401 等）不重连；开关关闭时不重连；网络/流中断按指数退避重连
-        if (cause is SseHttpException || !reconnectEnabled) {
-            false
-        } else {
-            // attempt: 0→1s, 1→2s, 2→4s… 指数退避，封顶 maxReconnectDelayMs（默认 30s）
-            val delayMs = (1000L shl attempt.coerceAtMost(30L).toInt())
-                .coerceAtMost(maxReconnectDelayMs.coerceAtLeast(1000L))
-            delay(delayMs)
-            true
-        }
-    }
 
     fun disconnect() {
         eventSource?.cancel()

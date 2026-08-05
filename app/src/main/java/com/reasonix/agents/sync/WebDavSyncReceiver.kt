@@ -27,7 +27,10 @@ class WebDavSyncReceiver : BroadcastReceiver() {
         const val ACTION_AUTO_SYNC = "com.reasonix.agents.action.AUTO_SYNC"
     }
 
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         if (intent.action != ACTION_AUTO_SYNC) return
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {

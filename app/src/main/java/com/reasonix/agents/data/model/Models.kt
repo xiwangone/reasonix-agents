@@ -8,7 +8,7 @@ import com.google.gson.annotations.SerializedName
 enum class ConnectionState {
     CONNECTED,
     RECONNECTING,
-    DISCONNECTED
+    DISCONNECTED,
 }
 
 enum class SseEventKind {
@@ -27,7 +27,9 @@ enum class SseEventKind {
     compaction_started,
     compaction_done,
     turn_done,
-    @SerializedName("") unknown
+
+    @SerializedName("")
+    unknown,
 }
 
 data class SseEvent(
@@ -41,7 +43,7 @@ data class SseEvent(
     val approval: ApprovalPayload? = null,
     val ask: AskPayload? = null,
     val compaction: CompactionPayload? = null,
-    val message: MessagePayload? = null
+    val message: MessagePayload? = null,
 )
 
 // ── 工具相关 ──
@@ -55,7 +57,7 @@ data class ToolPayload(
     val err: String? = null,
     val truncated: Boolean = false,
     val readOnly: Boolean = false,
-    val subject: String? = null
+    val subject: String? = null,
 )
 
 // ── 用量统计 ──
@@ -68,7 +70,7 @@ data class UsagePayload(
     val cacheMissTokens: Long = 0,
     val cost: Double? = null,
     val costUsd: Double? = null,
-    val currency: String? = null
+    val currency: String? = null,
 )
 
 // ── 审批 ──
@@ -76,26 +78,26 @@ data class UsagePayload(
 data class ApprovalPayload(
     val id: String = "",
     val tool: String = "",
-    val subject: String? = null
+    val subject: String? = null,
 )
 
 // ── 提问卡片 ──
 
 data class AskPayload(
     val id: String = "",
-    val questions: List<AskQuestion> = emptyList()
+    val questions: List<AskQuestion> = emptyList(),
 )
 
 data class AskQuestion(
     val id: String = "",
     val prompt: String = "",
     val multi: Boolean = false,
-    val options: List<AskOption> = emptyList()
+    val options: List<AskOption> = emptyList(),
 )
 
 data class AskOption(
     val label: String = "",
-    val description: String? = null
+    val description: String? = null,
 )
 
 // ── 压缩通知 ──
@@ -103,7 +105,7 @@ data class AskOption(
 data class CompactionPayload(
     val trigger: String? = null,
     val summary: String? = null,
-    val messages: Int = 0
+    val messages: Int = 0,
 )
 
 // ── 消息（历史记录用） ──
@@ -119,7 +121,7 @@ data class TodoItem(
     val activeForm: String? = null,
     /** 层级缩进（serve 端 optional 字段，0 = 顶层） */
     val level: Int = 0,
-    val details: String? = null
+    val details: String? = null,
 ) {
     val isCompleted: Boolean
         get() = status == "completed" || status == "done"
@@ -130,7 +132,7 @@ data class TodoItem(
 data class MessagePayload(
     val role: String = "",
     val content: String? = null,
-    val reasoning: String? = null
+    val reasoning: String? = null,
 )
 
 // ── 历史消息 ──
@@ -141,13 +143,13 @@ data class HistoryMessage(
     val reasoning: String? = null,
     val toolCalls: List<ToolCallPayload>? = null,
     val toolCallId: String? = null,
-    val toolName: String? = null
+    val toolName: String? = null,
 )
 
 data class ToolCallPayload(
     val id: String = "",
     val name: String = "",
-    val arguments: String? = null
+    val arguments: String? = null,
 )
 
 // ── 会话 ──
@@ -157,7 +159,7 @@ data class SessionInfo(
     val path: String = "",
     val current: Boolean = false,
     val title: String? = null,
-    val turns: Int = 0
+    val turns: Int = 0,
 )
 
 // ── 状态 ──
@@ -173,18 +175,18 @@ data class StatusInfo(
     val cacheHit: Long = 0,
     val cacheMiss: Long = 0,
     val lastUsage: LastUsage? = null,
-    val balance: BalanceInfo? = null
+    val balance: BalanceInfo? = null,
 )
 
 data class LastUsage(
     val cost: Double? = null,
     val costUsd: Double? = null,
     val totalCost: Double? = null,
-    val currency: String? = null
+    val currency: String? = null,
 )
 
 data class BalanceInfo(
-    val display: String? = null
+    val display: String? = null,
 )
 
 // ── 检查点 ──
@@ -192,7 +194,7 @@ data class BalanceInfo(
 data class CheckpointInfo(
     val turn: Int = 0,
     val prompt: String? = null,
-    val files: Int = 0
+    val files: Int = 0,
 )
 
 // ── UI 消息模型 ──
@@ -204,13 +206,13 @@ sealed class ChatItem {
      */
     data class UserMessage(
         val content: String,
-        val imagePath: String? = null
+        val imagePath: String? = null,
     ) : ChatItem()
 
     data class AssistantMessage(
         val content: String = "",
         val reasoning: String? = null,
-        val reasoningExpanded: Boolean = false
+        val reasoningExpanded: Boolean = false,
     ) : ChatItem()
 
     data class ToolCard(
@@ -221,35 +223,41 @@ sealed class ChatItem {
         val err: String? = null,
         val truncated: Boolean = false,
         val isRunning: Boolean = true,
-        val expanded: Boolean = false
+        val expanded: Boolean = false,
     ) : ChatItem()
 
     data class SystemNotice(
         val text: String,
-        val isWarning: Boolean = false
+        val isWarning: Boolean = false,
     ) : ChatItem()
 
-    data class ErrorMessage(val text: String) : ChatItem()
+    data class ErrorMessage(
+        val text: String,
+    ) : ChatItem()
 
-    data class PhaseIndicator(val text: String) : ChatItem()
+    data class PhaseIndicator(
+        val text: String,
+    ) : ChatItem()
 
-    data class UsageStats(val usage: UsagePayload) : ChatItem()
+    data class UsageStats(
+        val usage: UsagePayload,
+    ) : ChatItem()
 
     data class CompactionNotice(
         val trigger: String? = null,
         val summary: String? = null,
-        val messages: Int = 0
+        val messages: Int = 0,
     ) : ChatItem()
 
     data class ApprovalCard(
         val id: String,
         val tool: String,
-        val subject: String? = null
+        val subject: String? = null,
     ) : ChatItem()
 
     data class AskCard(
         val id: String,
-        val questions: List<AskQuestion> = emptyList()
+        val questions: List<AskQuestion> = emptyList(),
     ) : ChatItem()
 }
 
@@ -260,12 +268,12 @@ data class ModelInfo(
     val model: String = "",
     val kind: String = "openai",
     val active: Boolean = false,
-    val default: Boolean = false
+    val default: Boolean = false,
 )
 
 data class ModelsResponse(
     val current: String = "",
     val default: String = "",
     val label: String = "",
-    val models: List<ModelInfo> = emptyList()
+    val models: List<ModelInfo> = emptyList(),
 )

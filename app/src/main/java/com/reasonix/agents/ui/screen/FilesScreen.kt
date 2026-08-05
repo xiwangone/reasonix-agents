@@ -70,7 +70,7 @@ data class SessionFile(
     val path: String,
     val status: FileStatus,
     val content: String?,
-    val tool: String
+    val tool: String,
 )
 
 /**
@@ -81,39 +81,49 @@ data class SessionFile(
  * 工具报错 → ERROR。同一路径多次出现时取「最重」状态，内容缓存取最近一次 output。
  */
 object SessionFileAggregator {
-
     private val READ_TOOLS = setOf("read_file", "read", "glob", "ls", "list", "view", "show")
     private val WRITE_TOOLS = setOf("write_file", "write", "create", "touch")
-    private val MODIFY_TOOLS = setOf(
-        "edit_file", "edit", "apply_patch", "patch",
-        "str_replace_editor", "multi_edit", "write_and_exec"
-    )
+    private val MODIFY_TOOLS =
+        setOf(
+            "edit_file",
+            "edit",
+            "apply_patch",
+            "patch",
+            "str_replace_editor",
+            "multi_edit",
+            "write_and_exec",
+        )
 
     fun aggregate(messages: List<ChatItem>): List<SessionFile> {
         val map = LinkedHashMap<String, SessionFile>()
         messages.forEach { item ->
             if (item !is ChatItem.ToolCard) return@forEach
             val path = extractPath(item.name, item.args) ?: return@forEach
-            val status = when {
-                item.err != null -> FileStatus.ERROR
-                item.name in READ_TOOLS -> FileStatus.READ
-                item.name in WRITE_TOOLS -> FileStatus.ADDED
-                item.name in MODIFY_TOOLS -> FileStatus.MODIFIED
-                else -> FileStatus.MODIFIED
-            }
+            val status =
+                when {
+                    item.err != null -> FileStatus.ERROR
+                    item.name in READ_TOOLS -> FileStatus.READ
+                    item.name in WRITE_TOOLS -> FileStatus.ADDED
+                    item.name in MODIFY_TOOLS -> FileStatus.MODIFIED
+                    else -> FileStatus.MODIFIED
+                }
             val prev = map[path]
-            map[path] = SessionFile(
-                path = path,
-                status = mergeStatus(prev?.status, status),
-                content = item.output?.takeIf { it.isNotBlank() } ?: prev?.content,
-                tool = item.name
-            )
+            map[path] =
+                SessionFile(
+                    path = path,
+                    status = mergeStatus(prev?.status, status),
+                    content = item.output?.takeIf { it.isNotBlank() } ?: prev?.content,
+                    tool = item.name,
+                )
         }
         return map.values.toList().sortedBy { it.path }
     }
 
     /** 合并同一文件多次操作的状态：ERROR 优先，READ 最轻，ADDED/MODIFIED 取较新 */
-    private fun mergeStatus(prev: FileStatus?, cur: FileStatus): FileStatus {
+    private fun mergeStatus(
+        prev: FileStatus?,
+        cur: FileStatus,
+    ): FileStatus {
         if (prev == null) return cur
         if (cur == FileStatus.ERROR || prev == FileStatus.ERROR) return FileStatus.ERROR
         if (prev == FileStatus.READ) return cur
@@ -121,7 +131,10 @@ object SessionFileAggregator {
     }
 
     /** 从工具参数中提取文件路径：JSON {file/path/subject} 或裸路径字符串 */
-    private fun extractPath(name: String, args: String?): String? {
+    private fun extractPath(
+        name: String,
+        args: String?,
+    ): String? {
         if (args.isNullOrBlank()) return null
         return try {
             if (args.trimStart().startsWith("{")) {
@@ -144,14 +157,18 @@ private class FileNode(
     val name: String,
     val isDir: Boolean,
     var file: SessionFile? = null,
-    val children: MutableList<FileNode> = mutableListOf()
+    val children: MutableList<FileNode> = mutableListOf(),
 )
 
 /** 路径列表 → 树 */
 private fun buildTree(files: List<SessionFile>): List<FileNode> {
     val root = mutableListOf<FileNode>()
     files.forEach { f ->
-        val parts = f.path.trim('/').split('/').filter { it.isNotBlank() }
+        val parts =
+            f.path
+                .trim('/')
+                .split('/')
+                .filter { it.isNotBlank() }
         var level = root
         parts.forEachIndexed { index, part ->
             val isLast = index == parts.lastIndex
@@ -178,7 +195,7 @@ private fun buildTree(files: List<SessionFile>): List<FileNode> {
 @Composable
 fun FilesScreen(
     messages: List<ChatItem>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val palette = LocalPalette.current
     val files = remember(messages) { SessionFileAggregator.aggregate(messages) }
@@ -186,30 +203,32 @@ fun FilesScreen(
     var preview by remember { mutableStateOf<SessionFile?>(null) }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(palette.bg)
-            .safeDrawingPadding()
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(palette.bg)
+                .safeDrawingPadding(),
     ) {
         // ── 标题栏 ──
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "会话文件",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = palette.fg,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Text(
                 text = "${files.size} 个文件",
                 fontSize = 12.sp,
                 color = palette.muted,
-                fontFamily = FontFamily.Monospace
+                fontFamily = FontFamily.Monospace,
             )
         }
         HorizontalDivider(color = palette.border, thickness = 1.dp)
@@ -219,9 +238,11 @@ fun FilesScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    horizontal = 10.dp, vertical = 8.dp
-                )
+                contentPadding =
+                    androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 10.dp,
+                        vertical = 8.dp,
+                    ),
             ) {
                 items(tree, key = { it.name + it.isDir }) { node ->
                     FileNodeRow(node = node, indent = 0, onLeafClick = { preview = it })
@@ -240,31 +261,33 @@ fun FilesScreen(
 private fun EmptyState(modifier: Modifier = Modifier) {
     val palette = LocalPalette.current
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(32.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         Icon(
             imageVector = Icons.Filled.FolderOpen,
             contentDescription = null,
             tint = palette.muted2,
-            modifier = Modifier.size(56.dp)
+            modifier = Modifier.size(56.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "暂无文件记录",
             fontSize = 16.sp,
-            color = palette.fg2
+            color = palette.fg2,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "本页从会话中的工具调用事件聚合文件清单（读取/修改/新增）。\n" +
-                "服务端暂未提供 /file API，完整文件浏览能力已向上游提交 feature request（见 docs/upstream-file-api-request.md）。",
+            text =
+                "本页从会话中的工具调用事件聚合文件清单（读取/修改/新增）。\n" +
+                    "服务端暂未提供 /file API，完整文件浏览能力已向上游提交 feature request（见 docs/upstream-file-api-request.md）。",
             fontSize = 12.sp,
             color = palette.muted2,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -274,36 +297,39 @@ private fun EmptyState(modifier: Modifier = Modifier) {
 private fun FileNodeRow(
     node: FileNode,
     indent: Int,
-    onLeafClick: (SessionFile) -> Unit
+    onLeafClick: (SessionFile) -> Unit,
 ) {
     val palette = LocalPalette.current
     var expanded by remember(node) { mutableStateOf(true) }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = (indent * 16).dp, end = 6.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .clickable {
-                if (node.isDir) expanded = !expanded
-                else node.file?.let(onLeafClick)
-            }
-            .padding(horizontal = 8.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = (indent * 16).dp, end = 6.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .clickable {
+                    if (node.isDir) {
+                        expanded = !expanded
+                    } else {
+                        node.file?.let(onLeafClick)
+                    }
+                }.padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (node.isDir) {
             Icon(
                 imageVector = if (expanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowRight,
                 contentDescription = if (expanded) "收起" else "展开",
                 tint = palette.muted,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.Filled.FolderOpen,
                 contentDescription = null,
                 tint = palette.accent,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -312,30 +338,32 @@ private fun FileNodeRow(
                 fontWeight = FontWeight.Medium,
                 color = palette.fg2,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         } else {
             Spacer(modifier = Modifier.width(20.dp))
             val file = node.file
-            val icon = when (file?.status) {
-                FileStatus.READ -> Icons.Outlined.Article
-                FileStatus.MODIFIED -> Icons.Outlined.Edit
-                FileStatus.ADDED -> Icons.Outlined.AddCircleOutline
-                FileStatus.ERROR -> Icons.Outlined.ErrorOutline
-                null -> Icons.Outlined.Article
-            }
-            val tint = when (file?.status) {
-                FileStatus.READ -> palette.muted2
-                FileStatus.MODIFIED -> palette.warning
-                FileStatus.ADDED -> palette.success
-                FileStatus.ERROR -> palette.danger
-                null -> palette.muted2
-            }
+            val icon =
+                when (file?.status) {
+                    FileStatus.READ -> Icons.Outlined.Article
+                    FileStatus.MODIFIED -> Icons.Outlined.Edit
+                    FileStatus.ADDED -> Icons.Outlined.AddCircleOutline
+                    FileStatus.ERROR -> Icons.Outlined.ErrorOutline
+                    null -> Icons.Outlined.Article
+                }
+            val tint =
+                when (file?.status) {
+                    FileStatus.READ -> palette.muted2
+                    FileStatus.MODIFIED -> palette.warning
+                    FileStatus.ADDED -> palette.success
+                    FileStatus.ERROR -> palette.danger
+                    null -> palette.muted2
+                }
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = tint,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -344,14 +372,14 @@ private fun FileNodeRow(
                 color = palette.fg,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             file?.let {
                 Text(
                     text = statusLabel(it.status),
                     fontSize = 10.sp,
                     color = tint,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
                 )
             }
         }
@@ -364,16 +392,20 @@ private fun FileNodeRow(
     }
 }
 
-private fun statusLabel(status: FileStatus): String = when (status) {
-    FileStatus.READ -> "read"
-    FileStatus.MODIFIED -> "modified"
-    FileStatus.ADDED -> "added"
-    FileStatus.ERROR -> "error"
-}
+private fun statusLabel(status: FileStatus): String =
+    when (status) {
+        FileStatus.READ -> "read"
+        FileStatus.MODIFIED -> "modified"
+        FileStatus.ADDED -> "added"
+        FileStatus.ERROR -> "error"
+    }
 
 /** 文件内容预览弹窗（基于 tool_result.output 缓存） */
 @Composable
-private fun FilePreviewDialog(file: SessionFile, onDismiss: () -> Unit) {
+private fun FilePreviewDialog(
+    file: SessionFile,
+    onDismiss: () -> Unit,
+) {
     val palette = LocalPalette.current
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -385,35 +417,36 @@ private fun FilePreviewDialog(file: SessionFile, onDismiss: () -> Unit) {
                     fontSize = 15.sp,
                     color = palette.fg,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = "${statusLabel(file.status)} · ${file.tool}",
                     fontSize = 11.sp,
                     color = palette.muted,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
                 )
             }
         },
         text = {
             val content = file.content ?: "（无内容缓存：该工具未返回 output）"
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(320.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(palette.bg2)
-                    .border(1.dp, palette.border, RoundedCornerShape(8.dp))
-                    .horizontalScroll(rememberScrollState())
-                    .verticalScroll(rememberScrollState())
-                    .padding(10.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(palette.bg2)
+                        .border(1.dp, palette.border, RoundedCornerShape(8.dp))
+                        .horizontalScroll(rememberScrollState())
+                        .verticalScroll(rememberScrollState())
+                        .padding(10.dp),
             ) {
                 Text(
                     text = if (content.length > 8000) content.take(8000) + "\n…（内容过长已截断）" else content,
                     color = palette.fg2,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
-                    lineHeight = 18.sp
+                    lineHeight = 18.sp,
                 )
             }
         },
@@ -421,6 +454,6 @@ private fun FilePreviewDialog(file: SessionFile, onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) {
                 Text("关闭", color = palette.accent)
             }
-        }
+        },
     )
 }

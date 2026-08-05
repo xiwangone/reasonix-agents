@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -117,7 +118,11 @@ fun SettingsWebDavScreen(
         settings = WebDavStore.load(context)
     }
 
-    fun showSyncResult(isError: Boolean, title: String, message: String) {
+    fun showSyncResult(
+        isError: Boolean,
+        title: String,
+        message: String,
+    ) {
         resultIsError = isError
         resultTitle = title
         resultMessage = message
@@ -164,8 +169,11 @@ fun SettingsWebDavScreen(
             // 复用第五批导入逻辑恢复
             val import = viewModel.importBackup(result.json.orEmpty(), "")
             val message =
-                if (import.success) "下载成功，已恢复服务器配置 / 主题 / 模型 / 会话"
-                else "下载成功，但恢复失败：${import.message}"
+                if (import.success) {
+                    "下载成功，已恢复服务器配置 / 主题 / 模型 / 会话"
+                } else {
+                    "下载成功，但恢复失败：${import.message}"
+                }
             WebDavStore.recordSyncResult(context, import.success, message)
             import.restoredSettings?.let { onSettingsRestored(it) }
             syncing = false
@@ -179,7 +187,8 @@ fun SettingsWebDavScreen(
             Modifier
                 .fillMaxSize()
                 .background(Bg)
-                .safeDrawingPadding(),
+                .safeDrawingPadding()
+                .imePadding(),
     ) {
         Column(
             modifier =
@@ -481,8 +490,11 @@ private fun WebDavTextField(
             cursorBrush = SolidColor(Accent),
             singleLine = true,
             keyboardOptions =
-                if (numeric) KeyboardOptions(keyboardType = KeyboardType.Number)
-                else KeyboardOptions(keyboardType = KeyboardType.Text),
+                if (numeric) {
+                    KeyboardOptions(keyboardType = KeyboardType.Number)
+                } else {
+                    KeyboardOptions(keyboardType = KeyboardType.Text)
+                },
             decorationBox = { inner ->
                 if (value.isEmpty()) {
                     Text(hint, fontSize = 12.sp, color = Muted2)
@@ -564,5 +576,4 @@ private fun WebDavActionButton(
 }
 
 /** 同步时间格式化（yyyy-MM-dd HH:mm）。 */
-private fun formatSyncTime(timestamp: Long): String =
-    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))
+private fun formatSyncTime(timestamp: Long): String = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))

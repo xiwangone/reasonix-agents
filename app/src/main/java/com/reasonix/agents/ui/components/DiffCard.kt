@@ -73,7 +73,7 @@ enum class DiffLineType { CONTEXT, ADD, DELETE, HEADER }
 /** 解析出的 diff 内容：目标文件（可空）+ 标准 unified diff 文本 */
 data class DiffParseResult(
     val filePath: String?,
-    val unifiedDiff: String
+    val unifiedDiff: String,
 )
 
 /**
@@ -88,8 +88,10 @@ data class DiffParseResult(
  * 无法识别 → 返回 null（调用方回退到原始文本展示）。
  */
 object DiffParser {
-
-    fun parse(args: String?, output: String?): DiffParseResult? {
+    fun parse(
+        args: String?,
+        output: String?,
+    ): DiffParseResult? {
         output?.let {
             parseUnifiedDiff(it)?.let { r -> return r }
             parseApplyPatch(it)?.let { r -> return r }
@@ -105,16 +107,19 @@ object DiffParser {
     /** 标准 unified diff：含 --- / +++ / @@ 头 */
     private fun parseUnifiedDiff(text: String): DiffParseResult? {
         val lines = text.lines()
-        val hasFileHeader = lines.any { it.startsWith("--- ") } &&
-            lines.any { it.startsWith("+++ ") }
+        val hasFileHeader =
+            lines.any { it.startsWith("--- ") } &&
+                lines.any { it.startsWith("+++ ") }
         val hasHunk = lines.any { it.startsWith("@@") }
         if (!hasFileHeader && !hasHunk) return null
         // 判定为 diff 的最低门槛：存在 +/-/空格 内容行
         if (lines.none { it.startsWith("+") || it.startsWith("-") || it.startsWith(" ") }) return null
-        val filePath = lines.firstOrNull { it.startsWith("+++ ") }
-            ?.removePrefix("+++ ")
-            ?.removePrefix("b/")
-            ?.takeIf { it.isNotBlank() && it != "/dev/null" }
+        val filePath =
+            lines
+                .firstOrNull { it.startsWith("+++ ") }
+                ?.removePrefix("+++ ")
+                ?.removePrefix("b/")
+                ?.takeIf { it.isNotBlank() && it != "/dev/null" }
         return DiffParseResult(filePath, text.trimEnd('\n'))
     }
 
@@ -142,7 +147,11 @@ object DiffParser {
 
         text.lines().forEach { line ->
             when {
-                line.startsWith("*** Begin Patch") -> Unit // 忽略
+                line.startsWith("*** Begin Patch") -> {
+                    Unit
+                }
+
+                // 忽略
                 line.startsWith("*** Update File:") -> {
                     flushBlock()
                     currentFile = line.removePrefix("*** Update File:").trim()
@@ -150,12 +159,34 @@ object DiffParser {
                         sb.append("--- a/$currentFile\n+++ b/$currentFile\n")
                     }
                 }
-                line.startsWith("*** End Patch") -> flushBlock()
-                line.startsWith("<<<<<<< SEARCH") -> { inSearch = true; inReplace = false }
-                line == "=======" -> { inSearch = false; inReplace = true }
-                line.startsWith(">>>>>>> REPLACE") -> { inReplace = false; flushBlock() }
-                inSearch -> searchLines.add(line)
-                inReplace -> replaceLines.add(line)
+
+                line.startsWith("*** End Patch") -> {
+                    flushBlock()
+                }
+
+                line.startsWith("<<<<<<< SEARCH") -> {
+                    inSearch = true
+                    inReplace = false
+                }
+
+                line == "=======" -> {
+                    inSearch = false
+                    inReplace = true
+                }
+
+                line.startsWith(">>>>>>> REPLACE") -> {
+                    inReplace = false
+                    flushBlock()
+                }
+
+                inSearch -> {
+                    searchLines.add(line)
+                }
+
+                inReplace -> {
+                    replaceLines.add(line)
+                }
+
                 else -> {
                     // @@ 等统一 diff 行直接透传
                     sb.append(line).append('\n')
@@ -179,10 +210,16 @@ object DiffParser {
         val endIdx = text.indexOf(endMarker, midIdx + 1)
         if (startIdx < 0 || midIdx < 0 || endIdx < 0) return null
 
-        val search = text.substring(startIdx + searchMarker.length, midIdx)
-            .removePrefix("\n").trimEnd('\n')
-        val replace = text.substring(midIdx + replaceMarker.length, endIdx)
-            .removePrefix("\n").trimEnd('\n')
+        val search =
+            text
+                .substring(startIdx + searchMarker.length, midIdx)
+                .removePrefix("\n")
+                .trimEnd('\n')
+        val replace =
+            text
+                .substring(midIdx + replaceMarker.length, endIdx)
+                .removePrefix("\n")
+                .trimEnd('\n')
 
         val sb = StringBuilder()
         sb.append("@@ -1,${search.lines().size} +1,${replace.lines().size} @@\n")
@@ -196,25 +233,32 @@ object DiffParser {
         if (!args.trimStart().startsWith("{")) return null
         return try {
             val obj = JsonParser.parseString(args).asJsonObject
-            val search = obj.get("search")?.asString
-                ?: obj.get("old_string")?.asString
-                ?: obj.get("oldValue")?.asString
-                ?: return null
-            val replace = obj.get("replace")?.asString
-                ?: obj.get("new_string")?.asString
-                ?: obj.get("newValue")?.asString
-                ?: return null
+            val search =
+                obj.get("search")?.asString
+                    ?: obj.get("old_string")?.asString
+                    ?: obj.get("oldValue")?.asString
+                    ?: return null
+            val replace =
+                obj.get("replace")?.asString
+                    ?: obj.get("new_string")?.asString
+                    ?: obj.get("newValue")?.asString
+                    ?: return null
             if (search.isBlank() && replace.isBlank()) return null
-            val file = obj.get("file")?.asString
-                ?: obj.get("path")?.asString
-                ?: obj.get("file_path")?.asString
+            val file =
+                obj.get("file")?.asString
+                    ?: obj.get("path")?.asString
+                    ?: obj.get("file_path")?.asString
             buildSearchReplace(file, search, replace)
         } catch (e: Exception) {
             null
         }
     }
 
-    private fun buildSearchReplace(filePath: String?, search: String, replace: String): DiffParseResult {
+    private fun buildSearchReplace(
+        filePath: String?,
+        search: String,
+        replace: String,
+    ): DiffParseResult {
         val sb = StringBuilder()
         if (!filePath.isNullOrBlank()) {
             val p = filePath.removePrefix("/")
@@ -241,7 +285,7 @@ private const val DIFF_FOLD_LIMIT = 60
 @Composable
 fun DiffCard(
     result: DiffParseResult,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val diff = result.unifiedDiff
     val lineCount = diff.lines().size
@@ -249,36 +293,39 @@ fun DiffCard(
     val delCount = diff.lines().count { it.startsWith("-") && !it.startsWith("---") }
     var expanded by remember { mutableStateOf(lineCount <= DIFF_FOLD_LIMIT) }
 
-    val highlightColors = DiffHighlightColors(
-        deleted = Danger,
-        inserted = Success,
-        coord = Accent,
-        bold = Warning,
-        unchanged = Fg2,
-    )
+    val highlightColors =
+        DiffHighlightColors(
+            deleted = Danger,
+            inserted = Success,
+            coord = Accent,
+            bold = Warning,
+            unchanged = Fg2,
+        )
     val highlighted = remember(diff, highlightColors) { highlightDiff(diff, highlightColors) }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Bg2)
-            .border(1.dp, Border, RoundedCornerShape(8.dp))
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Bg2)
+                .border(1.dp, Border, RoundedCornerShape(8.dp)),
     ) {
         // ── 头部 ──
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.Code,
                 contentDescription = null,
                 tint = Accent,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(14.dp),
             )
             Text(
                 text = result.filePath ?: "diff",
@@ -286,36 +333,37 @@ fun DiffCard(
                 fontFamily = FontFamily.Monospace,
                 color = Fg,
                 maxLines = 1,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Text(
                 text = "+$addCount −$delCount",
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
-                color = Muted
+                color = Muted,
             )
             Icon(
                 imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                 contentDescription = if (expanded) "Collapse" else "Expand",
                 tint = Muted,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
         }
 
         // ── 内容 ──
         if (expanded) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Text(
                     text = highlighted,
                     color = Fg2,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
-                    lineHeight = 18.sp
+                    lineHeight = 18.sp,
                 )
             }
             if (lineCount > DIFF_FOLD_LIMIT) {
@@ -323,7 +371,7 @@ fun DiffCard(
                     text = "共 $lineCount 行，点击头部收起",
                     fontSize = 10.sp,
                     color = Muted,
-                    modifier = Modifier.padding(start = 10.dp, bottom = 6.dp)
+                    modifier = Modifier.padding(start = 10.dp, bottom = 6.dp),
                 )
             }
         }
@@ -334,11 +382,15 @@ fun DiffCard(
  * 用 Prism4j diff 语法高亮整块 diff（token alias/type → 颜色）。
  * 高亮失败时兜底按行首字符着色（- 红 / + 绿 / @@ 橙 / --- +++ 蓝紫 / 其他灰）。
  */
-private fun highlightDiff(text: String, colors: DiffHighlightColors): AnnotatedString {
+private fun highlightDiff(
+    text: String,
+    colors: DiffHighlightColors,
+): AnnotatedString {
     return try {
         val prism4j = Prism4j(DefaultGrammarLocator())
-        val grammar = DefaultGrammarLocator().grammar(prism4j, "diff")
-            ?: return fallbackHighlight(text, colors)
+        val grammar =
+            DefaultGrammarLocator().grammar(prism4j, "diff")
+                ?: return fallbackHighlight(text, colors)
         val nodes = prism4j.tokenize(text, grammar)
         if (nodes.isEmpty()) return fallbackHighlight(text, colors)
         buildAnnotatedString {
@@ -352,19 +404,20 @@ private fun highlightDiff(text: String, colors: DiffHighlightColors): AnnotatedS
 /** 递归渲染 Prism tokenize 节点树：Syntax 按类型着色，Text 直接追加 */
 private fun androidx.compose.ui.text.AnnotatedString.Builder.appendNodes(
     nodes: List<io.noties.prism4j.Prism4j.Node>,
-    colors: DiffHighlightColors
+    colors: DiffHighlightColors,
 ) {
     nodes.forEach { node ->
         if (node.isSyntax) {
             val syntax = node as io.noties.prism4j.Prism4j.Syntax
-            val color = when {
-                syntax.alias() == "deleted" -> colors.deleted
-                syntax.alias() == "inserted" -> colors.inserted
-                syntax.type() == "coord" -> colors.coord
-                syntax.alias() == "bold" -> colors.bold
-                syntax.type() == "unchanged" -> colors.unchanged
-                else -> null
-            }
+            val color =
+                when {
+                    syntax.alias() == "deleted" -> colors.deleted
+                    syntax.alias() == "inserted" -> colors.inserted
+                    syntax.type() == "coord" -> colors.coord
+                    syntax.alias() == "bold" -> colors.bold
+                    syntax.type() == "unchanged" -> colors.unchanged
+                    else -> null
+                }
             if (color != null) {
                 withStyle(SpanStyle(color = color)) {
                     if (syntax.children().isNotEmpty()) {
@@ -387,16 +440,21 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendNodes(
 }
 
 /** 兜底：无 Prism 高亮时按行首字符着色 */
-private fun fallbackHighlight(text: String, colors: DiffHighlightColors): AnnotatedString = buildAnnotatedString {
-    text.lines().forEach { line ->
-        val color = when {
-            line.startsWith("+++") || line.startsWith("---") -> colors.coord
-            line.startsWith("@@") -> colors.bold
-            line.startsWith("+") -> colors.inserted
-            line.startsWith("-") -> colors.deleted
-            else -> colors.unchanged
+private fun fallbackHighlight(
+    text: String,
+    colors: DiffHighlightColors,
+): AnnotatedString =
+    buildAnnotatedString {
+        text.lines().forEach { line ->
+            val color =
+                when {
+                    line.startsWith("+++") || line.startsWith("---") -> colors.coord
+                    line.startsWith("@@") -> colors.bold
+                    line.startsWith("+") -> colors.inserted
+                    line.startsWith("-") -> colors.deleted
+                    else -> colors.unchanged
+                }
+            withStyle(SpanStyle(color = color)) { append(line) }
+            append('\n')
         }
-        withStyle(SpanStyle(color = color)) { append(line) }
-        append('\n')
     }
-}

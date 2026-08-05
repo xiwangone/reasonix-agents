@@ -19,7 +19,7 @@ data class Tab(
     val route: String,
     val label: String,
     val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
+    val unselectedIcon: ImageVector,
 )
 
 /** 顶层路由常量（NavigationBar 页签 + NavHost destination「目的地」） */
@@ -64,9 +64,10 @@ object Screens {
     val startDestination: String = CHAT
 
     /** 底部导航栏页签顺序 */
-    val tabs: List<Tab> = listOf(
-        Tab(CHAT, "聊天", Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline),
-        Tab(FILES, "文件", Icons.Filled.FolderOpen, Icons.Outlined.FolderOpen),
-        Tab(SETTINGS, "设置", Icons.Filled.Settings, Icons.Outlined.Settings)
-    )
+    val tabs: List<Tab> =
+        listOf(
+            Tab(CHAT, "聊天", Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline),
+            Tab(FILES, "文件", Icons.Filled.FolderOpen, Icons.Outlined.FolderOpen),
+            Tab(SETTINGS, "设置", Icons.Filled.Settings, Icons.Outlined.Settings),
+        )
 }

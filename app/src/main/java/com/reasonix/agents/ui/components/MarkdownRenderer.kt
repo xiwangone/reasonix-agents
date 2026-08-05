@@ -37,12 +37,12 @@ import java.util.concurrent.Executors
 // ═══════════════════════════════════════════════════════════════════
 //  Reasonix 暗色主题色板（与 index.html CSS 变量对齐）
 // ═══════════════════════════════════════════════════════════════════
-private val ACCENT = 0xFFEA8800.toInt()   // --accent
-private val FG = 0xFFF5F2F0.toInt()   // --fg
-private val FG2 = 0xFFCCC5C0.toInt()   // --fg-2  (code text)
-private val BORDER = 0xFF3D3938.toInt()   // --border
-private val BG2 = 0xFF222022.toInt()   // --bg-2  (inline code bg)
-private val PANEL2 = 0xFF2E2C2E.toInt()   // --panel-2 (code block bg)
+private val ACCENT = 0xFFEA8800.toInt() // --accent
+private val FG = 0xFFF5F2F0.toInt() // --fg
+private val FG2 = 0xFFCCC5C0.toInt() // --fg-2  (code text)
+private val BORDER = 0xFF3D3938.toInt() // --border
+private val BG2 = 0xFF222022.toInt() // --bg-2  (inline code bg)
+private val PANEL2 = 0xFF2E2C2E.toInt() // --panel-2 (code block bg)
 
 /**
  * 安卓原生 Markdown 渲染器 —— 基于 Markwon v4 + AndroidView。
@@ -86,10 +86,11 @@ fun MarkdownRenderer(
                         isClickable = true
                         // 流式更新时不复制 Spannable，防止闪烁
                         setSpannableFactory(NoCopySpannableFactory.getInstance())
-                    }, ViewGroup.LayoutParams(
+                    },
+                    ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    )
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ),
                 )
             }
         },
@@ -123,49 +124,59 @@ private fun buildMarkwon(context: Context): Markwon {
         val prismTheme = Prism4jThemeDarkula.create()
 
         // Coil 2.x ImageLoader（兼容 Markwon image-coil 插件）
-        val coilLoader = ImageLoader.Builder(context)
-            .crossfade(true)
-            .build()
+        val coilLoader =
+            ImageLoader
+                .Builder(context)
+                .crossfade(true)
+                .build()
 
         // dp → px
         val density = context.resources.displayMetrics.density
         val cellPaddingPx = (8f * density).toInt()
-        val borderWidthPx = if (density >= 3f) 3 else if (density >= 1.5f) 2 else 1
+        val borderWidthPx =
+            if (density >= 3f) {
+                3
+            } else if (density >= 1.5f) {
+                2
+            } else {
+                1
+            }
 
-        val tableTheme = TableTheme.emptyBuilder()
-            .tableBorderColor(BORDER)                         // 边框色 #3D3938
-            .tableBorderWidth(borderWidthPx)                  // 实线边框（密度自适应）
-            .tableCellPadding(cellPaddingPx)                  // 8dp 内边距
-            .tableHeaderRowBackgroundColor(PANEL2)            // 表头 #2E2C2E
-            .tableEvenRowBackgroundColor(0x00000000)          // 偶数行 透明
-            .tableOddRowBackgroundColor(0x0DFFFFFF.toInt())   // 奇数行 微白 5%
-            .build()
+        val tableTheme =
+            TableTheme
+                .emptyBuilder()
+                .tableBorderColor(BORDER) // 边框色 #3D3938
+                .tableBorderWidth(borderWidthPx) // 实线边框（密度自适应）
+                .tableCellPadding(cellPaddingPx) // 8dp 内边距
+                .tableHeaderRowBackgroundColor(PANEL2) // 表头 #2E2C2E
+                .tableEvenRowBackgroundColor(0x00000000) // 偶数行 透明
+                .tableOddRowBackgroundColor(0x0DFFFFFF.toInt()) // 奇数行 微白 5%
+                .build()
 
-        val markwon = Markwon.builder(context)
-
-            // ① 语法高亮（最先注册；同时设置 code 文字/背景色）
-            .usePlugin(SyntaxHighlightPlugin.create(prism4j, prismTheme))
-            // ② HTML 支持
-            .usePlugin(HtmlPlugin.create())
-            // ③ 图片 SchemeHandler 注册
-            .usePlugin(ImagesPlugin.create())
-            // ④ 图片异步加载 — Coil 2.x（显式传入 ImageLoader）
-            .usePlugin(CoilImagesPlugin.create(context, coilLoader))
-            // ⑤ 删除线扩展
-            .usePlugin(StrikethroughPlugin.create())
-            // ⑥ 表格支持
-            .usePlugin(TablePlugin.create(tableTheme))
-            // ⑦ 任务列表
-            .usePlugin(TaskListPlugin.create(context))
-            // ⑧ 自动链接
-            .usePlugin(LinkifyPlugin.create())
-
-            .usePlugin(MarkwonInlineParserPlugin.create())
-
-            // ⑨ 主题覆盖（必须在 SyntaxHighlightPlugin 之后注册，以覆盖内联代码背景色）
-            .usePlugin(ReasonixThemePlugin())
-            .textSetter(PrecomputedTextSetterCompat.create(Executors.newCachedThreadPool()))
-            .build()
+        val markwon =
+            Markwon
+                .builder(context)
+                // ① 语法高亮（最先注册；同时设置 code 文字/背景色）
+                .usePlugin(SyntaxHighlightPlugin.create(prism4j, prismTheme))
+                // ② HTML 支持
+                .usePlugin(HtmlPlugin.create())
+                // ③ 图片 SchemeHandler 注册
+                .usePlugin(ImagesPlugin.create())
+                // ④ 图片异步加载 — Coil 2.x（显式传入 ImageLoader）
+                .usePlugin(CoilImagesPlugin.create(context, coilLoader))
+                // ⑤ 删除线扩展
+                .usePlugin(StrikethroughPlugin.create())
+                // ⑥ 表格支持
+                .usePlugin(TablePlugin.create(tableTheme))
+                // ⑦ 任务列表
+                .usePlugin(TaskListPlugin.create(context))
+                // ⑧ 自动链接
+                .usePlugin(LinkifyPlugin.create())
+                .usePlugin(MarkwonInlineParserPlugin.create())
+                // ⑨ 主题覆盖（必须在 SyntaxHighlightPlugin 之后注册，以覆盖内联代码背景色）
+                .usePlugin(ReasonixThemePlugin())
+                .textSetter(PrecomputedTextSetterCompat.create(Executors.newCachedThreadPool()))
+                .build()
         MARKWON_INSTANCE = markwon
         return markwon
     }
@@ -175,7 +186,6 @@ private fun buildMarkwon(context: Context): Markwon {
  * Reasonix 暗色主题插件 —— 覆盖核心颜色以匹配 index.html 色板。
  */
 private class ReasonixThemePlugin : AbstractMarkwonPlugin() {
-
     override fun configureTheme(builder: MarkwonTheme.Builder) {
         builder
             // 链接
@@ -199,9 +209,21 @@ private class ReasonixThemePlugin : AbstractMarkwonPlugin() {
 
 /** 判断字符串是否不含 Markdown 语法。纯文本可跳过完整渲染管线。 */
 fun isPlainText(text: String): Boolean {
-    val patterns = listOf(
-        "\\*\\*", "\\*", "__", "_", "```", "`", "##", "> ", "- ", "\\d+\\. ",
-        "!\\[", "\\[", "\\|",
-    )
+    val patterns =
+        listOf(
+            "\\*\\*",
+            "\\*",
+            "__",
+            "_",
+            "```",
+            "`",
+            "##",
+            "> ",
+            "- ",
+            "\\d+\\. ",
+            "!\\[",
+            "\\[",
+            "\\|",
+        )
     return patterns.none { Regex(it).containsMatchIn(text) }
 }

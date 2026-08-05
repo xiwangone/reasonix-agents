@@ -6,8 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.AppSettingsStore
+import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.BackupManager
 import com.reasonix.agents.data.CliIntegrationStore
 import com.reasonix.agents.data.CustomModelStore
@@ -43,14 +43,20 @@ data class ChatUiState(
     val customModels: List<CustomModelStore.CustomModel> = emptyList(),
     val customPrompts: List<PromptStore.CustomPrompt> = emptyList(),
     val currentPromptId: String = "",
-    val ciSettings: com.reasonix.agents.data.CiMonitorStore.CiSettings = com.reasonix.agents.data.CiMonitorStore.CiSettings(),
-    val cliSettings: com.reasonix.agents.data.CliIntegrationStore.CliSettings = com.reasonix.agents.data.CliIntegrationStore.CliSettings(),
+    val ciSettings: com.reasonix.agents.data.CiMonitorStore.CiSettings =
+        com.reasonix.agents.data.CiMonitorStore
+            .CiSettings(),
+    val cliSettings: com.reasonix.agents.data.CliIntegrationStore.CliSettings =
+        com.reasonix.agents.data.CliIntegrationStore
+            .CliSettings(),
     val cumulativeTokens: Long = 0,
     val cumulativeCost: Double = 0.0,
     val cumulativeCacheHit: Long = 0,
     val cumulativeCacheMiss: Long = 0,
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
-    val error: String? = null
+    val error: String? = null,
+    /** 正在删除的会话名称集合（乐观移除 + 加载指示） */
+    val deletingSessions: Set<String> = emptySet(),
 )
 
 /** 备份导出结果（第五批 E-1）：json 为生成的备份文件内容，失败时 error 非空。 */
@@ -58,14 +64,14 @@ data class BackupExportResult(
     val json: String? = null,
     val sessionCount: Int = 0,
     val serverCount: Int = 0,
-    val error: String? = null
+    val error: String? = null,
 )
 
 /** 备份导入结果（第五批 E-1）：success=false 时 message 为失败原因（含凭据解密失败提示）。 */
 data class BackupImportResult(
     val success: Boolean,
     val message: String,
-    val restoredSettings: AppSettingsStore.Settings? = null
+    val restoredSettings: AppSettingsStore.Settings? = null,
 )
 
 class ChatViewModel(
@@ -77,9 +83,8 @@ class ChatViewModel(
      * true（默认）：初始加载时先调用服务端 newSession，且不加载上次会话的 messages；
      * false：恢复上次会话（切换服务器配置等场景保持原行为）。
      */
-    private val freshSession: Boolean = true
+    private val freshSession: Boolean = true,
 ) : AndroidViewModel(application) {
-
     private val _uiState = MutableStateFlow(ChatUiState(serverUrl = initialServerUrl))
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
@@ -110,7 +115,7 @@ class ChatViewModel(
         _uiState.update {
             it.copy(
                 customPrompts = PromptStore.load(getApplication()),
-                currentPromptId = PromptStore.getCurrentId(getApplication())
+                currentPromptId = PromptStore.getCurrentId(getApplication()),
             )
         }
         // 第五批 E-3：加载 CLI 集成设置（默认关闭）
@@ -123,7 +128,10 @@ class ChatViewModel(
     // ── 服务器配置 ──
 
     /** 动态切换服务器地址，重建 API/SSE 客户端并重新加载数据。 */
-    fun configureServer(url: String, auth: AuthInfo? = null) {
+    fun configureServer(
+        url: String,
+        auth: AuthInfo? = null,
+    ) {
         val normalized = url.trimEnd('/')
         currentAuth = auth
         repository = createRepository(normalized, auth)
@@ -133,7 +141,10 @@ class ChatViewModel(
     }
 
     /** 按当前设置（连接超时 / SSE 重连开关与退避上限，批 B-11）构建 repository。 */
-    private fun createRepository(url: String, auth: AuthInfo? = null): ChatRepository {
+    private fun createRepository(
+        url: String,
+        auth: AuthInfo? = null,
+    ): ChatRepository {
         val s = _uiState.value.settings
         return ChatRepository(
             url,
@@ -141,8 +152,8 @@ class ChatViewModel(
                 auth = auth,
                 connectTimeoutSec = s.connectTimeoutSec,
                 sseReconnectEnabled = s.sseReconnectEnabled,
-                sseReconnectMaxDelaySec = s.sseReconnectMaxDelaySec
-            )
+                sseReconnectMaxDelaySec = s.sseReconnectMaxDelaySec,
+            ),
         )
     }
 
@@ -179,7 +190,7 @@ class ChatViewModel(
                     messages = historyItems,
                     planMode = status?.plan ?: false,
                     toolApprovalMode = status?.toolApprovalMode ?: "auto",
-                    customModels = CustomModelStore.load(getApplication())
+                    customModels = CustomModelStore.load(getApplication()),
                 )
             }
         }
@@ -202,7 +213,7 @@ class ChatViewModel(
             _uiState.update {
                 it.copy(
                     status = status,
-                    currentModel = modelsResp?.current ?: status?.label ?: model
+                    currentModel = modelsResp?.current ?: status?.label ?: model,
                 )
             }
         }
@@ -227,15 +238,22 @@ class ChatViewModel(
     // ── 自定义提示词管理（第四批：提示词功能）──
 
     /** 添加一条用户提示词；select=true 时保存并立即选中生效。 */
-    fun addPrompt(content: String, select: Boolean = false) {
+    fun addPrompt(
+        content: String,
+        select: Boolean = false,
+    ) {
         val trimmed = content.trim()
         if (trimmed.isBlank()) return
         if (_uiState.value.customPrompts.size >= PromptStore.MAX_PROMPTS) return
-        val id = java.util.UUID.randomUUID().toString()
-        val updated = PromptStore.add(
-            getApplication(),
-            PromptStore.CustomPrompt(id = id, content = trimmed, createdAt = System.currentTimeMillis())
-        )
+        val id =
+            java.util.UUID
+                .randomUUID()
+                .toString()
+        val updated =
+            PromptStore.add(
+                getApplication(),
+                PromptStore.CustomPrompt(id = id, content = trimmed, createdAt = System.currentTimeMillis()),
+            )
         var currentId = _uiState.value.currentPromptId
         if (select) {
             currentId = id
@@ -265,7 +283,8 @@ class ChatViewModel(
     fun activePromptContent(): String =
         _uiState.value.customPrompts
             .firstOrNull { it.id == _uiState.value.currentPromptId }
-            ?.content?.trim() ?: ""
+            ?.content
+            ?.trim() ?: ""
 
     // ── 更新 CI 监控设置 ──
     fun updateCiSettings(s: com.reasonix.agents.data.CiMonitorStore.CiSettings) {
@@ -282,13 +301,17 @@ class ChatViewModel(
 
     /** 将后端历史记录转换为 ChatItem 列表，含工具调用/结果配对。 */
     private fun buildHistoryItems(history: List<HistoryMessage>): List<ChatItem> {
-        val toolResults = history
-            .filter { it.role == "tool" && it.toolCallId != null }
-            .associateBy { it.toolCallId!! }
+        val toolResults =
+            history
+                .filter { it.role == "tool" && it.toolCallId != null }
+                .associateBy { it.toolCallId!! }
 
         return history.flatMap { hist ->
             when (hist.role) {
-                "user" -> listOf(ChatItem.UserMessage(hist.content ?: ""))
+                "user" -> {
+                    listOf(ChatItem.UserMessage(hist.content ?: ""))
+                }
+
                 "assistant" -> {
                     val items = mutableListOf<ChatItem>()
                     hist.toolCalls?.forEach { tc ->
@@ -301,8 +324,8 @@ class ChatViewModel(
                                 args = tc.arguments,
                                 output = result?.content,
                                 isRunning = isRunning,
-                                expanded = !isRunning
-                            )
+                                expanded = !isRunning,
+                            ),
                         )
                     }
                     val content = hist.content.orEmpty()
@@ -311,14 +334,20 @@ class ChatViewModel(
                         items.add(
                             ChatItem.AssistantMessage(
                                 content = content,
-                                reasoning = reasoning
-                            )
+                                reasoning = reasoning,
+                            ),
                         )
                     }
                     items
                 }
-                "system" -> listOf(ChatItem.SystemNotice(hist.content ?: ""))
-                else -> emptyList()
+
+                "system" -> {
+                    listOf(ChatItem.SystemNotice(hist.content ?: ""))
+                }
+
+                else -> {
+                    emptyList()
+                }
             }
         }
     }
@@ -340,9 +369,10 @@ class ChatViewModel(
         val old = _uiState.value.settings
         _uiState.update { it.copy(settings = s) }
         AppSettingsStore.save(getApplication(), s)
-        val connectionChanged = old.connectTimeoutSec != s.connectTimeoutSec ||
-            old.sseReconnectEnabled != s.sseReconnectEnabled ||
-            old.sseReconnectMaxDelaySec != s.sseReconnectMaxDelaySec
+        val connectionChanged =
+            old.connectTimeoutSec != s.connectTimeoutSec ||
+                old.sseReconnectEnabled != s.sseReconnectEnabled ||
+                old.sseReconnectMaxDelaySec != s.sseReconnectMaxDelaySec
         if (connectionChanged && _uiState.value.serverUrl.isNotBlank()) {
             repository = createRepository(_uiState.value.serverUrl, currentAuth)
             collectConnectionState()
@@ -364,11 +394,12 @@ class ChatViewModel(
     private fun cliInstruction(): String? {
         val s = _uiState.value.cliSettings
         if (!s.enabled) return null
-        val scripts = when (s.tool) {
-            CliIntegrationStore.TOOL_AIDER -> "aide-wrap.sh"
-            CliIntegrationStore.TOOL_OPENCODE -> "oc-wrap.sh"
-            else -> "aide-wrap.sh / oc-wrap.sh"
-        }
+        val scripts =
+            when (s.tool) {
+                CliIntegrationStore.TOOL_AIDER -> "aide-wrap.sh"
+                CliIntegrationStore.TOOL_OPENCODE -> "oc-wrap.sh"
+                else -> "aide-wrap.sh / oc-wrap.sh"
+            }
         return buildString {
             append("你可使用部署的 CLI 工具（$scripts）完成任务。")
             append("工作目录：${s.workdir.ifBlank { "/tmp" }}；调用超时：${s.timeoutSec}s。")
@@ -386,7 +417,7 @@ class ChatViewModel(
             it.copy(
                 inputText = "",
                 isStreaming = true,
-                error = null
+                error = null,
             )
         }
 
@@ -410,8 +441,9 @@ class ChatViewModel(
         val promptContent = activePromptContent()
         // 第五批 E-3：CLI 集成开启时，注入部署 CLI 工具可用性指令（提示词层）
         val cliInstruction = cliInstruction()
-        val effectiveInput = listOfNotNull(promptContent, cliInstruction, text)
-            .joinToString("\n\n")
+        val effectiveInput =
+            listOfNotNull(promptContent, cliInstruction, text)
+                .joinToString("\n\n")
         viewModelScope.launch {
             try {
                 repository.submit(effectiveInput)
@@ -432,12 +464,15 @@ class ChatViewModel(
      *   识别失败选择「发送原图」时传空字符串，服务端侧用「[图片]」占位，本地消息展示图片。
      * - [imagePath]：本地缓存图片文件路径，仅用于本地消息展示（不发送给服务端）。
      */
-    fun sendImageMessage(ocrText: String, imagePath: String?) {
+    fun sendImageMessage(
+        ocrText: String,
+        imagePath: String?,
+    ) {
         val text = ocrText.trim()
         _uiState.update {
             it.copy(
                 isStreaming = true,
-                error = null
+                error = null,
             )
         }
 
@@ -453,8 +488,9 @@ class ChatViewModel(
         // 提交消息 → 启动 SSE 监听（复用 sendMessage 的提示词/CLI 注入逻辑）
         val promptContent = activePromptContent()
         val cliInstruction = cliInstruction()
-        val effectiveInput = listOfNotNull(promptContent, cliInstruction, text.ifBlank { "[图片]" })
-            .joinToString("\n\n")
+        val effectiveInput =
+            listOfNotNull(promptContent, cliInstruction, text.ifBlank { "[图片]" })
+                .joinToString("\n\n")
         viewModelScope.launch {
             try {
                 repository.submit(effectiveInput)
@@ -473,31 +509,41 @@ class ChatViewModel(
         val cmd = text.trim()
         when {
             cmd == "/help" -> {
-                appendMessage(ChatItem.SystemNotice("可用命令: /plan /yolo /auto /compact /compact auto /compact manual /rewind /fork /new /stats /status /sessions /summarize /resume /delete /theme /help"))
+                appendMessage(
+                    ChatItem.SystemNotice(
+                        "可用命令: /plan /yolo /auto /compact /compact auto /compact manual /rewind /fork /new /stats /status /sessions /summarize /resume /delete /theme /help",
+                    ),
+                )
                 return true
             }
+
             cmd == "/plan" -> {
                 togglePlanMode()
                 return true
             }
+
             cmd == "/yolo" -> {
                 setToolApprovalMode("yolo")
                 appendMessage(ChatItem.SystemNotice("已切换到 YOLO 模式"))
                 return true
             }
+
             cmd == "/auto" -> {
                 setToolApprovalMode("auto")
                 appendMessage(ChatItem.SystemNotice("已切换到自动审批模式"))
                 return true
             }
+
             cmd == "/compact" -> {
                 compactConversation()
                 return true
             }
+
             cmd == "/rewind" -> {
                 showRewindPicker()
                 return true
             }
+
             cmd == "/fork" -> {
                 viewModelScope.launch {
                     repository.fork(1)
@@ -505,24 +551,30 @@ class ChatViewModel(
                 }
                 return true
             }
+
             cmd == "/new" -> {
                 newSession()
                 return true
             }
+
             cmd == "/stats" -> {
                 _uiState.update { it.copy(showStatsDialog = true) }
                 return true
             }
+
             cmd == "/status" -> {
                 viewModelScope.launch {
                     val s = repository.getStatus()
-                    appendMessage(ChatItem.SystemNotice(
-                        "模型=${s?.label ?: "?"} 计划=${s?.plan ?: false} 模式=${s?.toolApprovalMode ?: "auto"} " +
-                        "Token=${s?.used ?: 0}/${s?.window ?: 0}"
-                    ))
+                    appendMessage(
+                        ChatItem.SystemNotice(
+                            "模型=${s?.label ?: "?"} 计划=${s?.plan ?: false} 模式=${s?.toolApprovalMode ?: "auto"} " +
+                                "Token=${s?.used ?: 0}/${s?.window ?: 0}",
+                        ),
+                    )
                 }
                 return true
             }
+
             cmd == "/sessions" -> {
                 viewModelScope.launch {
                     val s = repository.getSessions()
@@ -531,6 +583,7 @@ class ChatViewModel(
                 }
                 return true
             }
+
             cmd.startsWith("/summarize") -> {
                 viewModelScope.launch {
                     repository.summarize(1, "from")
@@ -538,6 +591,7 @@ class ChatViewModel(
                 }
                 return true
             }
+
             cmd.startsWith("/delete ") -> {
                 val name = cmd.removePrefix("/delete ").trim()
                 viewModelScope.launch {
@@ -547,6 +601,7 @@ class ChatViewModel(
                 }
                 return true
             }
+
             cmd.startsWith("/resume ") -> {
                 val name = cmd.removePrefix("/resume ").trim()
                 viewModelScope.launch {
@@ -556,14 +611,17 @@ class ChatViewModel(
                 }
                 return true
             }
+
             cmd == "/compact auto" -> {
                 appendMessage(ChatItem.SystemNotice("已设置压缩模式: 自动"))
                 return true
             }
+
             cmd == "/compact manual" -> {
                 appendMessage(ChatItem.SystemNotice("已设置压缩模式: 手动"))
                 return true
             }
+
             cmd == "/theme" -> {
                 appendMessage(ChatItem.SystemNotice("主题切换功能开发中…"))
                 return true
@@ -576,21 +634,22 @@ class ChatViewModel(
 
     private fun startSseCollection() {
         sseCollectionJob?.cancel()
-        sseCollectionJob = viewModelScope.launch {
-            try {
-                repository.sseEvents().collect { event ->
-                    handleSseEvent(event)
+        sseCollectionJob =
+            viewModelScope.launch {
+                try {
+                    repository.sseEvents().collect { event ->
+                        handleSseEvent(event)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (e.message?.contains("closed") != true) {
+                        appendMessage(ChatItem.ErrorMessage("连接错误: ${e.message}"))
+                    }
+                } finally {
+                    finalizeTurn()
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (e.message?.contains("closed") != true) {
-                    appendMessage(ChatItem.ErrorMessage("连接错误: ${e.message}"))
-                }
-            } finally {
-                finalizeTurn()
             }
-        }
     }
 
     // ── 任务清单（Todo 面板） ──
@@ -611,17 +670,18 @@ class ChatViewModel(
      */
     private fun collectConnectionState() {
         connectionStateJob?.cancel()
-        connectionStateJob = viewModelScope.launch {
-            var prev = ConnectionState.DISCONNECTED
-            repository.sseConnectionState().collect { s ->
-                val reconnected = prev == ConnectionState.RECONNECTING && s == ConnectionState.CONNECTED
-                prev = s
-                _uiState.update { it.copy(connectionState = s) }
-                if (reconnected) {
-                    syncHistoryAfterReconnect()
+        connectionStateJob =
+            viewModelScope.launch {
+                var prev = ConnectionState.DISCONNECTED
+                repository.sseConnectionState().collect { s ->
+                    val reconnected = prev == ConnectionState.RECONNECTING && s == ConnectionState.CONNECTED
+                    prev = s
+                    _uiState.update { it.copy(connectionState = s) }
+                    if (reconnected) {
+                        syncHistoryAfterReconnect()
+                    }
                 }
             }
-        }
     }
 
     /** 重连成功后：拉 /history 重建消息 + 重置流式缓冲 + 卡流保险收尾 */
@@ -687,12 +747,13 @@ class ChatViewModel(
 
             "tool_dispatch" -> {
                 event.tool?.let { tool ->
-                    val card = ChatItem.ToolCard(
-                        id = tool.id,
-                        name = tool.name,
-                        args = tool.args ?: tool.arguments,
-                        isRunning = true
-                    )
+                    val card =
+                        ChatItem.ToolCard(
+                            id = tool.id,
+                            name = tool.name,
+                            args = tool.args ?: tool.arguments,
+                            isRunning = true,
+                        )
                     pendingToolCards[tool.id] = card
                     appendMessage(card)
                 }
@@ -700,14 +761,15 @@ class ChatViewModel(
 
             "tool_result" -> {
                 event.tool?.let { tool ->
-                    val card = ChatItem.ToolCard(
-                        id = tool.id,
-                        name = tool.name,
-                        output = tool.output,
-                        err = tool.err,
-                        truncated = tool.truncated,
-                        isRunning = false
-                    )
+                    val card =
+                        ChatItem.ToolCard(
+                            id = tool.id,
+                            name = tool.name,
+                            output = tool.output,
+                            err = tool.err,
+                            truncated = tool.truncated,
+                            isRunning = false,
+                        )
                     pendingToolCards[tool.id] = card
                     replaceToolCard(tool.id, card)
                     loadTodos()
@@ -716,12 +778,13 @@ class ChatViewModel(
 
             "tool_progress" -> {
                 event.tool?.let { tool ->
-                    val card = ChatItem.ToolCard(
-                        id = tool.id,
-                        name = tool.name,
-                        output = tool.output,
-                        isRunning = true
-                    )
+                    val card =
+                        ChatItem.ToolCard(
+                            id = tool.id,
+                            name = tool.name,
+                            output = tool.output,
+                            isRunning = true,
+                        )
                     pendingToolCards[tool.id] = card
                     replaceToolCard(tool.id, card)
                 }
@@ -735,7 +798,7 @@ class ChatViewModel(
                             cumulativeTokens = state.cumulativeTokens + u.totalTokens,
                             cumulativeCost = state.cumulativeCost + (u.costUsd ?: u.cost ?: 0.0),
                             cumulativeCacheHit = state.cumulativeCacheHit + u.cacheHitTokens,
-                            cumulativeCacheMiss = state.cumulativeCacheMiss + u.cacheMissTokens
+                            cumulativeCacheMiss = state.cumulativeCacheMiss + u.cacheMissTokens,
                         )
                     }
                 }
@@ -788,10 +851,11 @@ class ChatViewModel(
         val content = pendingContent?.toString() ?: ""
         val reasoning = pendingReasoning?.toString()?.takeIf { it.isNotBlank() }
 
-        val msg = ChatItem.AssistantMessage(
-            content = content,
-            reasoning = reasoning
-        )
+        val msg =
+            ChatItem.AssistantMessage(
+                content = content,
+                reasoning = reasoning,
+            )
 
         val idx = currentAssistantMsgIndex
         if (idx != null) {
@@ -823,12 +887,16 @@ class ChatViewModel(
         }
     }
 
-    private fun replaceToolCard(id: String, card: ChatItem.ToolCard) {
+    private fun replaceToolCard(
+        id: String,
+        card: ChatItem.ToolCard,
+    ) {
         _uiState.update { state ->
             val list = state.messages.toMutableList()
-            val idx = list.indexOfLast {
-                it is ChatItem.ToolCard && it.id == id
-            }
+            val idx =
+                list.indexOfLast {
+                    it is ChatItem.ToolCard && it.id == id
+                }
             if (idx >= 0) list[idx] = card
             state.copy(messages = list)
         }
@@ -848,12 +916,17 @@ class ChatViewModel(
         sseCollectionJob?.cancel()
         // 批 B-14：多步任务跑完 → 系统通知栏提醒
         if (pendingToolCards.isNotEmpty()) {
-            val toolNames = pendingToolCards.values.map { it.name }.filter { it.isNotBlank() }.distinct()
-            val summary = when {
-                toolNames.isEmpty() -> "已完成一轮多步任务"
-                toolNames.size <= 3 -> "已完成 ${toolNames.size} 个工具步骤：${toolNames.joinToString("、")}"
-                else -> "已完成 ${toolNames.size} 个工具步骤（${toolNames.take(3).joinToString("、")} 等）"
-            }
+            val toolNames =
+                pendingToolCards.values
+                    .map { it.name }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+            val summary =
+                when {
+                    toolNames.isEmpty() -> "已完成一轮多步任务"
+                    toolNames.size <= 3 -> "已完成 ${toolNames.size} 个工具步骤：${toolNames.joinToString("、")}"
+                    else -> "已完成 ${toolNames.size} 个工具步骤（${toolNames.take(3).joinToString("、")} 等）"
+                }
             NotificationHelper.notifyTaskDone(getApplication(), summary)
         }
         pendingToolCards.clear()
@@ -876,7 +949,10 @@ class ChatViewModel(
         _uiState.update { it.copy(showRewindPicker = false) }
     }
 
-    fun rewindTo(turn: Int, scope: String = "both") {
+    fun rewindTo(
+        turn: Int,
+        scope: String = "both",
+    ) {
         viewModelScope.launch {
             repository.rewind(turn, scope)
             loadInitialData()
@@ -892,7 +968,10 @@ class ChatViewModel(
         }
     }
 
-    fun summarizeAt(turn: Int, mode: String) {
+    fun summarizeAt(
+        turn: Int,
+        mode: String,
+    ) {
         viewModelScope.launch {
             repository.summarize(turn, mode)
             _uiState.update { it.copy(showRewindPicker = false) }
@@ -946,13 +1025,21 @@ class ChatViewModel(
         viewModelScope.launch { repository.setToolApprovalMode(mode) }
     }
 
-    fun approveTool(id: String, session: Boolean = false, persist: Boolean = false, scope: String = "") {
+    fun approveTool(
+        id: String,
+        session: Boolean = false,
+        persist: Boolean = false,
+        scope: String = "",
+    ) {
         viewModelScope.launch {
             repository.approve(id, true, session, persist, scope)
             _uiState.update { state ->
-                state.copy(messages = state.messages.filter {
-                    it !is ChatItem.ApprovalCard || it.id != id
-                })
+                state.copy(
+                    messages =
+                        state.messages.filter {
+                            it !is ChatItem.ApprovalCard || it.id != id
+                        },
+                )
             }
         }
     }
@@ -961,24 +1048,35 @@ class ChatViewModel(
         viewModelScope.launch {
             repository.approve(id, false)
             _uiState.update { state ->
-                state.copy(messages = state.messages.filter {
-                    it !is ChatItem.ApprovalCard || it.id != id
-                })
+                state.copy(
+                    messages =
+                        state.messages.filter {
+                            it !is ChatItem.ApprovalCard || it.id != id
+                        },
+                )
             }
         }
     }
 
-    fun submitAskAnswers(id: String, answers: List<Map<String, String>>) {
-        val formattedAnswers = answers.map { map ->
-            map.mapValues { it.value }.toMap()
-        }.map { it.mapValues { e -> e.value as Any } }
+    fun submitAskAnswers(
+        id: String,
+        answers: List<Map<String, String>>,
+    ) {
+        val formattedAnswers =
+            answers
+                .map { map ->
+                    map.mapValues { it.value }.toMap()
+                }.map { it.mapValues { e -> e.value as Any } }
 
         viewModelScope.launch {
             repository.answer(id, formattedAnswers)
             _uiState.update { state ->
-                state.copy(messages = state.messages.filter {
-                    it !is ChatItem.AskCard || it.id != id
-                })
+                state.copy(
+                    messages =
+                        state.messages.filter {
+                            it !is ChatItem.AskCard || it.id != id
+                        },
+                )
             }
         }
     }
@@ -999,15 +1097,42 @@ class ChatViewModel(
     }
 
     fun deleteSession(name: String) {
+        // 乐观移除：立即从列表中移除，同时标记删除中
+        _uiState.update { state ->
+            state.copy(
+                sessions = state.sessions.filter { it.name != name },
+                deletingSessions = state.deletingSessions + name,
+            )
+        }
         viewModelScope.launch {
-            repository.deleteSession(name)
-            loadInitialData()
+            try {
+                repository.deleteSession(name)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "删除会话失败: $name", e)
+            } finally {
+                // 删除完成（成功或失败）后刷新列表，移除 loading 标记
+                try {
+                    loadInitialData()
+                } catch (_: Exception) {
+                }
+                _uiState.update { it.copy(deletingSessions = it.deletingSessions - name) }
+            }
         }
     }
 
     /** 批量删除会话（第五批 E-2：多选模式全选后批量删除）。 */
     fun deleteSessions(names: List<String>) {
         if (names.isEmpty()) return
+        val nameSet = names.toSet()
+        // 乐观移除：立即从列表中移除，同时标记删除中
+        _uiState.update { state ->
+            state.copy(
+                sessions = state.sessions.filter { it.name !in nameSet },
+                deletingSessions = state.deletingSessions + nameSet,
+            )
+        }
         viewModelScope.launch {
             names.forEach { name ->
                 try {
@@ -1018,7 +1143,12 @@ class ChatViewModel(
                     Log.e("ChatViewModel", "删除会话失败: $name", e)
                 }
             }
-            loadInitialData()
+            // 删除完成后刷新列表，移除 loading 标记
+            try {
+                loadInitialData()
+            } catch (_: Exception) {
+            }
+            _uiState.update { it.copy(deletingSessions = it.deletingSessions - nameSet) }
         }
     }
 
@@ -1028,39 +1158,41 @@ class ChatViewModel(
      * 导出备份：收集服务器配置（多套）+ 主题设置 + 自定义模型 + 全部会话历史，构建单文件 JSON。
      * 会话历史需遍历服务端各会话（resume + history），完成后恢复原会话并刷新界面。
      */
-    suspend fun exportBackup(password: String): BackupExportResult {
-        return try {
+    suspend fun exportBackup(password: String): BackupExportResult =
+        try {
             val context = getApplication<Application>()
             var profiles = ServerConfigStore.loadProfiles(context)
             // 从未保存过 profiles 时，把「上次连接配置」作为一套导出
             if (profiles.isEmpty()) {
                 val last = ServerConfigStore.load(context)
                 if (last.ip.isNotBlank()) {
-                    profiles = listOf(
-                        ServerConfigStore.ServerProfile(
-                            name = last.ip,
-                            ip = last.ip,
-                            port = last.port,
-                            useHttps = last.useHttps,
-                            authType = last.authType,
-                            username = last.username,
-                            password = last.password,
-                            token = last.token
+                    profiles =
+                        listOf(
+                            ServerConfigStore.ServerProfile(
+                                name = last.ip,
+                                ip = last.ip,
+                                port = last.port,
+                                useHttps = last.useHttps,
+                                authType = last.authType,
+                                username = last.username,
+                                password = last.password,
+                                token = last.token,
+                            ),
                         )
-                    )
                 }
             }
             val sessions = collectAllSessionHistories()
-            val payload = BackupManager.BackupPayload(
-                settings = AppSettingsStore.load(context),
-                customModels = CustomModelStore.load(context),
-                serverConfigs = profiles,
-                sessions = sessions
-            )
+            val payload =
+                BackupManager.BackupPayload(
+                    settings = AppSettingsStore.load(context),
+                    customModels = CustomModelStore.load(context),
+                    serverConfigs = profiles,
+                    sessions = sessions,
+                )
             BackupExportResult(
                 json = BackupManager.buildJson(payload, password),
                 sessionCount = sessions.size,
-                serverCount = profiles.size
+                serverCount = profiles.size,
             )
         } catch (e: CancellationException) {
             throw e
@@ -1068,13 +1200,15 @@ class ChatViewModel(
             Log.e("ChatViewModel", "导出备份失败", e)
             BackupExportResult(error = "导出失败：${e.message ?: "未知错误"}")
         }
-    }
 
     /**
      * 导入备份：解析 JSON → 恢复服务器配置（凭据解密）/主题设置/自定义模型/会话历史。
      * 凭据解密失败（密码错误 / 换机密钥不可用）会在 message 中明确提示。
      */
-    fun importBackup(json: String, password: String): BackupImportResult {
+    fun importBackup(
+        json: String,
+        password: String,
+    ): BackupImportResult {
         val parsed = BackupManager.parse(json, password)
         if (parsed is BackupManager.ParseResult.Err) {
             return BackupImportResult(success = false, message = parsed.message)
@@ -1103,16 +1237,18 @@ class ChatViewModel(
             if (payload.sessions.isNotEmpty()) {
                 BackupManager.saveSessions(context, payload.sessions)
                 val first = payload.sessions.first()
-                val history = first.messages.map { m ->
-                    HistoryMessage(
-                        role = m.role,
-                        content = m.content,
-                        reasoning = m.reasoning,
-                        toolCalls = m.toolCalls?.map { tc ->
-                            ToolCallPayload(id = tc.id, name = tc.name, arguments = tc.arguments)
-                        }
-                    )
-                }
+                val history =
+                    first.messages.map { m ->
+                        HistoryMessage(
+                            role = m.role,
+                            content = m.content,
+                            reasoning = m.reasoning,
+                            toolCalls =
+                                m.toolCalls?.map { tc ->
+                                    ToolCallPayload(id = tc.id, name = tc.name, arguments = tc.arguments)
+                                },
+                        )
+                    }
                 _uiState.update { it.copy(messages = buildHistoryItems(history)) }
                 restored++
             }
@@ -1120,7 +1256,7 @@ class ChatViewModel(
             BackupImportResult(
                 success = true,
                 message = "导入成功：已恢复 $restored 项（服务器配置/主题/模型/会话）$warning",
-                restoredSettings = payload.settings
+                restoredSettings = payload.settings,
             )
         } catch (e: Exception) {
             Log.e("ChatViewModel", "导入备份失败", e)
@@ -1147,17 +1283,19 @@ class ChatViewModel(
                         path = s.path,
                         title = s.title,
                         turns = s.turns,
-                        messages = history.map { m ->
-                            BackupManager.BackupMessage(
-                                role = m.role,
-                                content = m.content,
-                                reasoning = m.reasoning,
-                                toolCalls = m.toolCalls?.map { tc ->
-                                    BackupManager.BackupToolCall(tc.id, tc.name, tc.arguments)
-                                }
-                            )
-                        }
-                    )
+                        messages =
+                            history.map { m ->
+                                BackupManager.BackupMessage(
+                                    role = m.role,
+                                    content = m.content,
+                                    reasoning = m.reasoning,
+                                    toolCalls =
+                                        m.toolCalls?.map { tc ->
+                                            BackupManager.BackupToolCall(tc.id, tc.name, tc.arguments)
+                                        },
+                                )
+                            },
+                    ),
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -1205,11 +1343,9 @@ class ChatViewModel(
     class Factory(
         private val app: Application,
         private val serverUrl: String,
-        private val auth: AuthInfo?
+        private val auth: AuthInfo?,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ChatViewModel(app, serverUrl, auth) as T
-        }
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = ChatViewModel(app, serverUrl, auth) as T
     }
 }
