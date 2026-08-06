@@ -340,15 +340,35 @@ fun ChatScreen(
                             .clickable { showConfigsDialog = true }
                             .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
+                    // 头像：有认证用户名时显示其首字母（圆形头像），否则显示品牌 R 渐变块
+                    val avatarLetter =
+                        initialAuth
+                            ?.takeIf { it.username.isNotBlank() }
+                            ?.username
+                            ?.trim()
+                            ?.firstOrNull()
+                            ?.uppercaseChar()
                     Box(
                         modifier =
                             Modifier
                                 .size(26.dp)
-                                .clip(RoundedCornerShape(7.dp))
-                                .background(brush = Brush.linearGradient(colors = listOf(Accent, Violet))),
+                                .clip(CircleShape)
+                                .background(
+                                    brush =
+                                        Brush.linearGradient(
+                                            colors =
+                                                if (avatarLetter != null) listOf(Violet, Accent)
+                                                else listOf(Accent, Violet),
+                                        ),
+                                ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("R", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(
+                            text = avatarLetter?.toString() ?: "R",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -490,6 +510,8 @@ fun ChatScreen(
                     viewModel.onInputChange(template)
                     focusRequester.requestFocus()
                 },
+                showSidebar = state.showSidebar,
+                onToggleSidebar = { viewModel.toggleSidebar() },
             )
         }
 
@@ -562,28 +584,6 @@ fun ChatScreen(
                         .align(Alignment.BottomStart)
                         .padding(start = 16.dp, bottom = 100.dp)
                         .zIndex(8f),
-            )
-        }
-
-        // ── 侧边栏切换按钮（2026-08-06 移到顶部，对齐消息区顶部；原 2/5 高度处） ──
-        Box(
-            modifier =
-                Modifier
-                    .align(Alignment.TopStart)
-                    .padding(top = 8.dp, start = 8.dp)
-                    .zIndex(5f)
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(Bg2.copy(alpha = 0.9f))
-                    .border(1.dp, Border, CircleShape)
-                    .clickable { viewModel.toggleSidebar() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (state.showSidebar) Icons.Default.Close else Icons.Default.Menu,
-                contentDescription = if (state.showSidebar) "Close sidebar" else "Open sidebar",
-                tint = if (state.showSidebar) Accent else Muted,
-                modifier = Modifier.size(26.dp),
             )
         }
 
@@ -1585,6 +1585,8 @@ private fun Footer(
     onPickImage: () -> Unit,
     onAttach: () -> Unit = {},
     onQuickAction: ((String) -> Unit)? = null,
+    showSidebar: Boolean = false,
+    onToggleSidebar: () -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
 
@@ -1605,6 +1607,24 @@ private fun Footer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            // ── 侧边栏切换（2026-08-07 移到输入框同一行，避免遮挡消息区） ──
+            Box(
+                modifier =
+                    Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(if (showSidebar) Accent.copy(alpha = 0.15f) else Color.Transparent)
+                        .clickable { onToggleSidebar() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (showSidebar) Icons.Default.Close else Icons.Default.Menu,
+                    contentDescription = if (showSidebar) "Close sidebar" else "Open sidebar",
+                    tint = if (showSidebar) Accent else Muted,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
             // Auto
             ToolbarButton("Auto", active = toolApprovalMode == "auto", accent = false) { onToggleAuto?.invoke() }
             // Plan
