@@ -3,7 +3,6 @@ package com.reasonix.agents.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -351,11 +350,11 @@ fun DiffCard(
 
         // ── 内容 ──
         if (expanded) {
+            // 2026-08-06：去掉横向滚动，diff 内容在屏幕宽度内自动换行（适配全输出内容/手机屏幕）
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
                         .padding(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Text(
