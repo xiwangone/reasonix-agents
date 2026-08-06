@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
@@ -81,6 +82,7 @@ private val Danger: Color @Composable get() = LocalPalette.current.danger
 @Composable
 fun SettingsScreen(
     onOpenPrompt: () -> Unit = {},
+    onOpenMemory: () -> Unit = {},
     onOpenSystemPrompt: () -> Unit = {},
     onOpenTheme: () -> Unit = {},
     onOpenModel: () -> Unit = {},
