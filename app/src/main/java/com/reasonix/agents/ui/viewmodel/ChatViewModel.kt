@@ -110,6 +110,8 @@ class ChatViewModel(
     private var pendingContent: StringBuilder? = null
     // 2026-08-07：本轮 usage 快照（结束时追加一张汇总卡，不随事件反复插入）
     private var pendingUsage: UsagePayload? = null
+    // 2026-08-07：流式 UI 刷新节流 job——高频 delta 事件合并成一次重组，避免每 token 全量重建消息列表
+    private var uiRefreshJob: Job? = null
 
     // 双 Esc 倒带
     private var lastEscTime: Long = 0L
@@ -507,8 +509,12 @@ class ChatViewModel(
         val memoryText = MemoryStore.activeMemoriesText(getApplication())
         // 第五批 E-3：CLI 集成开启时，注入部署 CLI 工具可用性指令（提示词层）
         val cliInstruction = cliInstruction()
+        // 2026-08-07 防复述：注入内容（提示词/记忆/CLI 指令）仅供上下文参考，
+        // 明确要求 AI 不要在回复中复述或重复它们（此前 AI 常把注入内容整段复述，观感即「历史内容反复出现」）
+        val antiEcho =
+            "（以下注入内容仅供你参考执行，回复时请直接回答用户问题，不要复述或重复任何注入内容。）"
         val effectiveInput =
-            listOfNotNull(promptContent, memoryText, cliInstruction, text)
+            listOfNotNull(antiEcho, promptContent, memoryText, cliInstruction, text)
                 .joinToString("\n\n")
         viewModelScope.launch {
             try {
@@ -784,6 +790,8 @@ class ChatViewModel(
         lastSseEventAt = System.currentTimeMillis()
         when (event.kind) {
             "turn_started" -> {
+                uiRefreshJob?.cancel()
+                uiRefreshJob = null
                 currentAssistantMsgIndex = null
                 pendingBlocks = mutableListOf()
                 pendingContent = StringBuilder()
@@ -934,6 +942,22 @@ class ChatViewModel(
     }
 
     /**
+     * 2026-08-07 性能优化：流式 delta 节流刷新。
+     * text/reasoning 事件高频到达（每 token 一次），每次都 updatePendingTurn 会
+     * 整轮重建 AssistantTurn + 全列表拷贝；此处合并 60ms 窗口内的事件为一次重组。
+     * 工具卡/整体覆盖/回合收尾等低频路径仍走立即 updatePendingTurn。
+     */
+    private fun scheduleUiRefresh() {
+        if (uiRefreshJob?.isActive == true) return
+        uiRefreshJob =
+            viewModelScope.launch {
+                delay(60)
+                uiRefreshJob = null
+                updatePendingTurn()
+            }
+    }
+
+    /**
      * 2026-08-06 对齐 RikkaHub 层次结构：用当前 pendingBlocks 重建本轮 AssistantTurn 并替换 UI 中的对应消息。
      */
     private fun updatePendingTurn() {
@@ -1001,7 +1025,7 @@ class ChatViewModel(
 
             else -> pendingBlocks.add(block)
         }
-        updatePendingTurn()
+        scheduleUiRefresh()
     }
 
     /** 更新工具块：按「最后一条运行中的同 id 块」回填（同 id 多次调用按顺序配对） */
@@ -1042,6 +1066,11 @@ class ChatViewModel(
     }
 
     private fun finalizeTurn() {
+        // 2026-08-07 幂等保护：流关闭/cancel 时 finally 也会调 finalizeTurn，
+        // 若当前没有进行中的 turn（缓冲已空）直接返回，避免重复收尾/重复统计卡
+        if (pendingContent == null && pendingBlocks.isEmpty() && currentAssistantMsgIndex == null) {
+            return
+        }
         // 2026-08-06：AI 直接管理记忆（方案 A）——turn 结束时解析回复中的【记忆+/-】标记，
         // 应用增删并剔除标记行后刷新 UI 展示
         val raw = pendingContent?.toString()
@@ -1057,11 +1086,17 @@ class ChatViewModel(
                 }
             }
         }
+        // 2026-08-07：取消节流刷新，立即落最终状态
+        uiRefreshJob?.cancel()
+        uiRefreshJob = null
+        updatePendingTurn()
         currentAssistantMsgIndex = null
         pendingContent = null
         pendingReasoning = null
         _uiState.update { it.copy(isStreaming = false) }
-        sseCollectionJob?.cancel()
+        // 2026-08-07 SSE 可靠性：此处不 cancel sseCollectionJob。
+        // 原先 turn_done 即掐断整条 SSE 流，一轮多 turn（多工具子回合/多段回复）时
+        // 后续事件全部丢失；流生命周期由 sendMessage 重启 / 服务端关流 / onCleared 管理。
         // 批 B-14：多步任务跑完 → 系统通知栏提醒（从工具块统计）
         val toolNames =
             pendingBlocks
