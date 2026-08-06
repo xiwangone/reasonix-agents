@@ -75,6 +75,8 @@ fun MarkdownRenderer(
             // 长文本/代码/表格均在屏幕宽度内自动换行，适配不同屏幕布局（手机/平板均不横向溢出）。
             TextView(ctx).apply {
                 setTextColor(FG)
+                // 2026-08-06：RikkaHub ChatFont 适配——应用聊天字体（默认/衬线/等宽/JetBrains Mono）
+                LocalChatFont.current?.let { typeface = it }
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 setLineSpacing(4f, 1f)
                 movementMethod = LinkMovementMethod.getInstance()

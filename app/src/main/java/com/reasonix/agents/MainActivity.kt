@@ -121,6 +121,7 @@ class MainActivity : ComponentActivity() {
                 controller.isAppearanceLightNavigationBars = !dark
             }
 
+            ChatFontProvider(chatFont = settings.chatFont) {
             CompositionLocalProvider(LocalPalette provides palette) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -208,6 +209,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
             }
         }
     }

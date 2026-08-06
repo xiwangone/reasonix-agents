@@ -29,6 +29,7 @@ object AppSettingsStore {
     private const val KEY_SSE_RECONNECT_ENABLED = "sse_reconnect_enabled"
     private const val KEY_SSE_RECONNECT_MAX_DELAY_SEC = "sse_reconnect_max_delay_sec"
     private const val KEY_HTTP_WARNING_ACKED = "http_warning_acked"
+    private const val KEY_CHAT_FONT = "chat_font"
 
     const val THEME_PRESET_BRAND = 0
     const val THEME_PRESET_MATERIAL = 1
@@ -51,9 +52,16 @@ object AppSettingsStore {
     const val THEME_MODE_LIGHT = 1
     const val THEME_MODE_DARK = 2
 
+    // 聊天字体（RikkaHub ChatFontFamily 适配：默认/衬线/等宽/JetBrains Mono）
+    const val CHAT_FONT_DEFAULT = 0
+    const val CHAT_FONT_SERIF = 1
+    const val CHAT_FONT_MONO = 2
+    const val CHAT_FONT_JETBRAINS = 3
+
     data class Settings(
         val themePreset: Int = THEME_PRESET_BRAND,
         val themeMode: Int = THEME_MODE_SYSTEM,
+        val chatFont: Int = CHAT_FONT_DEFAULT,
         val language: String = "zh",
         val showReasoning: Boolean = true,
         val showTokens: Boolean = true,
@@ -68,6 +76,7 @@ object AppSettingsStore {
         return Settings(
             themePreset = prefs.getInt(KEY_THEME_PRESET, THEME_PRESET_BRAND),
             themeMode = prefs.getInt(KEY_THEME_MODE, THEME_MODE_SYSTEM),
+            chatFont = prefs.getInt(KEY_CHAT_FONT, CHAT_FONT_DEFAULT),
             language = prefs.getString(KEY_LANGUAGE, "zh") ?: "zh",
             showReasoning = prefs.getBoolean(KEY_SHOW_REASONING, true),
             showTokens = prefs.getBoolean(KEY_SHOW_TOKENS, true),
@@ -87,6 +96,7 @@ object AppSettingsStore {
             .edit()
             .putInt(KEY_THEME_PRESET, s.themePreset)
             .putInt(KEY_THEME_MODE, s.themeMode)
+            .putInt(KEY_CHAT_FONT, s.chatFont)
             .putString(KEY_LANGUAGE, s.language)
             .putBoolean(KEY_SHOW_REASONING, s.showReasoning)
             .putBoolean(KEY_SHOW_TOKENS, s.showTokens)
