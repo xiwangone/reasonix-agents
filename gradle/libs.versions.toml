@@ -17,6 +17,7 @@ coroutines = "1.7.3"
 lifecycleViewmodelCompose = "2.6.1"
 navigationCompose = "2.9.0"
 coreKtxVersion = "1.19.0"
+commonmark = "0.21.0"
 prism4j = "2.0.0"
 coil = "2.7.0"
 glide = "4.16.0"
@@ -60,6 +61,7 @@ markwon-editor = { group = "io.noties.markwon", name = "editor", version.ref = "
 markwon-image-glide = { group = "io.noties.markwon", name = "image-glide", version.ref = "markwon" }
 markwon-image-picasso = { group = "io.noties.markwon", name = "image-picasso", version.ref = "markwon" }
 markwon-simple-ext = { group = "io.noties.markwon", name = "simple-ext", version.ref = "markwon" }
+commonmark = { group = "org.commonmark", name = "commonmark", version.ref = "commonmark" }
 coil = { group = "io.coil-kt", name = "coil", version.ref = "coil" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }

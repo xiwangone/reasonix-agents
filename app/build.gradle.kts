@@ -110,6 +110,7 @@ dependencies {
     implementation(libs.markwon.linkify)
     implementation(libs.markwon.inline.parser)
     implementation(libs.markwon.simple.ext)
+    implementation(libs.commonmark)
 
     // Prism4j — 代码语法高亮
     implementation(libs.prism4j)
