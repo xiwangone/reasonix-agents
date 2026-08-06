@@ -323,7 +323,7 @@ fun FilesScreen(
                 }
             }
             // 2026-08-06：导入本地文件到应用目录（文件目录实际作用）
-            IconButton(onClick = { importLauncher.launch("*/*") }) {
+            IconButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) {
                 Icon(
                     imageVector = Icons.Filled.FileUpload,
                     contentDescription = "导入文件",
