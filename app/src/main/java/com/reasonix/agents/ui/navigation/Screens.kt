@@ -54,6 +54,9 @@ object Screens {
     /** 设置二级界面（第八批）：坚果云 WebDAV 同步 */
     const val SETTINGS_WEBDAV = "settings_webdav"
 
+    /** 设置二级界面：云盘文件（filebrowser REST API，cloud.louxia.xyz 中转 + 个人云盘） */
+    const val SETTINGS_CLOUD = "settings_cloud"
+
     /** 设置二级界面（第六批）：系统提示词（服务端只读展示） */
     const val SETTINGS_SYSTEM_PROMPT = "settings_system_prompt"
 

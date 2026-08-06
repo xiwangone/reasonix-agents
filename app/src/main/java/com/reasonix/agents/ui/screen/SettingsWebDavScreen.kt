@@ -77,9 +77,9 @@ private val Success: Color @Composable get() = LocalPalette.current.success
 private val Danger: Color @Composable get() = LocalPalette.current.danger
 
 /**
- * 坚果云同步二级界面（第八批）。
+ * WebDAV 同步二级界面（第八批，坚果云默认；第九批改为通用 WebDAV）。
  *
- * - WebDAV 配置：服务器地址（默认 https://dav.jianguoyun.com/dav/）、账号、密码
+ * - WebDAV 配置：服务器地址（默认坚果云 https://dav.jianguoyun.com/dav/，可改任意 WebDAV 服务）、账号、密码
  *   （[CredentialCrypto] 加密存储）、远程备份路径；
  * - 手动同步：上传备份（含完整会话历史，复用第五批导出逻辑）/ 下载备份并恢复
  *   （复用第五批导入逻辑）；
@@ -206,7 +206,7 @@ fun SettingsWebDavScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Fg)
                 }
                 Text(
-                    text = "坚果云同步",
+                    text = "WebDAV 同步",
                     fontSize = 20.sp,
                     color = Fg,
                     modifier = Modifier.weight(1f),
@@ -216,7 +216,7 @@ fun SettingsWebDavScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                "通过 WebDAV 把备份（配置 + 会话）同步到坚果云，换机 / 重装后一键恢复。",
+                "通过 WebDAV 把备份（配置 + 会话）同步到任意 WebDAV 服务（默认坚果云），换机 / 重装后一键恢复。服务器地址可在下方修改。",
                 fontSize = 12.sp,
                 color = Muted2,
                 lineHeight = 17.sp,
@@ -229,7 +229,7 @@ fun SettingsWebDavScreen(
             WebDavSection(
                 icon = { Icon(Icons.Default.CloudUpload, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp)) },
                 title = "连接配置",
-                description = "使用坚果云 WebDAV 服务（默认地址 https://dav.jianguoyun.com/dav/）。密码将加密存储在本机。",
+                description = "通用 WebDAV：默认坚果云（https://dav.jianguoyun.com/dav/），可填任意 WebDAV 服务地址。密码将加密存储在本机。",
             ) {
                 LabeledField("服务器地址") {
                     WebDavTextField(
@@ -243,7 +243,7 @@ fun SettingsWebDavScreen(
                     WebDavTextField(
                         value = settings.username,
                         onValueChange = { v -> saveSettings(settings.copy(username = v)) },
-                        hint = "坚果云账号（邮箱）",
+                        hint = "账号（坚果云为邮箱）",
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -253,7 +253,7 @@ fun SettingsWebDavScreen(
                         visible = passwordVisible,
                         onValueChange = { v -> saveSettings(settings.copy(password = v)) },
                         onToggleVisible = { passwordVisible = !passwordVisible },
-                        hint = "坚果云应用密码（非登录密码）",
+                        hint = "应用密码（坚果云为应用密码，非登录密码）",
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -273,7 +273,7 @@ fun SettingsWebDavScreen(
             WebDavSection(
                 icon = { Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Accent, modifier = Modifier.size(18.dp)) },
                 title = "立即同步",
-                description = "上传：生成完整备份（含全部会话历史）写入坚果云；下载：拉取备份并恢复配置与会话。",
+                description = "上传：生成完整备份（含全部会话历史）写入 WebDAV；下载：拉取备份并恢复配置与会话。",
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

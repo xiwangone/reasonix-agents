@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
@@ -92,6 +93,7 @@ fun SettingsScreen(
     onOpenCi: () -> Unit = {},
     onOpenBackup: () -> Unit = {},
     onOpenWebDav: () -> Unit = {},
+    onOpenCloudFiles: () -> Unit = {},
     onOpenCli: () -> Unit = {},
     onOpenDeploy: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
@@ -238,7 +240,9 @@ fun SettingsScreen(
             SectionTitle("数据")
             SettingEntry(Icons.Default.Lock, "备份与恢复", "导出 / 导入单文件备份（配置加密 + 会话历史）", onClick = onOpenBackup)
             Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.CloudSync, "坚果云同步", "WebDAV 备份上传 / 下载 / 定时自动同步", onClick = onOpenWebDav)
+            SettingEntry(Icons.Default.CloudSync, "WebDAV 同步", "通用 WebDAV（坚果云等）备份上传 / 下载 / 定时自动同步，服务器地址可自定", onClick = onOpenWebDav)
+            Spacer(modifier = Modifier.height(6.dp))
+            SettingEntry(Icons.Default.Folder, "云盘文件", "filebrowser 云盘（cloud.louxia.xyz）文件浏览 / 上传 / 下载，RikkaHub 与 Reasonix 中转", onClick = onOpenCloudFiles)
 
             Spacer(modifier = Modifier.height(16.dp))
 

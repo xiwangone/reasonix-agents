@@ -55,6 +55,7 @@ import com.reasonix.agents.ui.screen.SettingsScreen
 import com.reasonix.agents.ui.screen.SettingsServerScreen
 import com.reasonix.agents.ui.screen.SettingsSystemPromptScreen
 import com.reasonix.agents.ui.screen.SettingsThemeScreen
+import com.reasonix.agents.ui.screen.CloudFilesScreen
 import com.reasonix.agents.ui.screen.SettingsWebDavScreen
 import com.reasonix.agents.ui.theme.ChatFontProvider
 import com.reasonix.agents.ui.theme.DarkPalette
@@ -341,6 +342,7 @@ private fun ReasonixApp(
                         chatViewModel.uiState
                             .collectAsState()
                             .value.messages,
+                    onOpenCloud = { navController.navigate(Screens.SETTINGS_CLOUD) },
                 )
             }
             composable(Screens.SETTINGS) {
@@ -356,6 +358,7 @@ private fun ReasonixApp(
                     onOpenCi = { navController.navigate(Screens.SETTINGS_CI) },
                     onOpenBackup = { navController.navigate(Screens.SETTINGS_BACKUP) },
                     onOpenWebDav = { navController.navigate(Screens.SETTINGS_WEBDAV) },
+                    onOpenCloudFiles = { navController.navigate(Screens.SETTINGS_CLOUD) },
                     onOpenCli = { navController.navigate(Screens.SETTINGS_CLI) },
                     onOpenDeploy = {
                         // 部署自己的服务：AndroidBrowserIntent 打开仓库 README 部署说明
@@ -473,6 +476,12 @@ private fun ReasonixApp(
                         onSettingsChanged(newSettings)
                     },
                     viewModel = chatViewModel,
+                )
+            }
+            // ── 设置二级界面：filebrowser 云盘文件（中转站 + 个人云盘）──
+            composable(Screens.SETTINGS_CLOUD) {
+                CloudFilesScreen(
+                    onBack = { navController.popBackStack() },
                 )
             }
             // ── 设置二级界面（第六批）：系统提示词（只读）──

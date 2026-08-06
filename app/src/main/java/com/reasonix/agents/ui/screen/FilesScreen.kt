@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -53,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import java.io.File
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -223,12 +226,32 @@ private fun buildTree(files: List<SessionFile>): List<FileNode> {
 fun FilesScreen(
     messages: List<ChatItem>,
     modifier: Modifier = Modifier,
+    onOpenCloud: (() -> Unit)? = null,
 ) {
     val palette = LocalPalette.current
     val files = remember(messages) { SessionFileAggregator.aggregate(messages) }
     val tree = remember(files) { buildTree(files) }
     var preview by remember { mutableStateOf<SessionFile?>(null) }
     val context = LocalContext.current
+    // 导入：SAF 选本地文件 → 复制到应用 files/imported/（文件目录实际作用）
+    val importLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocument(),
+        ) { uri: Uri? ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            try {
+                val name =
+                    uri.lastPathSegment?.substringAfterLast('/') ?: "imported_${System.currentTimeMillis()}"
+                val dir = File(context.filesDir, "imported").apply { mkdirs() }
+                val target = File(dir, name)
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                }
+                Toast.makeText(context, "已导入：${target.absolutePath}", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "导入失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     // 导出：SAF 创建文件 → 写入文件清单 JSON（含路径/状态/工具/内容预览）
     val exportLauncher =
         rememberLauncherForActivityResult(
@@ -294,6 +317,26 @@ fun FilesScreen(
                     Icon(
                         imageVector = Icons.Filled.FileDownload,
                         contentDescription = "导出文件清单",
+                        tint = palette.accent,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+            // 2026-08-06：导入本地文件到应用目录（文件目录实际作用）
+            IconButton(onClick = { importLauncher.launch("*/*") }) {
+                Icon(
+                    imageVector = Icons.Filled.FileUpload,
+                    contentDescription = "导入文件",
+                    tint = palette.fg2,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            // 2026-08-06：云盘联动（filebrowser 中转站 / 个人云盘）
+            if (onOpenCloud != null) {
+                IconButton(onClick = onOpenCloud) {
+                    Icon(
+                        imageVector = Icons.Filled.Cloud,
+                        contentDescription = "云盘文件",
                         tint = palette.accent,
                         modifier = Modifier.size(20.dp),
                     )
