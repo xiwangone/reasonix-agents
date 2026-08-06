@@ -51,12 +51,9 @@ object SessionExporter {
                                 val detail =
                                     buildString {
                                         append(block.name)
-                                        if (!block.args.isNullOrBlank()) append("
-参数：").append(block.args)
-                                        if (!block.output.isNullOrBlank()) append("
-输出：").append(block.output)
-                                        if (!block.err.isNullOrBlank()) append("
-错误：").append(block.err)
+                                        if (!block.args.isNullOrBlank()) append("\n参数：").append(block.args)
+                                        if (!block.output.isNullOrBlank()) append("\n输出：").append(block.output)
+                                        if (!block.err.isNullOrBlank()) append("\n错误：").append(block.err)
                                     }
                                 append(sb, "工具", detail)
                             }

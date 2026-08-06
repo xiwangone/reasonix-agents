@@ -66,6 +66,8 @@ fun MarkdownRenderer(
     linkColor: Color = Color(ACCENT),
 ) {
     val context = LocalContext.current
+    // 2026-08-06：聊天字体（RikkaHub ChatFont）——在 @Composable 上下文读取，供 factory 应用
+    val chatTypeface = LocalChatFont.current
 
     // 使用 applicationContext 避免泄露 Activity
     val markwon = remember { buildMarkwon(context.applicationContext) }
@@ -77,7 +79,7 @@ fun MarkdownRenderer(
             TextView(ctx).apply {
                 setTextColor(FG)
                 // 2026-08-06：RikkaHub ChatFont 适配——应用聊天字体（默认/衬线/等宽/JetBrains Mono）
-                LocalChatFont.current?.let { typeface = it }
+                chatTypeface?.let { typeface = it }
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 setLineSpacing(4f, 1f)
                 movementMethod = LinkMovementMethod.getInstance()
