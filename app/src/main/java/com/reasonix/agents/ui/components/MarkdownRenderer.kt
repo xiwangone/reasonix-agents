@@ -20,9 +20,9 @@ import com.reasonix.agents.ui.theme.LocalChatFont
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.Markwon
 import io.noties.markwon.MarkwonConfiguration
-import io.noties.markwon.MarkwonSpansFactory
+
 import io.noties.markwon.PrecomputedTextSetterCompat
-import io.noties.markwon.SpanFactory
+
 import io.noties.markwon.core.MarkwonTheme
 import io.noties.markwon.core.spans.CodeBlockSpan
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
@@ -34,11 +34,12 @@ import io.noties.markwon.image.ImagesPlugin
 import io.noties.markwon.image.coil.CoilImagesPlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import io.noties.markwon.linkify.LinkifyPlugin
+import io.noties.markwon.spans.SpansFactory
 import io.noties.markwon.syntax.Prism4jThemeDarkula
 import io.noties.markwon.syntax.SyntaxHighlightPlugin
 import io.noties.markwon.utils.NoCopySpannableFactory
 import io.noties.prism4j.Prism4j
-import org.commonmark.node.CodeBlock
+import io.noties.markwon.core.node.CodeBlock
 import java.util.concurrent.Executors
 
 // ═══════════════════════════════════════════════════════════════════
@@ -244,11 +245,11 @@ fun isPlainText(text: String): Boolean {
  * JetBrains Mono（RikkaHub 附带，已内置），保证代码可读性不受正文字体影响。
  */
 private class CodeFontPlugin : AbstractMarkwonPlugin() {
-    override fun configureSpansFactory(builder: MarkwonSpansFactory.Builder) {
+    override fun configureSpansFactory(builder: SpansFactory.Builder) {
         // 完全替换 CodeBlock span：保留原主题样式，额外设置等宽字体
         builder.setFactory(
             CodeBlock::class.java,
-            SpanFactory { configuration, _ ->
+            SpansFactory { configuration, _ ->
                 CodeBlockFontSpan(configuration.theme())
             },
         )
