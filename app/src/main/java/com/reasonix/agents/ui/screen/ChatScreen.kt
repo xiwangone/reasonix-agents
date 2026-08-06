@@ -558,12 +558,12 @@ fun ChatScreen(
             )
         }
 
-        // ── 侧边栏切换按钮（左侧 2/5 高度处） ──
+        // ── 侧边栏切换按钮（2026-08-06 移到顶部，对齐消息区顶部；原 2/5 高度处） ──
         Box(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(top = maxHeight * 0.4f, start = 8.dp)
+                    .padding(top = 8.dp, start = 8.dp)
                     .zIndex(5f)
                     .size(48.dp)
                     .clip(CircleShape)
