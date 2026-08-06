@@ -87,13 +87,14 @@ private fun ChatItemRow(
 
         is ChatItem.AssistantMessage -> {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // 推理文本（如有）
-                if (!item.reasoning.isNullOrBlank()) {
-                    ReasoningBlock(text = item.reasoning)
-                }
+                // 2026-08-06：正文在上、推理折叠块在下方（纯分析/汇报正常展示，推理不抢占）
                 // 助手正文（Markdown）
                 if (item.content.isNotBlank()) {
                     AssistantMessageBubble(text = item.content)
+                }
+                // 推理文本（如有）— 默认折叠，点击展开
+                if (!item.reasoning.isNullOrBlank()) {
+                    ReasoningBlock(text = item.reasoning)
                 }
             }
         }

@@ -1,5 +1,9 @@
 package com.reasonix.agents.ui.screen
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +36,7 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -201,6 +207,37 @@ fun FilesScreen(
     val files = remember(messages) { SessionFileAggregator.aggregate(messages) }
     val tree = remember(files) { buildTree(files) }
     var preview by remember { mutableStateOf<SessionFile?>(null) }
+    val context = LocalContext.current
+    // 导出：SAF 创建文件 → 写入文件清单 JSON（含路径/状态/工具/内容预览）
+    val exportLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("application/json"),
+        ) { uri: Uri? ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            try {
+                val sb = StringBuilder()
+                sb.append("{\n  \"files\": [\n")
+                files.forEachIndexed { i, f ->
+                    sb.append("    {")
+                    sb.append("\"path\": \"${escapeJson(f.path)}\", ")
+                    sb.append("\"status\": \"${f.status.name}\", ")
+                    sb.append("\"tool\": \"${escapeJson(f.tool)}\"")
+                    if (!f.content.isNullOrBlank()) {
+                        sb.append(", \"contentPreview\": \"${escapeJson(f.content.take(500))}\"")
+                    }
+                    sb.append("}")
+                    if (i < files.size - 1) sb.append(",")
+                    sb.append("\n")
+                }
+                sb.append("  ]\n}\n")
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(sb.toString().toByteArray(Charsets.UTF_8))
+                }
+                Toast.makeText(context, "已导出 ${files.size} 个文件清单", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "导出失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
 
     Column(
         modifier =
@@ -230,6 +267,17 @@ fun FilesScreen(
                 color = palette.muted,
                 fontFamily = FontFamily.Monospace,
             )
+            // 2026-08-06：导出会话文件清单（SAF CreateDocument → JSON）
+            if (files.isNotEmpty()) {
+                IconButton(onClick = { exportLauncher.launch("会话文件清单.json") }) {
+                    Icon(
+                        imageVector = Icons.Filled.IosShare,
+                        contentDescription = "导出文件清单",
+                        tint = palette.accent,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
         }
         HorizontalDivider(color = palette.border, thickness = 1.dp)
 
@@ -457,3 +505,12 @@ private fun FilePreviewDialog(
         },
     )
 }
+
+/** 导出用：转义 JSON 字符串中的引号/反斜杠/换行。 */
+private fun escapeJson(s: String): String =
+    s
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")

@@ -302,10 +302,13 @@ class ChatViewModel(
 
     /** 将后端历史记录转换为 ChatItem 列表，含工具调用/结果配对。 */
     private fun buildHistoryItems(history: List<HistoryMessage>): List<ChatItem> {
-        val toolResults =
+        // 2026-08-06：修复同 id 多次调用历史丢失——按「出现顺序」配对（队列），
+        // 同一 toolCallId 多次调用各配对到对应结果，不因 associateBy 覆盖而丢记录。
+        val toolResultsByCall =
             history
                 .filter { it.role == "tool" && it.toolCallId != null }
-                .associateBy { it.toolCallId!! }
+                .groupBy { it.toolCallId!! }
+                .mapValues { (_, list) -> ArrayDeque(list) }
 
         return history.flatMap { hist ->
             when (hist.role) {
@@ -316,7 +319,8 @@ class ChatViewModel(
                 "assistant" -> {
                     val items = mutableListOf<ChatItem>()
                     hist.toolCalls?.forEach { tc ->
-                        val result = toolResults[tc.id]
+                        val queue = toolResultsByCall[tc.id]
+                        val result = queue?.removeFirstOrNull()
                         val isRunning = result == null
                         items.add(
                             ChatItem.ToolCard(
@@ -892,17 +896,34 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * 替换工具卡片（2026-08-06：修复同 id 多次调用误替换/跳位问题）。
+     *
+     * 同一次流式中同一工具可能被调用多次（id 相同）——按「第 N 次出现」替换：
+     * 统计消息列表中同 id ToolCard 的已有出现次数，替换第 N 个，
+     * 保证多次调用按顺序排列、不跳来跳去。
+     */
     private fun replaceToolCard(
         id: String,
         card: ChatItem.ToolCard,
     ) {
         _uiState.update { state ->
             val list = state.messages.toMutableList()
-            val idx =
-                list.indexOfLast {
-                    it is ChatItem.ToolCard && it.id == id
+            val occurrence = pendingToolCards.values.count { it.id == id }
+            // pendingToolCards 中该 id 已记录 N 次 → 替换列表中第 N 个（1-based）
+            var seen = 0
+            var target = -1
+            for (i in list.indices) {
+                val it = list[i]
+                if (it is ChatItem.ToolCard && it.id == id) {
+                    seen++
+                    if (seen == occurrence) {
+                        target = i
+                        break
+                    }
                 }
-            if (idx >= 0) list[idx] = card
+            }
+            if (target >= 0) list[target] = card
             state.copy(messages = list)
         }
     }
