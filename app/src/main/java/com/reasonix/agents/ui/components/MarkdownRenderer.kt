@@ -5,6 +5,7 @@ import android.text.method.LinkMovementMethod
 import android.util.TypedValue
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -90,7 +91,9 @@ fun MarkdownRenderer(
         update = { textView ->
             markwon.setMarkdown(textView, markdown)
         },
-        modifier = modifier,
+        // 2026-08-06：必须 fillMaxWidth 提供明确宽度约束——否则 Compose 无约束测量时
+        // TextView MATCH_PARENT 退化为 wrap_content，长文本按内容宽度展开不换行
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
