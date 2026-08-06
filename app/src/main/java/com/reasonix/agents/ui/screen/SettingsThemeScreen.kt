@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.data.AppSettingsStore
 import com.reasonix.agents.ui.theme.LocalPalette
+import com.reasonix.agents.ui.theme.RikkaPresets
 
 // 调色板 — 从 LocalPalette 读取（支持主题切换）
 private val Bg: Color @Composable get() = LocalPalette.current.bg
@@ -92,8 +93,26 @@ fun SettingsThemeScreen(
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
+            // 2026-08-06 RikkaHub 主题预设适配版
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AppSettingsStore.RIKKA_PRESET_IDS.forEachIndexed { idx, rid ->
+                    ThemeChip(
+                        RikkaPresets.names[rid] ?: rid,
+                        settings.themePreset == AppSettingsStore.THEME_PRESET_RIKKA_BASE + idx,
+                        {
+                            onSettingsChange(
+                                settings.copy(themePreset = AppSettingsStore.THEME_PRESET_RIKKA_BASE + idx),
+                            )
+                        },
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "品牌紫蓝：Reasonix 品牌色系；Material：Material 标准蓝紫。",
+                text = "品牌紫蓝：Reasonix 品牌色系；Material：Material 标准蓝紫；Sakura/Ocean/Spring/Autumn/Black/Minimal/Claude：RikkaHub Agents 预设移植。",
                 fontSize = 10.sp,
                 color = Muted2,
             )

@@ -58,6 +58,7 @@ import com.reasonix.agents.ui.screen.SettingsThemeScreen
 import com.reasonix.agents.ui.screen.SettingsWebDavScreen
 import com.reasonix.agents.ui.theme.DarkPalette
 import com.reasonix.agents.ui.theme.LightPalette
+import com.reasonix.agents.ui.theme.RikkaPresets
 import com.reasonix.agents.ui.theme.LocalPalette
 import com.reasonix.agents.ui.theme.MaterialDarkPalette
 import com.reasonix.agents.ui.theme.MaterialLightPalette
@@ -96,9 +97,14 @@ class MainActivity : ComponentActivity() {
                     else -> systemDark
                 }
             val palette =
-                when (settings.themePreset) {
-                    AppSettingsStore.THEME_PRESET_MATERIAL -> if (dark) MaterialDarkPalette else MaterialLightPalette
-                    else -> if (dark) DarkPalette else LightPalette
+                if (AppSettingsStore.isRikkaPreset(settings.themePreset)) {
+                    val rid = AppSettingsStore.rikkaPresetId(settings.themePreset)
+                    if (dark) RikkaPresets.darkPalette(rid) else RikkaPresets.lightPalette(rid)
+                } else {
+                    when (settings.themePreset) {
+                        AppSettingsStore.THEME_PRESET_MATERIAL -> if (dark) MaterialDarkPalette else MaterialLightPalette
+                        else -> if (dark) DarkPalette else LightPalette
+                    }
                 }
             // 2026-08-06 修复：切换主题时不再实时切换 launcher 图标——
             // setComponentEnabledSetting 禁用当前 activity 的 alias 会导致运行中 Activity 被杀（退出 app）。

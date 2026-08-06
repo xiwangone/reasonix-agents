@@ -32,6 +32,20 @@ object AppSettingsStore {
 
     const val THEME_PRESET_BRAND = 0
     const val THEME_PRESET_MATERIAL = 1
+    // 2026-08-06 RikkaHub 主题预设适配：2=sakura 3=ocean 4=spring 5=autumn 6=black 7=minimal 8=claude
+    const val THEME_PRESET_RIKKA_BASE = 2
+    const val THEME_PRESET_COUNT = 9
+
+    /** RikkaHub 预设 id（与 RikkaPresets.ids 顺序一致） */
+    val RIKKA_PRESET_IDS = listOf("sakura", "ocean", "spring", "autumn", "black", "minimal", "claude")
+
+    fun rikkaPresetId(themePreset: Int): String {
+        val idx = themePreset - THEME_PRESET_RIKKA_BASE
+        return if (idx in RIKKA_PRESET_IDS.indices) RIKKA_PRESET_IDS[idx] else "sakura"
+    }
+
+    fun isRikkaPreset(themePreset: Int): Boolean =
+        themePreset in THEME_PRESET_RIKKA_BASE until THEME_PRESET_RIKKA_BASE + RIKKA_PRESET_IDS.size
 
     const val THEME_MODE_SYSTEM = 0
     const val THEME_MODE_LIGHT = 1
