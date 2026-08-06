@@ -1,8 +1,9 @@
+package com.reasonix.agents.ui.screen
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
-package com.reasonix.agents.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

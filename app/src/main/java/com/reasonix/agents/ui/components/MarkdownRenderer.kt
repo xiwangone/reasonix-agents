@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.ImageLoader
 import com.reasonix.agents.ui.markdown.DefaultGrammarLocator
+import com.reasonix.agents.ui.theme.LocalChatFont
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.Markwon
 import io.noties.markwon.PrecomputedTextSetterCompat

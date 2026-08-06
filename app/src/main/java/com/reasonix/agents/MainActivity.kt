@@ -56,6 +56,7 @@ import com.reasonix.agents.ui.screen.SettingsServerScreen
 import com.reasonix.agents.ui.screen.SettingsSystemPromptScreen
 import com.reasonix.agents.ui.screen.SettingsThemeScreen
 import com.reasonix.agents.ui.screen.SettingsWebDavScreen
+import com.reasonix.agents.ui.theme.ChatFontProvider
 import com.reasonix.agents.ui.theme.DarkPalette
 import com.reasonix.agents.ui.theme.LightPalette
 import com.reasonix.agents.ui.theme.RikkaPresets
