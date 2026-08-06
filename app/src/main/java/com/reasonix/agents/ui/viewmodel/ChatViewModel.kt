@@ -755,15 +755,20 @@ class ChatViewModel(
 
             "tool_dispatch" -> {
                 event.tool?.let { tool ->
-                    // 工具块按到达顺序加入（紧接当前推理/正文块之后，不再前插到正文前）
-                    pendingBlocks.add(
+                    val card =
                         TurnBlock.Tool(
                             id = tool.id,
                             name = tool.name,
                             args = tool.args ?: tool.arguments,
                             isRunning = true,
-                        ),
-                    )
+                        )
+                    // 同一工具 id 重复 dispatch 原位替换，保留最新状态，避免重复卡
+                    val idx = pendingBlocks.indexOfLast { it is TurnBlock.Tool && it.id == tool.id }
+                    if (idx >= 0) {
+                        pendingBlocks[idx] = card
+                    } else {
+                        pendingBlocks.add(card)
+                    }
                     updatePendingTurn()
                 }
             }
@@ -801,14 +806,23 @@ class ChatViewModel(
 
             "usage" -> {
                 event.usage?.let { u ->
-                    appendMessage(ChatItem.UsageStats(u))
+                    // 累计统计（会话级）——服务端推送的是会话累计快照，直接覆盖，避免多次事件虚高
                     _uiState.update { state ->
                         state.copy(
-                            cumulativeTokens = state.cumulativeTokens + u.totalTokens,
-                            cumulativeCost = state.cumulativeCost + (u.costUsd ?: u.cost ?: 0.0),
-                            cumulativeCacheHit = state.cumulativeCacheHit + u.cacheHitTokens,
-                            cumulativeCacheMiss = state.cumulativeCacheMiss + u.cacheMissTokens,
+                            cumulativeTokens = u.totalTokens,
+                            cumulativeCost = u.costUsd ?: u.cost ?: 0.0,
+                            cumulativeCacheHit = u.cacheHitTokens,
+                            cumulativeCacheMiss = u.cacheMissTokens,
                         )
+                    }
+                    // 设置关闭「显示 token 统计」时不生成统计卡（累计统计仍更新）
+                    if (!_uiState.value.settings.showTokens) return@handleSseEvent
+                    // 同一回合的多个 usage 快照只保留最新一张卡（流式累计，避免重复）
+                    val last = _uiState.value.messages.lastOrNull()
+                    if (last is ChatItem.UsageStats) {
+                        _uiState.update { it.copy(messages = it.messages.dropLast(1) + ChatItem.UsageStats(u)) }
+                    } else {
+                        appendMessage(ChatItem.UsageStats(u))
                     }
                 }
             }
