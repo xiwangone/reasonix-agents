@@ -9,7 +9,7 @@
 
 ## 一、背景
 
-Reasonix Android 客户端（reasonix-agents）需要「会话文件浏览」能力，但 serve（main-v2）
+Reasonix Agents 客户端（reasonix-agents）需要「会话文件浏览」能力，但 serve（main-v2）
 目前**没有文件系统 API**。已核实的 serve 端点清单（`internal/serve/serve.go` 逐行核对）：
 
 - GET：`/events`（SSE）、`/history`、`/context`、`/status`、`/models`、`/sessions`、

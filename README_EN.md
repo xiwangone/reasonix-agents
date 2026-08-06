@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="logo.png" width="96" height="96" alt="Reasonix Android" style="border-radius: 24px" />
+<img src="logo.png" width="96" height="96" alt="Reasonix Agents" style="border-radius: 24px" />
 
-# Reasonix Android
+# Reasonix Agents
 
 **🤖 AI coding assistant client, iteratively maintained by AI** — connect to a self-deployed Reasonix server via SSE streaming, real-time reasoning & tool-call rendering, code anytime anywhere. More agent modes to explore. (Multi-server/model grouping, prompt system & Jianguoyun sync supported, more in continuous iteration...)
 

@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="logo.png" width="96" height="96" alt="Reasonix Android" style="border-radius: 24px" />
+<img src="logo.png" width="96" height="96" alt="Reasonix Agents" style="border-radius: 24px" />
 
-# Reasonix Android
+# Reasonix Agents
 
 **🤖 由 AI 维护迭代的 AI 编码助手客户端** —— 通过 SSE 流式连接自部署的 Reasonix 服务端，实时渲染推理过程与工具调用，随时随地完成编码任务。还有更多 Agent 体验模式待探索。（多服务器 / 模型分组 / 提示词系统 / 坚果云同步已支持，更多能力持续迭代中……）
 
