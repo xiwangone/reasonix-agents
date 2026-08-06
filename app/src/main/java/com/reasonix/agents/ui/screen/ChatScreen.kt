@@ -263,8 +263,9 @@ fun ChatScreen(
             android.widget.Toast
                 .makeText(context, "已选择文件：$name", android.widget.Toast.LENGTH_SHORT)
                 .show()
-            viewModel.onInputChange("")
-            viewModel.sendMessage("请读取并处理文件：$name（路径 $uri）")
+            // sendMessage() 无参（从 inputText state 读取）——先填入输入框再发送
+            viewModel.onInputChange("请读取并处理文件：$name（路径 $uri）")
+            viewModel.sendMessage()
         }
 
     // 全局键盘事件处理
