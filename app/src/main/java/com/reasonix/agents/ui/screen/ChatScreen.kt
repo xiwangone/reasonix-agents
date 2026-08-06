@@ -517,7 +517,8 @@ fun ChatScreen(
                     viewModel.toggleSidebar()
                     showExportDialog = true
                 },
-                modifier = Modifier.width(220.dp),
+                // 2026-08-06 对齐 RikkaHub：侧边栏 220dp → 280dp（RikkaHub 为 300dp，手机取平衡值）
+                modifier = Modifier.width(280.dp),
             )
         }
 

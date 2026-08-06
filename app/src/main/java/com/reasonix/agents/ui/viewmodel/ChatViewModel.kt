@@ -949,7 +949,8 @@ class ChatViewModel(
             if (target < 0) {
                 // 无运行中卡（如重连后）→ 退化为最后一个同 id 卡
                 for (i in list.indices) {
-                    if (list[i] is ChatItem.ToolCard && list[i].id == id) target = i
+                    val it2 = list[i]
+                    if (it2 is ChatItem.ToolCard && it2.id == id) target = i
                 }
             }
             if (target >= 0) list[target] = card

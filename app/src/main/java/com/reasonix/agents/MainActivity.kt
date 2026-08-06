@@ -66,10 +66,14 @@ import com.reasonix.agents.util.AppIconSwitcher
 import com.reasonix.agents.util.NotificationHelper
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
+import android.app.Activity
+import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 2026-08-06 修复：状态栏/导航栏图标颜色跟随 App 主题（浅色主题用深色图标，深色主题用浅色图标），
+        // 避免 App 与系统明暗不一致时状态栏看不清。初始按系统明暗，主题切换时由 updateSystemBars 再同步。
         enableEdgeToEdge()
         // 批 B-14：API 33+ 请求通知权限（任务完成提醒）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -96,9 +100,19 @@ class MainActivity : ComponentActivity() {
                     AppSettingsStore.THEME_PRESET_MATERIAL -> if (dark) MaterialDarkPalette else MaterialLightPalette
                     else -> if (dark) DarkPalette else LightPalette
                 }
-            // 批 B-13：主题变化时切换 launcher 图标
-            LaunchedEffect(settings.themePreset, settings.themeMode) {
+            // 2026-08-06 修复：切换主题时不再实时切换 launcher 图标——
+            // setComponentEnabledSetting 禁用当前 activity 的 alias 会导致运行中 Activity 被杀（退出 app）。
+            // 改为仅在冷启动时应用一次（图标在下次启动跟随主题），避免切主题退出。
+            LaunchedEffect(Unit) {
                 AppIconSwitcher.apply(context, settings.themePreset, settings.themeMode)
+            }
+
+            // 2026-08-06：主题切换时同步系统栏图标颜色（浅色主题 → 深色图标，深色主题 → 浅色图标）
+            LaunchedEffect(dark) {
+                val window = (context as? Activity)?.window ?: return@LaunchedEffect
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.isAppearanceLightStatusBars = !dark
+                controller.isAppearanceLightNavigationBars = !dark
             }
 
             CompositionLocalProvider(LocalPalette provides palette) {
