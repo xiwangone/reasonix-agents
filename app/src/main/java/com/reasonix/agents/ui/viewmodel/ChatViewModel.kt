@@ -914,6 +914,16 @@ class ChatViewModel(
     }
 
     private fun finalizeTurn() {
+        // 2026-08-06：AI 直接管理记忆（方案 A）——turn 结束时解析回复中的【记忆+/-】标记，
+        // 应用增删并剔除标记行后刷新 UI 展示
+        val raw = pendingContent?.toString()
+        if (!raw.isNullOrBlank() && MemoryStore.isEnabled(getApplication())) {
+            val cleaned = MemoryStore.processMarkers(getApplication(), raw)
+            if (cleaned != raw) {
+                pendingContent = StringBuilder(cleaned)
+                updatePendingAssistant()
+            }
+        }
         currentAssistantMsgIndex = null
         pendingContent = null
         pendingReasoning = null
