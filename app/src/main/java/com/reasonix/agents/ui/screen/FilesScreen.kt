@@ -26,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -271,7 +272,7 @@ fun FilesScreen(
             if (files.isNotEmpty()) {
                 IconButton(onClick = { exportLauncher.launch("会话文件清单.json") }) {
                     Icon(
-                        imageVector = Icons.Filled.IosShare,
+                        imageVector = Icons.Filled.FileDownload,
                         contentDescription = "导出文件清单",
                         tint = palette.accent,
                         modifier = Modifier.size(20.dp),
