@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 2026-08-06：FileProvider 路径（附件面板拍照用） -->
+<paths>
+    <cache-path name="cache" path="." />
+    <files-path name="files" path="." />
+</paths>

@@ -1,5 +1,6 @@
 package com.reasonix.agents.ui.screen
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,6 +21,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +35,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -43,6 +49,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.CustomModelStore
+import com.reasonix.agents.data.PinnedSessionsStore
 import com.reasonix.agents.data.ServerConfigStore
 import com.reasonix.agents.data.model.ConnectionState
 import com.reasonix.agents.data.model.ModelInfo
@@ -56,6 +63,7 @@ import com.reasonix.agents.util.SessionExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 // ═══════════════════════════════════════════════
 // 调色板 — 匹配 index.html 的 Reasonix 暗色主题
@@ -197,6 +205,66 @@ fun ChatScreen(
                     viewModel.sendImageMessage(ocrText, saved)
                 }
             }
+        }
+
+    // ── 附件面板（2026-08-06 对齐 RikkaHub 附件聚合）：拍照 / 文件 / 相册 ──
+    var showAttachSheet by remember { mutableStateOf(false) }
+
+    // 拍照：TakePicture 到内部缓存（FileProvider 提供 content:// Uri，无存储权限）
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val takePictureLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success && cameraUri != null) {
+                scope.launch {
+                    imageProcessing = true
+                    // 复用图片管线：解码 + OCR
+                    val bitmap =
+                        withContext(Dispatchers.IO) {
+                            ImageOcr.decodeSampledBitmap(cameraUri!!.path ?: "")
+                        }
+                    if (bitmap == null) {
+                        imageProcessing = false
+                        android.widget.Toast
+                            .makeText(context, "拍照读取失败", android.widget.Toast.LENGTH_SHORT)
+                            .show()
+                        return@launch
+                    }
+                    val ocrText =
+                        withContext(Dispatchers.IO) {
+                            ImageOcr.recognize(context, bitmap)
+                        }
+                    imageProcessing = false
+                    if (ocrText.isNullOrBlank()) {
+                        android.widget.Toast
+                            .makeText(context, "图片识别失败", android.widget.Toast.LENGTH_SHORT)
+                            .show()
+                        ocrFailedPath = cameraUri!!.path
+                    } else {
+                        android.widget.Toast
+                            .makeText(context, "识别成功，正在发送…", android.widget.Toast.LENGTH_SHORT)
+                            .show()
+                        viewModel.sendImageMessage(ocrText, cameraUri!!.path)
+                    }
+                }
+            }
+        }
+
+    // 文件：OpenDocument 任意类型 → 以「文件路径」发送（发送文件名 + 提示，供服务端工具读取）
+    val pickFileLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            val name =
+                runCatching {
+                    context.contentResolver.query(uri, null, null, null, null)?.use { c ->
+                        val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (idx >= 0 && c.moveToFirst()) c.getString(idx) else null
+                    }
+                }.getOrNull() ?: uri.lastPathSegment ?: "文件"
+            android.widget.Toast
+                .makeText(context, "已选择文件：$name", android.widget.Toast.LENGTH_SHORT)
+                .show()
+            viewModel.onInputChange("")
+            viewModel.sendMessage("请读取并处理文件：$name（路径 $uri）")
         }
 
     // 全局键盘事件处理
@@ -408,6 +476,9 @@ fun ChatScreen(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                     )
                 },
+                onAttach = {
+                    showAttachSheet = true
+                },
                 onQuickAction = { template ->
                     viewModel.onInputChange(template)
                     focusRequester.requestFocus()
@@ -609,6 +680,48 @@ fun ChatScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { ocrFailedPath = null }) { Text("取消", color = Muted) }
+                },
+                containerColor = Panel,
+            )
+        }
+
+        // ── 附件面板（2026-08-06 对齐 RikkaHub 附件聚合：拍照 / 文件 / 相册）──
+        if (showAttachSheet) {
+            AlertDialog(
+                onDismissRequest = { showAttachSheet = false },
+                title = { Text("添加附件", color = Fg) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AttachSheetItem("拍照", Icons.Default.PhotoCamera) {
+                            showAttachSheet = false
+                            // 创建临时文件 + FileProvider Uri
+                            val file =
+                                File(
+                                    context.cacheDir,
+                                    "camera_${System.currentTimeMillis()}.jpg",
+                                )
+                            cameraUri =
+                                androidx.core.content.FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    file,
+                                )
+                            takePictureLauncher.launch(cameraUri)
+                        }
+                        AttachSheetItem("文件", Icons.Default.AttachFile) {
+                            showAttachSheet = false
+                            pickFileLauncher.launch(arrayOf("*/*"))
+                        }
+                        AttachSheetItem("相册（OCR 识别）", Icons.Default.Image) {
+                            showAttachSheet = false
+                            pickImageLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAttachSheet = false }) { Text("取消", color = Muted) }
                 },
                 containerColor = Panel,
             )
@@ -955,6 +1068,15 @@ private fun Sidebar(
     var selectionMode by remember { mutableStateOf(false) }
     var selectedNames by remember { mutableStateOf(setOf<String>()) }
 
+    // 2026-08-06 对齐 RikkaHub 会话抽屉：置顶（本地记录，置顶排前 + 星标切换）
+    val context = LocalContext.current
+    var pinnedNames by remember { mutableStateOf(PinnedSessionsStore.load(context)) }
+    // 置顶会话排前（保持原有相对顺序）
+    val orderedSessions =
+        remember(sessions, pinnedNames) {
+            sessions.sortedBy { if (it.name in pinnedNames) 0 else 1 }
+        }
+
     // 会话列表刷新后清理已不存在的选中项；列表清空时退出多选
     LaunchedEffect(sessions) {
         val valid = sessions.map { it.name }.toSet()
@@ -1098,11 +1220,15 @@ private fun Sidebar(
                     modifier = Modifier.padding(10.dp),
                 )
             } else {
-                sessions.forEach { session ->
+                orderedSessions.forEach { session ->
                     SessionRow(
                         session = session,
                         isStreaming = isStreaming,
                         selectionMode = selectionMode,
+                        pinned = session.name in pinnedNames,
+                        onTogglePin = {
+                            pinnedNames = PinnedSessionsStore.toggle(context, session.name)
+                        },
                         selected = session.name in selectedNames,
                         onSelect = { onSelectSession(session.path) },
                         onToggleSelect = {
@@ -1288,6 +1414,8 @@ private fun SessionRow(
     session: SessionInfo,
     isStreaming: Boolean,
     selectionMode: Boolean,
+    pinned: Boolean = false,
+    onTogglePin: () -> Unit = {},
     selected: Boolean,
     onSelect: () -> Unit,
     onToggleSelect: () -> Unit,
@@ -1351,6 +1479,21 @@ private fun SessionRow(
             modifier = Modifier.weight(1f),
         )
 
+        // 置顶星标（非多选模式显示；对齐 RikkaHub 会话抽屉置顶）
+        if (!selectionMode) {
+            IconButton(
+                onClick = onTogglePin,
+                modifier = Modifier.size(26.dp),
+            ) {
+                Icon(
+                    imageVector = if (pinned) Icons.Default.Star else Icons.Default.StarBorder,
+                    contentDescription = if (pinned) "取消置顶" else "置顶",
+                    tint = if (pinned) Accent else Muted,
+                    modifier = Modifier.size(15.dp),
+                )
+            }
+        }
+
         // 多选模式：单条删除按钮（IconButton 修复点击区域，独立消费点击）
         if (selectionMode) {
             IconButton(
@@ -1396,6 +1539,7 @@ private fun Footer(
     focusRequester: FocusRequester,
     imageProcessing: Boolean,
     onPickImage: () -> Unit,
+    onAttach: () -> Unit = {},
     onQuickAction: ((String) -> Unit)? = null,
 ) {
     val scrollState = rememberScrollState()
@@ -1584,11 +1728,18 @@ private fun Footer(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // 图片按钮（第六批：相册选择 + 本地 OCR；处理中显示进度）
-            IconButton(
-                onClick = onPickImage,
-                enabled = !imageProcessing,
-                modifier = Modifier.size(44.dp),
+            // 附件按钮（2026-08-06 对齐 RikkaHub 附件聚合）：
+            // 单击 = 相册选图（本地 OCR），长按 = 附件面板（拍照 / 文件 / 相册）
+            Box(
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .combinedClickable(
+                            onClick = onPickImage,
+                            onLongClick = onAttach,
+                            enabled = !imageProcessing,
+                        ),
+                contentAlignment = Alignment.Center,
             ) {
                 Box(
                     modifier =
@@ -1608,7 +1759,7 @@ private fun Footer(
                     } else {
                         Icon(
                             Icons.Default.Image,
-                            contentDescription = "发送图片",
+                            contentDescription = "发送图片（长按更多附件）",
                             tint = Muted,
                             modifier = Modifier.size(19.dp),
                         )
@@ -1732,3 +1883,32 @@ private fun fmtMoney(n: Double): String =
         n >= 0.01 -> "¥%.4f".format(n)
         else -> "¥%.6f".format(n)
     }
+
+// ═══════════════════════════════════════════════
+// 附件面板项（2026-08-06）
+// ═══════════════════════════════════════════════
+@Composable
+private fun AttachSheetItem(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = Accent,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(label, fontSize = 14.sp, color = Fg)
+    }
+}

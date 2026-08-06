@@ -24,6 +24,9 @@ import coil.compose.AsyncImage
 import com.reasonix.agents.data.model.UsagePayload
 import com.reasonix.agents.ui.theme.LocalPalette
 import java.io.File
+import android.content.Intent
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.ui.platform.LocalContext
 
 // ═══════════════════════════════════════════════
 // 调色板（与深色主题对齐）
@@ -75,25 +78,49 @@ fun UserMessageBubble(
     imagePath: String? = null,
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End,
     ) {
-        // 复制按钮
-        IconButton(
-            onClick = { clipboardManager.setText(AnnotatedString(text)) },
-            modifier =
-                Modifier
-                    .padding(end = 12.dp)
-                    .size(34.dp),
+        // 2026-08-06：操作行（对齐 RikkaHub）——复制 + 分享
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
         ) {
-            Icon(
-                imageVector = Icons.Default.ContentCopy,
-                contentDescription = "复制",
-                tint = muted,
-                modifier = Modifier.size(17.dp),
-            )
+            IconButton(
+                onClick = { clipboardManager.setText(AnnotatedString(text)) },
+                modifier =
+                    Modifier
+                        .padding(end = 12.dp)
+                        .size(34.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = "复制",
+                    tint = muted,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+            IconButton(
+                onClick = {
+                    val sendIntent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                    context.startActivity(Intent.createChooser(sendIntent, "分享消息"))
+                },
+                modifier = Modifier.size(34.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "分享",
+                    tint = muted,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
         }
 
         // 气泡
@@ -150,6 +177,7 @@ fun AssistantMessageBubble(
     modifier: Modifier = Modifier,
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Column(
         modifier =
@@ -157,7 +185,7 @@ fun AssistantMessageBubble(
                 .fillMaxWidth()
                 .padding(start = 4.dp, end = 16.dp, top = 2.dp, bottom = 6.dp),
     ) {
-        // 复制按钮
+        // 2026-08-06：操作行（对齐 RikkaHub 消息操作行）——复制 + 分享（本地能力，无需服务端）
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
@@ -169,6 +197,24 @@ fun AssistantMessageBubble(
                 Icon(
                     imageVector = Icons.Default.ContentCopy,
                     contentDescription = "复制",
+                    tint = muted,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+            IconButton(
+                onClick = {
+                    val sendIntent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                    context.startActivity(Intent.createChooser(sendIntent, "分享消息"))
+                },
+                modifier = Modifier.size(34.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "分享",
                     tint = muted,
                     modifier = Modifier.size(17.dp),
                 )

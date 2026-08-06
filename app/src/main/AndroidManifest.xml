@@ -20,6 +20,16 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ReasonixAgents">
+        <!-- 2026-08-06：FileProvider（附件面板拍照用，复用 core-ktx） -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
         <!-- 主 Activity：不含 LAUNCHER，由下方图标别名（批 B-13 主题图标包）提供桌面入口 -->
         <activity
             android:name=".MainActivity"
