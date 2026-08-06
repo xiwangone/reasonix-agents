@@ -5,6 +5,7 @@ import android.net.Uri
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.reasonix.agents.data.model.ChatItem
+import com.reasonix.agents.data.model.TurnBlock
 
 /**
  * 会话导出（批 B-16）：当前会话导出为文本 / JSON。
@@ -38,6 +39,29 @@ object SessionExporter {
                         append(sb, "推理", item.reasoning)
                     }
                     append(sb, "Reasonix", item.content)
+                }
+
+                // 2026-08-06：AssistantTurn 按块序导出（推理/正文/工具交错）
+                is ChatItem.AssistantTurn -> {
+                    item.blocks.forEach { block ->
+                        when (block) {
+                            is TurnBlock.Reasoning -> append(sb, "推理", block.text)
+                            is TurnBlock.Text -> append(sb, "Reasonix", block.text)
+                            is TurnBlock.Tool -> {
+                                val detail =
+                                    buildString {
+                                        append(block.name)
+                                        if (!block.args.isNullOrBlank()) append("
+参数：").append(block.args)
+                                        if (!block.output.isNullOrBlank()) append("
+输出：").append(block.output)
+                                        if (!block.err.isNullOrBlank()) append("
+错误：").append(block.err)
+                                    }
+                                append(sb, "工具", detail)
+                            }
+                        }
+                    }
                 }
 
                 is ChatItem.ToolCard -> {
@@ -92,52 +116,72 @@ object SessionExporter {
     /** 构建 JSON 导出（结构化）。 */
     fun buildJson(items: List<ChatItem>): String {
         val entries =
-            items.map { item ->
+            items.flatMap { item ->
                 when (item) {
                     is ChatItem.UserMessage -> {
-                        ExportEntry("message", "user", content = item.content)
+                        listOf(ExportEntry("message", "user", content = item.content))
                     }
 
                     is ChatItem.AssistantMessage -> {
-                        ExportEntry("message", "assistant", content = item.content, extra = item.reasoning)
+                        listOf(ExportEntry("message", "assistant", content = item.content, extra = item.reasoning))
+                    }
+
+                    // 2026-08-06：AssistantTurn 按块展开成多条导出
+                    is ChatItem.AssistantTurn -> {
+                        item.blocks.map { block ->
+                            when (block) {
+                                is TurnBlock.Reasoning -> ExportEntry("message", "assistant", content = block.text, extra = "reasoning")
+                                is TurnBlock.Text -> ExportEntry("message", "assistant", content = block.text)
+                                is TurnBlock.Tool ->
+                                    ExportEntry(
+                                        "tool",
+                                        "assistant",
+                                        name = block.name,
+                                        content = block.output ?: "",
+                                        extra = block.args,
+                                    )
+                            }
+                        }
                     }
 
                     is ChatItem.ToolCard -> {
-                        ExportEntry(
-                            "tool",
-                            "assistant",
-                            name = item.name,
-                            content = item.output ?: "",
-                            extra = item.args,
+                        listOf(
+                            ExportEntry(
+                                "tool",
+                                "assistant",
+                                name = item.name,
+                                content = item.output ?: "",
+                                extra = item.args,
+                            ),
                         )
                     }
 
                     is ChatItem.SystemNotice -> {
-                        ExportEntry("system", "system", content = item.text)
+                        listOf(ExportEntry("system", "system", content = item.text))
                     }
 
                     is ChatItem.ErrorMessage -> {
-                        ExportEntry("error", "system", content = item.text)
+                        listOf(ExportEntry("error", "system", content = item.text))
                     }
 
                     is ChatItem.PhaseIndicator -> {
-                        ExportEntry("phase", "system", content = item.text)
+                        listOf(ExportEntry("phase", "system", content = item.text))
                     }
 
                     is ChatItem.CompactionNotice -> {
-                        ExportEntry("compaction", "system", content = item.summary ?: "", extra = item.trigger)
+                        listOf(ExportEntry("compaction", "system", content = item.summary ?: "", extra = item.trigger))
                     }
 
                     is ChatItem.ApprovalCard -> {
-                        ExportEntry("approval", "assistant", name = item.tool, content = item.subject ?: "")
+                        listOf(ExportEntry("approval", "assistant", name = item.tool, content = item.subject ?: ""))
                     }
 
                     is ChatItem.AskCard -> {
-                        ExportEntry("ask", "assistant", content = item.questions.joinToString("; ") { it.prompt })
+                        listOf(ExportEntry("ask", "assistant", content = item.questions.joinToString("; ") { it.prompt }))
                     }
 
                     is ChatItem.UsageStats -> {
-                        ExportEntry("usage", "system", content = item.usage.toString())
+                        listOf(ExportEntry("usage", "system", content = item.usage.toString()))
                     }
                 }
             }

@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.ui.theme.LocalPalette
+import com.reasonix.agents.ui.theme.ToolNames
 
 // ═══════════════════════════════════════════════
 // 颜色常量
@@ -142,9 +143,9 @@ fun ToolCard(
                 // 状态图标
                 StatusIcon(status = status, rotation = rotation)
 
-                // 工具名称
+                // 工具名称（2026-08-06：英文「中文」中文化，未收录原样显示）
                 Text(
-                    text = name,
+                    text = ToolNames.display(name),
                     color = Fg,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,

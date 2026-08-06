@@ -101,9 +101,11 @@ class ChatViewModel(
 
     // 当前流的助手消息 builder（增量）
     private var currentAssistantMsgIndex: Int? = null
+    // 2026-08-06 对齐 RikkaHub 层次结构：一轮助手回复 = 有序块序列（推理/正文/工具按到达顺序）
+    private var pendingBlocks: MutableList<TurnBlock> = mutableListOf()
+    // 推理/正文累积缓冲（用于记忆解析 + 块合并）
     private var pendingReasoning: StringBuilder? = null
     private var pendingContent: StringBuilder? = null
-    private var pendingToolCards: MutableList<ChatItem.ToolCard> = mutableListOf()
 
     // 双 Esc 倒带
     private var lastEscTime: Long = 0L
@@ -317,33 +319,26 @@ class ChatViewModel(
                 }
 
                 "assistant" -> {
-                    val items = mutableListOf<ChatItem>()
+                    // 2026-08-06 对齐 RikkaHub 层次结构：历史重建为 AssistantTurn 块序列。
+                    // 历史只存单一 reasoning + toolCalls（交错顺序已丢失），近似顺序：推理块 → 正文块 → 工具块
+                    val blocks = mutableListOf<TurnBlock>()
+                    hist.reasoning?.takeIf { it.isNotBlank() }?.let { blocks.add(TurnBlock.Reasoning(it)) }
+                    if (!hist.content.isNullOrBlank()) blocks.add(TurnBlock.Text(hist.content))
                     hist.toolCalls?.forEach { tc ->
                         val queue = toolResultsByCall[tc.id]
                         val result = queue?.removeFirstOrNull()
-                        val isRunning = result == null
-                        items.add(
-                            ChatItem.ToolCard(
+                        blocks.add(
+                            TurnBlock.Tool(
                                 id = tc.id,
                                 name = tc.name,
                                 args = tc.arguments,
                                 output = result?.content,
-                                isRunning = isRunning,
-                                expanded = !isRunning,
+                                isRunning = result == null,
+                                expanded = result != null,
                             ),
                         )
                     }
-                    val content = hist.content.orEmpty()
-                    val reasoning = hist.reasoning
-                    if (content.isNotBlank() || reasoning != null) {
-                        items.add(
-                            ChatItem.AssistantMessage(
-                                content = content,
-                                reasoning = reasoning,
-                            ),
-                        )
-                    }
-                    items
+                    if (blocks.isEmpty()) emptyList<ChatItem>() else listOf(ChatItem.AssistantTurn(blocks))
                 }
 
                 "system" -> {
@@ -437,9 +432,9 @@ class ChatViewModel(
 
         // 初始化流式缓冲区
         currentAssistantMsgIndex = null
+        pendingBlocks = mutableListOf()
         pendingContent = StringBuilder()
         pendingReasoning = StringBuilder()
-        pendingToolCards.clear()
 
         // 提交消息 → 启动 SSE 监听
         // 第四批：选中用户提示词时，附加在系统提示词之后注入会话上下文
@@ -488,9 +483,9 @@ class ChatViewModel(
 
         // 初始化流式缓冲区
         currentAssistantMsgIndex = null
+        pendingBlocks = mutableListOf()
         pendingContent = StringBuilder()
         pendingReasoning = StringBuilder()
-        pendingToolCards.clear()
 
         // 提交消息 → 启动 SSE 监听（复用 sendMessage 的提示词/CLI 注入逻辑）
         val promptContent = activePromptContent()
@@ -705,9 +700,9 @@ class ChatViewModel(
             }
             // 重置流式缓冲：后续事件（若有）从干净状态重新累积
             currentAssistantMsgIndex = null
+            pendingBlocks = mutableListOf()
             pendingContent = null
             pendingReasoning = null
-            pendingToolCards.clear()
             // 保险：重连后若 5s 内无任何新 SSE 事件且仍显示流式中，
             // 说明服务端 turn 已随断线结束（turn_done 已丢失）→ 收尾
             if (_uiState.value.isStreaming) {
@@ -726,23 +721,23 @@ class ChatViewModel(
         when (event.kind) {
             "turn_started" -> {
                 currentAssistantMsgIndex = null
+                pendingBlocks = mutableListOf()
                 pendingContent = StringBuilder()
                 pendingReasoning = StringBuilder()
-                pendingToolCards.clear()
                 loadTodos()
             }
 
             "reasoning" -> {
                 event.reasoning?.let { r ->
                     pendingReasoning?.append(r)
-                    updatePendingAssistant()
+                    appendOrExtendBlock(TurnBlock.Reasoning(pendingReasoning.toString()))
                 }
             }
 
             "text" -> {
                 event.text?.let { t ->
                     pendingContent?.append(t)
-                    updatePendingAssistant()
+                    appendOrExtendBlock(TurnBlock.Text(pendingContent.toString()))
                 }
             }
 
@@ -750,57 +745,57 @@ class ChatViewModel(
                 event.message?.let { msg ->
                     pendingContent = StringBuilder(msg.content ?: "")
                     pendingReasoning = if (msg.reasoning != null) StringBuilder(msg.reasoning) else null
-                    updatePendingAssistant()
+                    // 整体重置本 turn 块：正文 + 推理（历史中的近似顺序：推理块在前、正文在后）
+                    pendingBlocks = mutableListOf()
+                    pendingReasoning?.toString()?.takeIf { it.isNotBlank() }?.let { pendingBlocks.add(TurnBlock.Reasoning(it)) }
+                    if (msg.content?.isNotBlank() == true) pendingBlocks.add(TurnBlock.Text(msg.content))
+                    updatePendingTurn()
                 }
             }
 
             "tool_dispatch" -> {
                 event.tool?.let { tool ->
-                    val card =
-                        ChatItem.ToolCard(
+                    // 工具块按到达顺序加入（紧接当前推理/正文块之后，不再前插到正文前）
+                    pendingBlocks.add(
+                        TurnBlock.Tool(
                             id = tool.id,
                             name = tool.name,
                             args = tool.args ?: tool.arguments,
                             isRunning = true,
-                        )
-                    pendingToolCards.add(card)
-                    // 2026-08-06 对齐 RikkaHub：工具卡插到 pending 助手消息之后、正文之前
-                    // （顺序 = 推理 → 工具 → 正文；正文流式期间工具卡在上方不随正文下移）
-                    insertToolCardAfterAssistant(card)
+                        ),
+                    )
+                    updatePendingTurn()
                 }
             }
 
             "tool_result" -> {
                 event.tool?.let { tool ->
-                    val card =
-                        ChatItem.ToolCard(
+                    updateToolBlock(
+                        tool.id,
+                        TurnBlock.Tool(
                             id = tool.id,
                             name = tool.name,
                             output = tool.output,
                             err = tool.err,
                             truncated = tool.truncated,
                             isRunning = false,
-                        )
-                    // 替换 pendingToolCards 中最后一条同 id（不新增，保持计数 = 调用次数）
-                    val lastIdx = pendingToolCards.indexOfLast { it.id == tool.id }
-                    if (lastIdx >= 0) pendingToolCards[lastIdx] = card
-                    replaceToolCard(tool.id, card)
+                        ),
+                    )
                     loadTodos()
                 }
             }
 
             "tool_progress" -> {
                 event.tool?.let { tool ->
-                    val card =
-                        ChatItem.ToolCard(
+                    updateToolBlock(
+                        tool.id,
+                        TurnBlock.Tool(
                             id = tool.id,
                             name = tool.name,
                             output = tool.output,
                             isRunning = true,
-                        )
-                    val lastIdx = pendingToolCards.indexOfLast { it.id == tool.id }
-                    if (lastIdx >= 0) pendingToolCards[lastIdx] = card
-                    replaceToolCard(tool.id, card)
+                        ),
+                    )
                 }
             }
 
@@ -861,26 +856,22 @@ class ChatViewModel(
         }
     }
 
-    private fun updatePendingAssistant() {
-        val content = pendingContent?.toString() ?: ""
-        val reasoning = pendingReasoning?.toString()?.takeIf { it.isNotBlank() }
-
-        val msg =
-            ChatItem.AssistantMessage(
-                content = content,
-                reasoning = reasoning,
-            )
-
+    /**
+     * 2026-08-06 对齐 RikkaHub 层次结构：用当前 pendingBlocks 重建本轮 AssistantTurn 并替换 UI 中的对应消息。
+     */
+    private fun updatePendingTurn() {
+        if (pendingBlocks.isEmpty()) return
+        val turn = ChatItem.AssistantTurn(pendingBlocks.toList())
         val idx = currentAssistantMsgIndex
         if (idx != null) {
             _uiState.update { state ->
-                if (idx < state.messages.size && state.messages[idx] is ChatItem.AssistantMessage) {
+                if (idx < state.messages.size && state.messages[idx] is ChatItem.AssistantTurn) {
                     val updated = state.messages.toMutableList()
-                    updated[idx] = msg
+                    updated[idx] = turn
                     state.copy(messages = updated)
                 } else {
                     // 索引失效（如 compaction 重建），回退到追加
-                    val newList = state.messages + msg
+                    val newList = state.messages + turn
                     currentAssistantMsgIndex = newList.size - 1
                     state.copy(messages = newList)
                 }
@@ -888,7 +879,7 @@ class ChatViewModel(
         } else {
             // 本轮首次助手消息 — 追加到列表末尾
             _uiState.update { state ->
-                val newList = state.messages + msg
+                val newList = state.messages + turn
                 currentAssistantMsgIndex = newList.size - 1
                 state.copy(messages = newList)
             }
@@ -896,65 +887,47 @@ class ChatViewModel(
     }
 
     /**
-     * 2026-08-06 对齐 RikkaHub 排序：工具卡插入到 pending 助手消息之后、正文之前。
-     * 多次工具调用：插到已存在的工具卡之后（保持顺序，不挤掉之前的卡）。
-     * 若 pending 助手消息尚未创建，回退为追加到末尾。
+     * 追加或合并推理/正文块：
+     * - 若 pendingBlocks 末尾是同类块 → 合并（流式增量）
+     * - 否则新增块（推理→正文→推理 交错出现时各自成块）
      */
-    private fun insertToolCardAfterAssistant(card: ChatItem.ToolCard) {
-        val idx = currentAssistantMsgIndex
-        _uiState.update { state ->
-            val list = state.messages.toMutableList()
-            if (idx != null && idx >= 0 && idx < list.size) {
-                // 从助手消息后找最后一个 ToolCard 的位置（连续工具卡组的末尾）
-                var insertAt = idx + 1
-                while (insertAt < list.size && list[insertAt] is ChatItem.ToolCard) {
-                    insertAt++
-                }
-                list.add(insertAt, card)
-            } else {
-                list.add(card)
-            }
-            state.copy(messages = list)
+    private fun appendOrExtendBlock(block: TurnBlock) {
+        val last = pendingBlocks.lastOrNull()
+        when {
+            block is TurnBlock.Reasoning && last is TurnBlock.Reasoning ->
+                pendingBlocks[pendingBlocks.size - 1] = block
+
+            block is TurnBlock.Text && last is TurnBlock.Text ->
+                pendingBlocks[pendingBlocks.size - 1] = block
+
+            else -> pendingBlocks.add(block)
         }
+        updatePendingTurn()
+    }
+
+    /** 更新工具块：按「最后一条运行中的同 id 块」回填（同 id 多次调用按顺序配对） */
+    private fun updateToolBlock(
+        id: String,
+        card: TurnBlock.Tool,
+    ) {
+        var target = -1
+        for (i in pendingBlocks.indices) {
+            val it = pendingBlocks[i]
+            if (it is TurnBlock.Tool && it.id == id && it.isRunning) target = i
+        }
+        if (target < 0) {
+            for (i in pendingBlocks.indices) {
+                val it = pendingBlocks[i]
+                if (it is TurnBlock.Tool && it.id == id) target = i
+            }
+        }
+        if (target >= 0) pendingBlocks[target] = card
+        updatePendingTurn()
     }
 
     private fun appendMessage(item: ChatItem) {
         _uiState.update { state ->
             state.copy(messages = state.messages + item)
-        }
-    }
-
-    /**
-     * 替换工具卡片（2026-08-06：修复同 id 多次调用误替换/跳位问题）。
-     *
-     * 同一次流式中同一工具可能被调用多次（id 相同）——按「顺序配对」替换：
-     * pendingToolCards 按插入顺序记录该 id 的出现次数，替换列表中对应第 N 个
-     * （1-based），保证多次调用按顺序回填、不跳来跳去。
-     */
-    private fun replaceToolCard(
-        id: String,
-        card: ChatItem.ToolCard,
-    ) {
-        _uiState.update { state ->
-            val list = state.messages.toMutableList()
-            // 2026-08-06：按「最后一条运行中（未回填结果）的同 id 卡」替换——
-            // 多次调用时各次结果按到达顺序回填最近一次未完成的调用，不跳位
-            var target = -1
-            for (i in list.indices) {
-                val it = list[i]
-                if (it is ChatItem.ToolCard && it.id == id && it.isRunning) {
-                    target = i // 记录最后一个运行中的
-                }
-            }
-            if (target < 0) {
-                // 无运行中卡（如重连后）→ 退化为最后一个同 id 卡
-                for (i in list.indices) {
-                    val it2 = list[i]
-                    if (it2 is ChatItem.ToolCard && it2.id == id) target = i
-                }
-            }
-            if (target >= 0) list[target] = card
-            state.copy(messages = list)
         }
     }
 
@@ -972,7 +945,12 @@ class ChatViewModel(
             val cleaned = MemoryStore.processMarkers(getApplication(), raw)
             if (cleaned != raw) {
                 pendingContent = StringBuilder(cleaned)
-                updatePendingAssistant()
+                // 更新最后一个 Text 块为剔除标记后的内容
+                val lastText = pendingBlocks.indexOfLast { it is TurnBlock.Text }
+                if (lastText >= 0) {
+                    pendingBlocks[lastText] = TurnBlock.Text(cleaned)
+                    updatePendingTurn()
+                }
             }
         }
         currentAssistantMsgIndex = null
@@ -980,22 +958,22 @@ class ChatViewModel(
         pendingReasoning = null
         _uiState.update { it.copy(isStreaming = false) }
         sseCollectionJob?.cancel()
-        // 批 B-14：多步任务跑完 → 系统通知栏提醒
-        if (pendingToolCards.isNotEmpty()) {
-            val toolNames =
-                pendingToolCards
-                    .map { it.name }
-                    .filter { it.isNotBlank() }
-                    .distinct()
+        // 批 B-14：多步任务跑完 → 系统通知栏提醒（从工具块统计）
+        val toolNames =
+            pendingBlocks
+                .filterIsInstance<TurnBlock.Tool>()
+                .map { it.name }
+                .filter { it.isNotBlank() }
+                .distinct()
+        if (toolNames.isNotEmpty()) {
             val summary =
                 when {
-                    toolNames.isEmpty() -> "已完成一轮多步任务"
                     toolNames.size <= 3 -> "已完成 ${toolNames.size} 个工具步骤：${toolNames.joinToString("、")}"
                     else -> "已完成 ${toolNames.size} 个工具步骤（${toolNames.take(3).joinToString("、")} 等）"
                 }
             NotificationHelper.notifyTaskDone(getApplication(), summary)
         }
-        pendingToolCards.clear()
+        pendingBlocks = mutableListOf()
     }
 
     // ── 倒带 / 分叉 / 总结 ──

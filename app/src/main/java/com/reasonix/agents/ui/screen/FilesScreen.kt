@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.gson.JsonParser
 import com.reasonix.agents.data.model.ChatItem
+import com.reasonix.agents.data.model.TurnBlock
 import com.reasonix.agents.ui.theme.LocalPalette
 
 /**
@@ -103,15 +104,20 @@ object SessionFileAggregator {
 
     fun aggregate(messages: List<ChatItem>): List<SessionFile> {
         val map = LinkedHashMap<String, SessionFile>()
-        messages.forEach { item ->
-            if (item !is ChatItem.ToolCard) return@forEach
-            val path = extractPath(item.name, item.args) ?: return@forEach
+        // 2026-08-06：AssistantTurn 内的工具块与独立 ToolCard 一视同仁（层次结构重构后流式走块）
+        fun aggregateTool(
+            name: String,
+            args: String?,
+            output: String?,
+            err: String?,
+        ) {
+            val path = extractPath(name, args) ?: return
             val status =
                 when {
-                    item.err != null -> FileStatus.ERROR
-                    item.name in READ_TOOLS -> FileStatus.READ
-                    item.name in WRITE_TOOLS -> FileStatus.ADDED
-                    item.name in MODIFY_TOOLS -> FileStatus.MODIFIED
+                    err != null -> FileStatus.ERROR
+                    name in READ_TOOLS -> FileStatus.READ
+                    name in WRITE_TOOLS -> FileStatus.ADDED
+                    name in MODIFY_TOOLS -> FileStatus.MODIFIED
                     else -> FileStatus.MODIFIED
                 }
             val prev = map[path]
@@ -119,9 +125,23 @@ object SessionFileAggregator {
                 SessionFile(
                     path = path,
                     status = mergeStatus(prev?.status, status),
-                    content = item.output?.takeIf { it.isNotBlank() } ?: prev?.content,
-                    tool = item.name,
+                    content = output?.takeIf { it.isNotBlank() } ?: prev?.content,
+                    tool = name,
                 )
+        }
+        messages.forEach { item ->
+            when (item) {
+                is ChatItem.ToolCard -> aggregateTool(item.name, item.args, item.output, item.err)
+                is ChatItem.AssistantTurn -> {
+                    item.blocks.forEach { block ->
+                        if (block is TurnBlock.Tool) {
+                            aggregateTool(block.name, block.args, block.output, block.err)
+                        }
+                    }
+                }
+
+                else -> Unit
+            }
         }
         return map.values.toList().sortedBy { it.path }
     }

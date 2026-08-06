@@ -215,6 +215,15 @@ sealed class ChatItem {
         val reasoningExpanded: Boolean = false,
     ) : ChatItem()
 
+    /**
+     * 2026-08-06：对齐 RikkaHub Agents 对话层次结构——
+     * 一轮助手回复 = 有序块序列（推理/正文/工具按事件到达顺序交错）。
+     * 渲染时严格按 blocks 顺序输出：推理折叠、正文平铺、工具折叠。
+     */
+    data class AssistantTurn(
+        val blocks: List<TurnBlock>,
+    ) : ChatItem()
+
     data class ToolCard(
         val id: String,
         val name: String,
@@ -259,6 +268,30 @@ sealed class ChatItem {
         val id: String,
         val questions: List<AskQuestion> = emptyList(),
     ) : ChatItem()
+}
+
+// ═══════════════════════════════════════════════
+// TurnBlock — 一轮助手回复内的有序块（对齐 RikkaHub MessagePartBlock）
+// ═══════════════════════════════════════════════
+
+sealed class TurnBlock {
+    /** 推理文本（默认折叠展示） */
+    data class Reasoning(val text: String) : TurnBlock()
+
+    /** 正文（Markdown 平铺） */
+    data class Text(val text: String) : TurnBlock()
+
+    /** 工具调用（默认折叠，含调用/结果） */
+    data class Tool(
+        val id: String,
+        val name: String,
+        val args: String? = null,
+        val output: String? = null,
+        val err: String? = null,
+        val truncated: Boolean = false,
+        val isRunning: Boolean = true,
+        val expanded: Boolean = false,
+    ) : TurnBlock()
 }
 
 // ── 模型列表（GET /models）──

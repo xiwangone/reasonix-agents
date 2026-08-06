@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.data.model.ChatItem
+import com.reasonix.agents.data.model.TurnBlock
 import com.reasonix.agents.ui.theme.LocalPalette
 
 // 匹配 index.html 调色板
@@ -95,6 +96,40 @@ private fun ChatItemRow(
                 // 推理文本（如有）— 默认折叠，点击展开
                 if (!item.reasoning.isNullOrBlank()) {
                     ReasoningBlock(text = item.reasoning)
+                }
+            }
+        }
+
+        // 2026-08-06 对齐 RikkaHub 层次结构：一轮回复 = 有序块序列，严格按 blocks 顺序渲染
+        // （推理折叠 → 正文平铺 → 工具折叠 → 推理折叠 → …，不跳位）
+        is ChatItem.AssistantTurn -> {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                item.blocks.forEach { block ->
+                    when (block) {
+                        is TurnBlock.Reasoning -> {
+                            if (block.text.isNotBlank()) {
+                                ReasoningBlock(text = block.text)
+                            }
+                        }
+
+                        is TurnBlock.Text -> {
+                            if (block.text.isNotBlank()) {
+                                AssistantMessageBubble(text = block.text)
+                            }
+                        }
+
+                        is TurnBlock.Tool -> {
+                            ToolCard(
+                                id = block.id,
+                                name = block.name,
+                                args = block.args,
+                                output = block.output,
+                                err = block.err,
+                                truncated = block.truncated,
+                                isRunning = block.isRunning,
+                            )
+                        }
+                    }
                 }
             }
         }
