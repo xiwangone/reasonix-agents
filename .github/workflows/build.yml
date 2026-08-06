@@ -144,6 +144,10 @@ jobs:
   build-debug:
     name: Build Debug APK (可共存 .debug 包名)
     runs-on: ubuntu-latest
+    # 2026-08-07：Debug APK 是辅助产物；GitHub hosted runner 供应紧张时该 job 排队超时会被
+    # 自动取消并拖累整个 workflow 变红。加 continue-on-error：runner 可用时照常构建，
+    # 排队失败不再影响主构建（Build APK）的成功结论。
+    continue-on-error: true
 
     steps:
       - name: Checkout
