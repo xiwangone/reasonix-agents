@@ -87,7 +87,7 @@ private fun ChatItemRow(
 
         is ChatItem.AssistantMessage -> {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // 2026-08-06：正文在上、推理折叠块在下方（纯分析/汇报正常展示，推理不抢占）
+                // 2026-08-06：对齐 RikkaHub —— 正文在上正常展示，推理折叠块在下方
                 // 助手正文（Markdown）
                 if (item.content.isNotBlank()) {
                     AssistantMessageBubble(text = item.content)
@@ -99,6 +99,7 @@ private fun ChatItemRow(
             }
         }
 
+        // 工具卡片：保持平铺（在正文下方、按 SSE 顺序排列），默认折叠可展开
         is ChatItem.ToolCard -> {
             ToolCard(
                 id = item.id,

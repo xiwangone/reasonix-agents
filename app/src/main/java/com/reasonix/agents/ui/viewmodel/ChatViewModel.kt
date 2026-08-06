@@ -103,7 +103,7 @@ class ChatViewModel(
     private var currentAssistantMsgIndex: Int? = null
     private var pendingReasoning: StringBuilder? = null
     private var pendingContent: StringBuilder? = null
-    private var pendingToolCards: MutableMap<String, ChatItem.ToolCard> = mutableMapOf()
+    private var pendingToolCards: MutableList<ChatItem.ToolCard> = mutableListOf()
 
     // 双 Esc 倒带
     private var lastEscTime: Long = 0L
@@ -763,8 +763,10 @@ class ChatViewModel(
                             args = tool.args ?: tool.arguments,
                             isRunning = true,
                         )
-                    pendingToolCards[tool.id] = card
-                    appendMessage(card)
+                    pendingToolCards.add(card)
+                    // 2026-08-06 对齐 RikkaHub：工具卡插到 pending 助手消息之后、正文之前
+                    // （顺序 = 推理 → 工具 → 正文；正文流式期间工具卡在上方不随正文下移）
+                    insertToolCardAfterAssistant(card)
                 }
             }
 
@@ -779,7 +781,9 @@ class ChatViewModel(
                             truncated = tool.truncated,
                             isRunning = false,
                         )
-                    pendingToolCards[tool.id] = card
+                    // 替换 pendingToolCards 中最后一条同 id（不新增，保持计数 = 调用次数）
+                    val lastIdx = pendingToolCards.indexOfLast { it.id == tool.id }
+                    if (lastIdx >= 0) pendingToolCards[lastIdx] = card
                     replaceToolCard(tool.id, card)
                     loadTodos()
                 }
@@ -794,7 +798,8 @@ class ChatViewModel(
                             output = tool.output,
                             isRunning = true,
                         )
-                    pendingToolCards[tool.id] = card
+                    val lastIdx = pendingToolCards.indexOfLast { it.id == tool.id }
+                    if (lastIdx >= 0) pendingToolCards[lastIdx] = card
                     replaceToolCard(tool.id, card)
                 }
             }
@@ -890,6 +895,29 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * 2026-08-06 对齐 RikkaHub 排序：工具卡插入到 pending 助手消息之后、正文之前。
+     * 多次工具调用：插到已存在的工具卡之后（保持顺序，不挤掉之前的卡）。
+     * 若 pending 助手消息尚未创建，回退为追加到末尾。
+     */
+    private fun insertToolCardAfterAssistant(card: ChatItem.ToolCard) {
+        val idx = currentAssistantMsgIndex
+        _uiState.update { state ->
+            val list = state.messages.toMutableList()
+            if (idx != null && idx >= 0 && idx < list.size) {
+                // 从助手消息后找最后一个 ToolCard 的位置（连续工具卡组的末尾）
+                var insertAt = idx + 1
+                while (insertAt < list.size && list[insertAt] is ChatItem.ToolCard) {
+                    insertAt++
+                }
+                list.add(insertAt, card)
+            } else {
+                list.add(card)
+            }
+            state.copy(messages = list)
+        }
+    }
+
     private fun appendMessage(item: ChatItem) {
         _uiState.update { state ->
             state.copy(messages = state.messages + item)
@@ -899,9 +927,9 @@ class ChatViewModel(
     /**
      * 替换工具卡片（2026-08-06：修复同 id 多次调用误替换/跳位问题）。
      *
-     * 同一次流式中同一工具可能被调用多次（id 相同）——按「第 N 次出现」替换：
-     * 统计消息列表中同 id ToolCard 的已有出现次数，替换第 N 个，
-     * 保证多次调用按顺序排列、不跳来跳去。
+     * 同一次流式中同一工具可能被调用多次（id 相同）——按「顺序配对」替换：
+     * pendingToolCards 按插入顺序记录该 id 的出现次数，替换列表中对应第 N 个
+     * （1-based），保证多次调用按顺序回填、不跳来跳去。
      */
     private fun replaceToolCard(
         id: String,
@@ -909,18 +937,19 @@ class ChatViewModel(
     ) {
         _uiState.update { state ->
             val list = state.messages.toMutableList()
-            val occurrence = pendingToolCards.values.count { it.id == id }
-            // pendingToolCards 中该 id 已记录 N 次 → 替换列表中第 N 个（1-based）
-            var seen = 0
+            // 2026-08-06：按「最后一条运行中（未回填结果）的同 id 卡」替换——
+            // 多次调用时各次结果按到达顺序回填最近一次未完成的调用，不跳位
             var target = -1
             for (i in list.indices) {
                 val it = list[i]
-                if (it is ChatItem.ToolCard && it.id == id) {
-                    seen++
-                    if (seen == occurrence) {
-                        target = i
-                        break
-                    }
+                if (it is ChatItem.ToolCard && it.id == id && it.isRunning) {
+                    target = i // 记录最后一个运行中的
+                }
+            }
+            if (target < 0) {
+                // 无运行中卡（如重连后）→ 退化为最后一个同 id 卡
+                for (i in list.indices) {
+                    if (list[i] is ChatItem.ToolCard && list[i].id == id) target = i
                 }
             }
             if (target >= 0) list[target] = card
@@ -953,7 +982,7 @@ class ChatViewModel(
         // 批 B-14：多步任务跑完 → 系统通知栏提醒
         if (pendingToolCards.isNotEmpty()) {
             val toolNames =
-                pendingToolCards.values
+                pendingToolCards
                     .map { it.name }
                     .filter { it.isNotBlank() }
                     .distinct()
