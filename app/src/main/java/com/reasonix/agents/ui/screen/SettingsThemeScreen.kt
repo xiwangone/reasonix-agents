@@ -107,6 +107,8 @@ fun SettingsThemeScreen(
                                 settings.copy(themePreset = AppSettingsStore.THEME_PRESET_RIKKA_BASE + idx),
                             )
                         },
+                        // 2026-08-06 优化：实时预览——chip 显示该预设主色圆点（深色模式用深色主色）
+                        colorDot = RikkaPresets.lightPalette(rid).accent,
                     )
                 }
             }

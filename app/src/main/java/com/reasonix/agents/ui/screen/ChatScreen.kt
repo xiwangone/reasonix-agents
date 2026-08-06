@@ -128,10 +128,10 @@ fun ChatScreen(
         ) { uri ->
             uri ?: return@rememberLauncherForActivityResult
             val content =
-                if (exportFormat == "JSON") {
-                    SessionExporter.buildJson(state.messages)
-                } else {
-                    SessionExporter.buildText(state.messages)
+                when (exportFormat) {
+                    "JSON" -> SessionExporter.buildJson(state.messages)
+                    "JSONL" -> SessionExporter.buildJsonl(state.messages)
+                    else -> SessionExporter.buildText(state.messages)
                 }
             val ok = SessionExporter.write(context, uri, content)
             android.widget.Toast
@@ -144,7 +144,13 @@ fun ChatScreen(
 
     fun startExport(format: String) {
         exportFormat = format
-        exportLauncher.launch(if (format == "JSON") "reasonix-会话.json" else "reasonix-会话.txt")
+        val fileName =
+            when (format) {
+                "JSON" -> "reasonix-会话.json"
+                "JSONL" -> "reasonix-会话.jsonl"
+                else -> "reasonix-会话.txt"
+            }
+        exportLauncher.launch(fileName)
     }
 
     // ── 发送图片（第六批：相册选择 + 本地 OCR 优先）──
@@ -618,7 +624,11 @@ fun ChatScreen(
                             color = Fg2,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("文本" to "Markdown 风格可读文本", "JSON" to "结构化数据（便于程序处理）").forEach { (fmt, desc) ->
+                            listOf(
+                                "文本" to "Markdown 风格可读文本",
+                                "JSON" to "结构化数据（便于程序处理）",
+                                "JSONL" to "流式事件（每行一条，可回放）",
+                            ).forEach { (fmt, desc) ->
                                 Column(
                                     modifier =
                                         Modifier
@@ -1222,28 +1232,60 @@ private fun Sidebar(
                     modifier = Modifier.padding(10.dp),
                 )
             } else {
-                orderedSessions.forEach { session ->
-                    SessionRow(
-                        session = session,
-                        isStreaming = isStreaming,
-                        selectionMode = selectionMode,
-                        pinned = session.name in pinnedNames,
-                        onTogglePin = {
-                            pinnedNames = PinnedSessionsStore.toggle(context, session.name)
-                        },
-                        selected = session.name in selectedNames,
-                        onSelect = { onSelectSession(session.path) },
-                        onToggleSelect = {
-                            selectedNames =
-                                if (session.name in selectedNames) {
-                                    selectedNames - session.name
-                                } else {
-                                    selectedNames + session.name
-                                }
-                        },
-                        onLongPress = { enterSelection(session.name) },
-                        onDelete = { onDeleteSession(session.name) },
-                    )
+                // 2026-08-06 优化：会话分组（置顶 / 普通）——分组小标题 + 各自列表
+                val pinned = orderedSessions.filter { it.name in pinnedNames }
+                val normal = orderedSessions.filter { it.name !in pinnedNames }
+                if (pinned.isNotEmpty()) {
+                    GroupLabel("置顶")
+                    pinned.forEach { session ->
+                        SessionRow(
+                            session = session,
+                            isStreaming = isStreaming,
+                            selectionMode = selectionMode,
+                            pinned = true,
+                            onTogglePin = {
+                                pinnedNames = PinnedSessionsStore.toggle(context, session.name)
+                            },
+                            selected = session.name in selectedNames,
+                            onSelect = { onSelectSession(session.path) },
+                            onToggleSelect = {
+                                selectedNames =
+                                    if (session.name in selectedNames) {
+                                        selectedNames - session.name
+                                    } else {
+                                        selectedNames + session.name
+                                    }
+                            },
+                            onLongPress = { enterSelection(session.name) },
+                            onDelete = { onDeleteSession(session.name) },
+                        )
+                    }
+                }
+                if (normal.isNotEmpty()) {
+                    GroupLabel("最近")
+                    normal.forEach { session ->
+                        SessionRow(
+                            session = session,
+                            isStreaming = isStreaming,
+                            selectionMode = selectionMode,
+                            pinned = false,
+                            onTogglePin = {
+                                pinnedNames = PinnedSessionsStore.toggle(context, session.name)
+                            },
+                            selected = session.name in selectedNames,
+                            onSelect = { onSelectSession(session.path) },
+                            onToggleSelect = {
+                                selectedNames =
+                                    if (session.name in selectedNames) {
+                                        selectedNames - session.name
+                                    } else {
+                                        selectedNames + session.name
+                                    }
+                            },
+                            onLongPress = { enterSelection(session.name) },
+                            onDelete = { onDeleteSession(session.name) },
+                        )
+                    }
                 }
             }
         }
@@ -1913,4 +1955,18 @@ private fun AttachSheetItem(
         Spacer(modifier = Modifier.width(12.dp))
         Text(label, fontSize = 14.sp, color = Fg)
     }
+}
+
+
+/** 2026-08-06 优化：会话分组小标题 */
+@Composable
+private fun GroupLabel(text: String) {
+    Text(
+        text = text,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.6.sp,
+        color = Muted2,
+        modifier = Modifier.padding(start = 8.dp, top = 10.dp, bottom = 2.dp),
+    )
 }

@@ -23,6 +23,8 @@ object MemoryStore {
 
     /** 记忆条数上限 */
     const val MAX_MEMORIES = 20
+    /** 注入总长上限（字符）——防 token 膨胀（用户关注点：token 消耗少） */
+    const val MAX_INJECT_CHARS = 800
 
     private val gson = Gson()
 
@@ -117,8 +119,23 @@ object MemoryStore {
     fun activeMemoriesText(context: Context): String? {
         if (!isEnabled(context)) return null
         val items = load(context).filter { it.content.isNotBlank() }
-        val body = if (items.isEmpty()) "（暂无）" else items.joinToString("\n") { "- ${it.content}" }
-        return "【记忆】\n$body\n约定：需要记住新事实时，在回复末尾单独一行写【记忆+】内容；删除某条记忆写【记忆-】内容（内容须与已存完全一致）。"
+        if (items.isEmpty()) return null
+        // 2026-08-06 优化：注入截断——总长超限时按条截断（保留最新，尾部省略号），防 token 膨胀
+        val body = StringBuilder()
+        var total = 0
+        for (it in items) {
+            val line = "- ${it.content}"
+            if (total + line.length > MAX_INJECT_CHARS) {
+                val remain = MAX_INJECT_CHARS - total
+                if (remain > 20) {
+                    body.append("- ").append(it.content.take(remain - 4)).append("…")
+                }
+                break
+            }
+            body.append(line).append('\n')
+            total += line.length + 1
+        }
+        return "【记忆】\n${body.toString().trimEnd()}\n约定：需要记住新事实时，在回复末尾单独一行写【记忆+】内容；删除某条记忆写【记忆-】内容（内容须与已存完全一致）。"
     }
 
     // ═══════════ AI 直接管理记忆（方案 A，2026-08-06）═══════════

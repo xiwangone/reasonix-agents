@@ -61,7 +61,8 @@ fun ReasoningBlock(
     text: String,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    // 2026-08-06 优化：折叠状态记忆——rememberSaveable 保持展开（列表重组不重置）
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 90f else 0f,
         animationSpec = tween(durationMillis = 200),
@@ -86,7 +87,8 @@ fun ReasoningBlock(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "思考中…",
+                // 2026-08-06 优化：推理条显示字数/状态
+                text = if (text.isBlank()) "思考中…" else "思考 · ${text.length} 字",
                 color = muted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,

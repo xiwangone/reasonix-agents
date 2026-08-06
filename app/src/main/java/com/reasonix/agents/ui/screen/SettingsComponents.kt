@@ -61,6 +61,7 @@ internal fun ThemeChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    colorDot: Color? = null,
 ) {
     Box(
         modifier =
@@ -72,11 +73,25 @@ internal fun ThemeChip(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            color = if (selected) Color.White else Muted,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // 2026-08-06 优化：主题预设实时预览——配色小圆点
+            if (colorDot != null) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(colorDot)
+                            .padding(end = 6.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                color = if (selected) Color.White else Muted,
+            )
+        }
     }
 }
 

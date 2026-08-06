@@ -1,6 +1,8 @@
 package com.reasonix.agents.ui.components
 
 import android.content.Context
+import android.graphics.Typeface
+import android.text.TextPaint
 import android.text.method.LinkMovementMethod
 import android.util.TypedValue
 import android.view.ViewGroup
@@ -16,9 +18,12 @@ import coil.ImageLoader
 import com.reasonix.agents.ui.markdown.DefaultGrammarLocator
 import com.reasonix.agents.ui.theme.LocalChatFont
 import io.noties.markwon.AbstractMarkwonPlugin
+import io.noties.markwon.MarkwonConfiguration
 import io.noties.markwon.Markwon
 import io.noties.markwon.PrecomputedTextSetterCompat
 import io.noties.markwon.core.MarkwonTheme
+import io.noties.markwon.core.spans.CodeBlockSpan
+import io.noties.markwon.core.node.CodeBlock
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.tables.TableTheme
@@ -27,6 +32,7 @@ import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.image.ImagesPlugin
 import io.noties.markwon.image.coil.CoilImagesPlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
+import io.noties.markwon.spans.SpansFactory
 import io.noties.markwon.linkify.LinkifyPlugin
 import io.noties.markwon.syntax.Prism4jThemeDarkula
 import io.noties.markwon.syntax.SyntaxHighlightPlugin
@@ -175,6 +181,8 @@ private fun buildMarkwon(context: Context): Markwon {
                 .usePlugin(MarkwonInlineParserPlugin.create())
                 // ⑨ 主题覆盖（必须在 SyntaxHighlightPlugin 之后注册，以覆盖内联代码背景色）
                 .usePlugin(ReasonixThemePlugin())
+                // ⑨.5 2026-08-06：代码块独立字体——正文按聊天字体，代码块恒 JetBrains Mono
+                .usePlugin(CodeFontPlugin())
                 .textSetter(PrecomputedTextSetterCompat.create(Executors.newCachedThreadPool()))
                 .build()
         MARKWON_INSTANCE = markwon
@@ -226,4 +234,36 @@ fun isPlainText(text: String): Boolean {
             "\\|",
         )
     return patterns.none { Regex(it).containsMatchIn(text) }
+}
+
+
+/**
+ * 2026-08-06 优化：代码块独立字体插件。
+ *
+ * 正文 Text 应用聊天字体（LocalChatFont），代码块（CodeBlock）恒用
+ * JetBrains Mono（RikkaHub 附带，已内置），保证代码可读性不受正文字体影响。
+ */
+private class CodeFontPlugin : AbstractMarkwonPlugin() {
+    override fun configureSpansFactory(builder: SpansFactory.Builder) {
+        // 完全替换 CodeBlock span：保留原主题样式，额外设置等宽字体
+        builder.setFactory(
+            CodeBlock::class.java,
+            SpansFactory { configuration, _ ->
+                CodeBlockFontSpan(configuration.theme())
+            },
+        )
+    }
+}
+
+/** 代码块字体 span：继承原 CodeBlockSpan 逻辑，追加 JetBrains Mono 等宽字体 */
+private class CodeBlockFontSpan(theme: MarkwonTheme) : CodeBlockSpan(theme) {
+    override fun updateDrawState(ds: TextPaint) {
+        super.updateDrawState(ds)
+        ds.typeface = Typeface.create("monospace", Typeface.NORMAL)
+    }
+
+    override fun updateMeasureState(p: TextPaint) {
+        super.updateMeasureState(p)
+        p.typeface = Typeface.create("monospace", Typeface.NORMAL)
+    }
 }

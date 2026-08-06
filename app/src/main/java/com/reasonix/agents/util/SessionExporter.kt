@@ -195,6 +195,79 @@ object SessionExporter {
         sb.append(content).append("\n\n")
     }
 
+    /**
+     * 2026-08-06 优化：JSONL 流式导出——每行一个 JSON 事件（含时间戳/序号），
+     * 便于对话回放与增量处理。
+     */
+    fun buildJsonl(items: List<ChatItem>): String {
+        val sb = StringBuilder()
+        var seq = 0
+        items.forEach { item ->
+            val base = mutableMapOf<String, Any?>(
+                "seq" to seq++,
+                "ts" to System.currentTimeMillis(),
+            )
+            when (item) {
+                is ChatItem.UserMessage -> {
+                    base["role"] = "user"
+                    base["content"] = item.content
+                    item.imagePath?.let { base["image"] = it }
+                    sb.append(gson.toJson(base)).append('\n')
+                }
+
+                is ChatItem.AssistantMessage -> {
+                    base["role"] = "assistant"
+                    base["content"] = item.content
+                    item.reasoning?.let { base["reasoning"] = it }
+                    sb.append(gson.toJson(base)).append('\n')
+                }
+
+                is ChatItem.AssistantTurn -> {
+                    item.blocks.forEach { block ->
+                        when (block) {
+                            is TurnBlock.Reasoning -> {
+                                base["role"] = "assistant"
+                                base["type"] = "reasoning"
+                                base["content"] = block.text
+                                sb.append(gson.toJson(base)).append('\n')
+                            }
+
+                            is TurnBlock.Text -> {
+                                base["role"] = "assistant"
+                                base["type"] = "text"
+                                base["content"] = block.text
+                                sb.append(gson.toJson(base)).append('\n')
+                            }
+
+                            is TurnBlock.Tool -> {
+                                base["role"] = "tool"
+                                base["type"] = "tool"
+                                base["name"] = block.name
+                                block.args?.let { base["args"] = it }
+                                block.output?.let { base["output"] = it }
+                                block.err?.let { base["error"] = it }
+                                sb.append(gson.toJson(base)).append('\n')
+                            }
+                        }
+                    }
+                }
+
+                is ChatItem.ToolCard -> {
+                    base["role"] = "tool"
+                    base["type"] = "tool"
+                    base["name"] = item.name
+                    item.args?.let { base["args"] = it }
+                    item.output?.let { base["output"] = it }
+                    item.err?.let { base["error"] = it }
+                    sb.append(gson.toJson(base)).append('\n')
+                }
+
+                else -> Unit
+            }
+        }
+        return sb.toString()
+    }
+
     /** 通过 ContentResolver 写入导出文件。 */
     fun write(
         context: Context,

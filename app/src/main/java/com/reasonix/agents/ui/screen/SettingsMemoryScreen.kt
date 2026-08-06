@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +75,11 @@ fun SettingsMemoryScreen(
     var enabled by remember { mutableStateOf(MemoryStore.isEnabled(context)) }
     var draftActive by remember { mutableStateOf(false) }
     var draftText by remember { mutableStateOf("") }
+    // 2026-08-06 优化：记忆搜索
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredMemories = memories.filter {
+        searchQuery.isBlank() || it.content.contains(searchQuery, ignoreCase = true)
+    }
     var limitHint by remember { mutableStateOf(false) }
 
     fun refresh() {
@@ -250,6 +256,42 @@ fun SettingsMemoryScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
+            // 2026-08-06 优化：记忆搜索框
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Bg2)
+                        .border(1.dp, Border, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+            ) {
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    textStyle = TextStyle(color = Fg, fontSize = 14.sp),
+                    cursorBrush = SolidColor(Accent),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    decorationBox = { inner ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "搜索",
+                                tint = Muted,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            if (searchQuery.isEmpty()) {
+                                Text("搜索记忆…", fontSize = 14.sp, color = Muted)
+                            }
+                            inner()
+                        }
+                    },
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
             // 添加按钮
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -273,7 +315,7 @@ fun SettingsMemoryScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 记忆列表
+            // 记忆列表（2026-08-06：支持搜索过滤）
             if (memories.isEmpty()) {
                 Text(
                     text = "暂无记忆，点击上方「添加记忆」创建",
@@ -281,8 +323,15 @@ fun SettingsMemoryScreen(
                     color = Muted,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+            } else if (filteredMemories.isEmpty()) {
+                Text(
+                    text = "无匹配记忆",
+                    fontSize = 13.sp,
+                    color = Muted,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             } else {
-                memories.forEach { item ->
+                filteredMemories.forEach { item ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier =
