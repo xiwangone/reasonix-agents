@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.reasonix.agents.data.MemoryStore
 import com.reasonix.agents.data.PromptStore
 import com.reasonix.agents.data.api.GitHubReleaseApi
 import com.reasonix.agents.ui.theme.LocalPalette
@@ -189,6 +190,14 @@ fun SettingsScreen(
                 "提示词",
                 "自定义提示词：添加 / 保存 / 切换 / 删除（最多 ${PromptStore.MAX_PROMPTS} 条）",
                 onClick = onOpenPrompt,
+            )
+
+            // ── 记忆（2026-08-06 新增：仿 RikkaHub 记忆功能第一版）──
+            SettingEntry(
+                Icons.Default.Favorite,
+                "记忆",
+                "长期记忆：启用注入 / 添加 / 删除（最多 ${MemoryStore.MAX_MEMORIES} 条）",
+                onClick = onOpenMemory,
             )
 
             Spacer(modifier = Modifier.height(16.dp))

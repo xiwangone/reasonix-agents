@@ -60,6 +60,9 @@ object Screens {
     /** 设置二级界面（批七）：提示词（自定义提示词，查看/添加/保存/切换/删除） */
     const val SETTINGS_PROMPT = "settings_prompt"
 
+    /** 设置二级界面（2026-08-06）：记忆（长期记忆管理 + 启用注入开关） */
+    const val SETTINGS_MEMORY = "settings_memory"
+
     /** 起始目的地：Chat */
     val startDestination: String = CHAT
 

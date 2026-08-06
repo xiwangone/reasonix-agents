@@ -3,9 +3,7 @@ package com.reasonix.agents.ui.components
 import android.content.Context
 import android.text.method.LinkMovementMethod
 import android.util.TypedValue
-import android.view.View
 import android.view.ViewGroup
-import android.widget.HorizontalScrollView
 import android.widget.TextView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -72,30 +70,24 @@ fun MarkdownRenderer(
 
     AndroidView(
         factory = { ctx ->
-            // HorizontalScrollView 包裹 TextView，支持表格左右滑动
-            HorizontalScrollView(ctx).apply {
-                isHorizontalScrollBarEnabled = false
-                overScrollMode = View.OVER_SCROLL_NEVER
-                isFillViewport = false
-                addView(
-                    TextView(ctx).apply {
-                        setTextColor(FG)
-                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                        setLineSpacing(4f, 1f)
-                        movementMethod = LinkMovementMethod.getInstance()
-                        isClickable = true
-                        // 流式更新时不复制 Spannable，防止闪烁
-                        setSpannableFactory(NoCopySpannableFactory.getInstance())
-                    },
+            // 2026-08-06：去掉 HorizontalScrollView 外层，TextView 直接铺满父容器宽度——
+            // 长文本/代码/表格均在屏幕宽度内自动换行，适配不同屏幕布局（手机/平板均不横向溢出）。
+            TextView(ctx).apply {
+                setTextColor(FG)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                setLineSpacing(4f, 1f)
+                movementMethod = LinkMovementMethod.getInstance()
+                isClickable = true
+                // 流式更新时不复制 Spannable，防止闪烁
+                setSpannableFactory(NoCopySpannableFactory.getInstance())
+                layoutParams =
                     ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ),
-                )
+                    )
             }
         },
-        update = { scrollView ->
-            val textView = scrollView.getChildAt(0) as TextView
+        update = { textView ->
             markwon.setMarkdown(textView, markdown)
         },
         modifier = modifier,

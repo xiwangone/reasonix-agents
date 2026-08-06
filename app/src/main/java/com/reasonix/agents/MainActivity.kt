@@ -49,6 +49,7 @@ import com.reasonix.agents.ui.screen.SettingsCliScreen
 import com.reasonix.agents.ui.screen.SettingsDisplayScreen
 import com.reasonix.agents.ui.screen.SettingsModelScreen
 import com.reasonix.agents.ui.screen.SettingsNetworkScreen
+import com.reasonix.agents.ui.screen.SettingsMemoryScreen
 import com.reasonix.agents.ui.screen.SettingsPromptScreen
 import com.reasonix.agents.ui.screen.SettingsScreen
 import com.reasonix.agents.ui.screen.SettingsServerScreen
@@ -322,6 +323,7 @@ private fun ReasonixApp(
             composable(Screens.SETTINGS) {
                 SettingsScreen(
                     onOpenPrompt = { navController.navigate(Screens.SETTINGS_PROMPT) },
+                    onOpenMemory = { navController.navigate(Screens.SETTINGS_MEMORY) },
                     onOpenSystemPrompt = { navController.navigate(Screens.SETTINGS_SYSTEM_PROMPT) },
                     onOpenTheme = { navController.navigate(Screens.SETTINGS_THEME) },
                     onOpenModel = { navController.navigate(Screens.SETTINGS_MODEL) },
@@ -467,6 +469,12 @@ private fun ReasonixApp(
                     onAddPrompt = { content, select -> chatViewModel.addPrompt(content, select) },
                     onRemovePrompt = { id -> chatViewModel.removePrompt(id) },
                     onSetCurrentPrompt = { id -> chatViewModel.setCurrentPrompt(id) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            // ── 设置二级界面（2026-08-06）：记忆（长期记忆管理，自包含读写 MemoryStore）──
+            composable(Screens.SETTINGS_MEMORY) {
+                SettingsMemoryScreen(
                     onBack = { navController.popBackStack() },
                 )
             }

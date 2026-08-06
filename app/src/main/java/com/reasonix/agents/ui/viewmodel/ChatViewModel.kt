@@ -11,6 +11,7 @@ import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.BackupManager
 import com.reasonix.agents.data.CliIntegrationStore
 import com.reasonix.agents.data.CustomModelStore
+import com.reasonix.agents.data.MemoryStore
 import com.reasonix.agents.data.PromptStore
 import com.reasonix.agents.data.ServerConfigStore
 import com.reasonix.agents.data.model.*
@@ -439,10 +440,12 @@ class ChatViewModel(
         // 提交消息 → 启动 SSE 监听
         // 第四批：选中用户提示词时，附加在系统提示词之后注入会话上下文
         val promptContent = activePromptContent()
+        // 2026-08-06：记忆功能第一版——启用时注入【记忆】段落（提示词之后、用户文本之前）
+        val memoryText = MemoryStore.activeMemoriesText(getApplication())
         // 第五批 E-3：CLI 集成开启时，注入部署 CLI 工具可用性指令（提示词层）
         val cliInstruction = cliInstruction()
         val effectiveInput =
-            listOfNotNull(promptContent, cliInstruction, text)
+            listOfNotNull(promptContent, memoryText, cliInstruction, text)
                 .joinToString("\n\n")
         viewModelScope.launch {
             try {
@@ -487,9 +490,11 @@ class ChatViewModel(
 
         // 提交消息 → 启动 SSE 监听（复用 sendMessage 的提示词/CLI 注入逻辑）
         val promptContent = activePromptContent()
+        // 2026-08-06：记忆功能第一版——启用时注入【记忆】段落
+        val memoryText = MemoryStore.activeMemoriesText(getApplication())
         val cliInstruction = cliInstruction()
         val effectiveInput =
-            listOfNotNull(promptContent, cliInstruction, text.ifBlank { "[图片]" })
+            listOfNotNull(promptContent, memoryText, cliInstruction, text.ifBlank { "[图片]" })
                 .joinToString("\n\n")
         viewModelScope.launch {
             try {
