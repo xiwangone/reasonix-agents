@@ -11,11 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.ImageLoader
 import com.reasonix.agents.ui.markdown.DefaultGrammarLocator
 import com.reasonix.agents.ui.theme.LocalChatFont
+import com.reasonix.agents.ui.theme.LocalPalette
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.Markwon
 import io.noties.markwon.MarkwonConfiguration
@@ -39,14 +42,16 @@ import io.noties.prism4j.Prism4j
 import java.util.concurrent.Executors
 
 // ═══════════════════════════════════════════════════════════════════
-//  Reasonix 暗色主题色板（与 index.html CSS 变量对齐）
+//  Reasonix 主题色板（深色基准值；明/暗由 LocalPalette 动态注入）
+//  2026-08-07：浅色模式修复——Markdown 渲染不再硬编码近白文字，
+//  改为跟随 LocalPalette（fg/fg2/bg2/panel2/accent），浅色下正文深色可读。
 // ═══════════════════════════════════════════════════════════════════
-private val ACCENT = 0xFFEA8800.toInt() // --accent
-private val FG = 0xFFF5F2F0.toInt() // --fg
-private val FG2 = 0xFFCCC5C0.toInt() // --fg-2  (code text)
-private val BORDER = 0xFF3D3938.toInt() // --border
-private val BG2 = 0xFF222022.toInt() // --bg-2  (inline code bg)
-private val PANEL2 = 0xFF2E2C2E.toInt() // --panel-2 (code block bg)
+private val CODE_BLOCK_BG_DARK = 0xFF2E2C2E.toInt() // 代码块恒深底（明暗一致，保持代码区对比度）
+private val CODE_BLOCK_BG_LIGHT = 0xFFF1EEF6.toInt() // 浅色代码块背景
+private val CODE_BLOCK_TEXT_DARK = 0xFFE8E6F0.toInt() // 代码块文字（深底）
+private val CODE_BLOCK_TEXT_LIGHT = 0xFF3A3547.toInt() // 代码块文字（浅底）
+private val FG_TEXT_DARK = 0xFFF5F2F0.toInt() // 深色模式正文基准（近白）
+private val ACCENT_DARK = 0xFFEA8800.toInt() // 深色模式链接色
 
 /**
  * 安卓原生 Markdown 渲染器 —— 基于 Markwon v4 + AndroidView。
@@ -65,23 +70,27 @@ private val PANEL2 = 0xFF2E2C2E.toInt() // --panel-2 (code block bg)
 fun MarkdownRenderer(
     markdown: String,
     modifier: Modifier = Modifier,
-    codeBackground: Color = Color(BG2),
-    codeTextColor: Color = Color(FG2),
-    linkColor: Color = Color(ACCENT),
+    codeBackground: Color = Color.Unspecified,
+    codeTextColor: Color = Color.Unspecified,
+    linkColor: Color = Color.Unspecified,
 ) {
     val context = LocalContext.current
     // 2026-08-06：聊天字体（RikkaHub ChatFont）——在 @Composable 上下文读取，供 factory 应用
     val chatTypeface = LocalChatFont.current
+    // 2026-08-07：浅色模式修复——从 LocalPalette 动态取色（不再硬编码近白）
+    val palette = LocalPalette.current
+    val isDark = palette.fg.luminance() < 0.5f
 
-    // 使用 applicationContext 避免泄露 Activity
-    val markwon = remember { buildMarkwon(context.applicationContext) }
+    // 使用 applicationContext 避免泄露 Activity；按明暗缓存两个 Markwon 实例
+    val markwon = remember(isDark) { buildMarkwon(context.applicationContext, isDark) }
 
     AndroidView(
         factory = { ctx ->
             // 2026-08-06：去掉 HorizontalScrollView 外层，TextView 直接铺满父容器宽度——
             // 长文本/代码/表格均在屏幕宽度内自动换行，适配不同屏幕布局（手机/平板均不横向溢出）。
             TextView(ctx).apply {
-                setTextColor(FG)
+                // 2026-08-07：浅色下用 palette.fg（深色），深色下用近白
+                setTextColor(if (isDark) Color(FG_TEXT_DARK).toArgb() else palette.fg.toArgb())
                 // 2026-08-06：RikkaHub ChatFont 适配——应用聊天字体（默认/衬线/等宽/JetBrains Mono）
                 chatTypeface?.let { typeface = it }
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
@@ -110,16 +119,15 @@ fun MarkdownRenderer(
 //  Markwon 实例构建（全局缓存，避免重复初始化）
 // ═══════════════════════════════════════════════════════════════════
 
-@Volatile
-private var MARKWON_INSTANCE: Markwon? = null
 
 private val LOCK = Any()
+private val markwonCache = HashMap<Boolean, Markwon>()
 
-private fun buildMarkwon(context: Context): Markwon {
-    MARKWON_INSTANCE?.let { return it }
+private fun buildMarkwon(context: Context, isDark: Boolean): Markwon {
+    markwonCache[isDark]?.let { return it }
 
     synchronized(LOCK) {
-        MARKWON_INSTANCE?.let { return it }
+        markwonCache[isDark]?.let { return it }
 
         // Prism4j — 语法高亮引擎（暂无 language grammar）
         val prism4j = Prism4j(DefaultGrammarLocator())
@@ -146,15 +154,17 @@ private fun buildMarkwon(context: Context): Markwon {
                 1
             }
 
+        val tableBorder = if (isDark) 0xFF3D3938.toInt() else 0xFFD8D2E2.toInt()
+        val tableHeader = if (isDark) 0xFF2E2C2E.toInt() else 0xFFE9E4F2.toInt()
         val tableTheme =
             TableTheme
                 .emptyBuilder()
-                .tableBorderColor(BORDER) // 边框色 #3D3938
+                .tableBorderColor(tableBorder)
                 .tableBorderWidth(borderWidthPx) // 实线边框（密度自适应）
                 .tableCellPadding(cellPaddingPx) // 8dp 内边距
-                .tableHeaderRowBackgroundColor(PANEL2) // 表头 #2E2C2E
+                .tableHeaderRowBackgroundColor(tableHeader)
                 .tableEvenRowBackgroundColor(0x00000000) // 偶数行 透明
-                .tableOddRowBackgroundColor(0x0DFFFFFF.toInt()) // 奇数行 微白 5%
+                .tableOddRowBackgroundColor(if (isDark) 0x0DFFFFFF.toInt() else 0x14000000.toInt()) // 奇数行 微染
                 .build()
 
         val markwon =
@@ -178,10 +188,10 @@ private fun buildMarkwon(context: Context): Markwon {
                 .usePlugin(LinkifyPlugin.create())
                 .usePlugin(MarkwonInlineParserPlugin.create())
                 // ⑨ 主题覆盖（必须在 SyntaxHighlightPlugin 之后注册，以覆盖内联代码背景色）
-                .usePlugin(ReasonixThemePlugin())
+                .usePlugin(ReasonixThemePlugin(isDark))
                 .textSetter(PrecomputedTextSetterCompat.create(Executors.newCachedThreadPool()))
                 .build()
-        MARKWON_INSTANCE = markwon
+        markwonCache[isDark] = markwon
         return markwon
     }
 }
@@ -189,29 +199,35 @@ private fun buildMarkwon(context: Context): Markwon {
 /**
  * Reasonix 暗色主题插件 —— 覆盖核心颜色以匹配 index.html 色板。
  */
-private class ReasonixThemePlugin : AbstractMarkwonPlugin() {
+private class ReasonixThemePlugin(private val isDark: Boolean) : AbstractMarkwonPlugin() {
     override fun configureTheme(builder: MarkwonTheme.Builder) {
+        val accent = if (isDark) ACCENT_DARK else 0xFF5B3DF0.toInt()
+        val codeBg = if (isDark) 0xFF222022.toInt() else 0xFFEFEBF8.toInt()
+        val border = if (isDark) 0xFF3D3938.toInt() else 0xFFD8D2E2.toInt()
+        val fg = if (isDark) FG_TEXT_DARK else 0xFF1B1726.toInt()
+        val fg2 = if (isDark) 0xFFCCC5C0.toInt() else 0xFF403A52.toInt()
         builder
             // 链接
-            .linkColor(ACCENT)
+            .linkColor(accent)
             .isLinkUnderlined(true)
             // 内联代码（覆盖 SyntaxHighlightPlugin 设置的值）
-            .codeBackgroundColor(BG2)
-            // 代码块
-            .codeBlockBackgroundColor(PANEL2)
-            .codeBlockTextColor(FG2)
+            .codeBackgroundColor(codeBg)
+            .codeTextColor(fg2)
+            // 代码块（明暗各自底色，保持对比度）
+            .codeBlockBackgroundColor(if (isDark) CODE_BLOCK_BG_DARK else CODE_BLOCK_BG_LIGHT)
+            .codeBlockTextColor(if (isDark) CODE_BLOCK_TEXT_DARK else CODE_BLOCK_TEXT_LIGHT)
             // 2026-08-07：代码块独立字体——正文按聊天字体，代码块恒 JetBrains Mono
             // （官方 API，替代 CodeFontPlugin/SpanFactory——后者依赖的 CodeBlock 类
             //   在 markwon 4.6.2 配套的 commonmark 0.13.0/0.21.0 中均不存在，是编译失败的根因）
             .codeBlockTypeface(Typeface.MONOSPACE)
             // 引用块
-            .blockQuoteColor(BORDER)
+            .blockQuoteColor(border)
             // 标题分割线
-            .headingBreakColor(BORDER)
+            .headingBreakColor(border)
             // 水平分割线
-            .thematicBreakColor(BORDER)
+            .thematicBreakColor(border)
             // 列表项
-            .listItemColor(FG)
+            .listItemColor(fg)
     }
 }
 

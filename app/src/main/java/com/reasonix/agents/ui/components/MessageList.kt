@@ -33,9 +33,18 @@ fun MessageList(
     items: List<ChatItem>,
     modifier: Modifier = Modifier,
     balance: String? = null,
+    cumulativeTokens: Long = 0,
     onApprove: ((session: Boolean, persist: Boolean, scope: String) -> Unit)? = null,
     onDeny: (() -> Unit)? = null,
     onAskSubmit: ((List<Map<String, String>>) -> Unit)? = null,
+    onRegenerate: (() -> Unit)? = null,
+    onDeleteMessage: ((String) -> Unit)? = null,
+    // 2026-08-07：注入上下文折叠卡（系统提示词/用户提示词/记忆）
+    systemPrompt: String? = null,
+    userPrompt: String = "",
+    memoryText: String? = null,
+    onSaveUserPrompt: (String) -> Unit = {},
+    onSaveMemory: (String) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
 
@@ -55,6 +64,19 @@ fun MessageList(
         contentPadding = PaddingValues(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
+        // 2026-08-07：注入上下文折叠卡——默认折叠，展示/编辑注入 AI 的上下文
+        if (systemPrompt != null || userPrompt.isNotBlank() || !memoryText.isNullOrBlank()) {
+            item(key = "injection_context") {
+                InjectionContextCard(
+                    systemPrompt = systemPrompt,
+                    userPrompt = userPrompt,
+                    memoryText = memoryText,
+                    onSaveUserPrompt = onSaveUserPrompt,
+                    onSaveMemory = onSaveMemory,
+                )
+            }
+        }
+
         itemsIndexed(items, key = { index, _ -> "msg_$index" }) { _, item ->
             AnimatedVisibility(
                 visible = true,
@@ -67,6 +89,9 @@ fun MessageList(
                     onApprove = onApprove,
                     onDeny = onDeny,
                     onAskSubmit = onAskSubmit,
+                    cumulativeTokens = cumulativeTokens,
+                    onRegenerate = onRegenerate,
+                    onDeleteMessage = onDeleteMessage,
                 )
             }
         }
@@ -77,9 +102,12 @@ fun MessageList(
 private fun ChatItemRow(
     item: ChatItem,
     balance: String? = null,
+    cumulativeTokens: Long = 0,
     onApprove: ((session: Boolean, persist: Boolean, scope: String) -> Unit)?,
     onDeny: (() -> Unit)?,
     onAskSubmit: ((List<Map<String, String>>) -> Unit)?,
+    onRegenerate: (() -> Unit)? = null,
+    onDeleteMessage: ((String) -> Unit)? = null,
 ) {
     when (item) {
         is ChatItem.UserMessage -> {
@@ -91,7 +119,11 @@ private fun ChatItemRow(
                 // 2026-08-06：对齐 RikkaHub —— 正文在上正常展示，推理折叠块在下方
                 // 助手正文（Markdown）
                 if (item.content.isNotBlank()) {
-                    AssistantMessageBubble(text = item.content)
+                    AssistantMessageBubble(
+                        text = item.content,
+                        onRegenerate = onRegenerate,
+                        onDelete = onDeleteMessage,
+                    )
                 }
                 // 推理文本（如有）— 默认折叠，点击展开
                 if (!item.reasoning.isNullOrBlank()) {
@@ -114,7 +146,11 @@ private fun ChatItemRow(
 
                         is TurnBlock.Text -> {
                             if (block.text.isNotBlank()) {
-                                AssistantMessageBubble(text = block.text)
+                                AssistantMessageBubble(
+                                    text = block.text,
+                                    onRegenerate = onRegenerate,
+                                    onDelete = onDeleteMessage,
+                                )
                             }
                         }
 
@@ -163,7 +199,7 @@ private fun ChatItemRow(
         }
 
         is ChatItem.UsageStats -> {
-            UsageStatsRow(usage = item.usage, balance = balance)
+            UsageStatsRow(usage = item.usage, balance = balance, cumulativeTokens = cumulativeTokens)
         }
 
         is ChatItem.CompactionNotice -> {
@@ -199,10 +235,12 @@ private fun ChatItemRow(
  */
 @Composable
 private fun CompactionNoticeCard(notice: ChatItem.CompactionNotice) {
-    val bg2 = Color(0xFF222022)
-    val muted = Color(0xFF9E9896)
-    val border = Color(0xFF3D3938)
-    val fg2 = Color(0xFFCCC5C0)
+    // 2026-08-07：浅色模式修复——压缩卡改用 LocalPalette 动态取色（不再硬编码暗色）
+    val p = LocalPalette.current
+    val bg2 = p.bg2
+    val muted = p.muted
+    val border = p.border
+    val fg2 = p.fg2
 
     Surface(
         modifier =

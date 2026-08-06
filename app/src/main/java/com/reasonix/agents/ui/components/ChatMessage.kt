@@ -18,15 +18,33 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.reasonix.agents.data.model.UsagePayload
+import com.reasonix.agents.R
 import com.reasonix.agents.ui.theme.LocalPalette
 import java.io.File
+import android.content.Context
 import android.content.Intent
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 
 // ═══════════════════════════════════════════════
 // 调色板（与深色主题对齐）
@@ -98,7 +116,7 @@ fun UserMessageBubble(
             ) {
                 Icon(
                     imageVector = Icons.Default.ContentCopy,
-                    contentDescription = "复制",
+                    contentDescription = stringResource(R.string.action_copy),
                     tint = muted,
                     modifier = Modifier.size(17.dp),
                 )
@@ -175,9 +193,16 @@ fun UserMessageBubble(
 fun AssistantMessageBubble(
     text: String,
     modifier: Modifier = Modifier,
+    onRegenerate: (() -> Unit)? = null,
+    onDelete: ((String) -> Unit)? = null,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    // 2026-08-07：操作行扩展——复制 / 刷新 / ⋯更多（分享含导出、添加收藏、翻译、删除）
+    // toast 文案需在 @Composable 作用域预解析（onClick 内不能调 stringResource）
+    val translateComingSoon = stringResource(R.string.toast_translate_coming_soon)
+    val favoritedToast = stringResource(R.string.toast_favorited)
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier =
@@ -190,34 +215,100 @@ fun AssistantMessageBubble(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
+            // 复制
             IconButton(
                 onClick = { clipboardManager.setText(AnnotatedString(text)) },
                 modifier = Modifier.size(34.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.ContentCopy,
-                    contentDescription = "复制",
+                    contentDescription = stringResource(R.string.action_copy),
                     tint = muted,
                     modifier = Modifier.size(17.dp),
                 )
             }
-            IconButton(
-                onClick = {
-                    val sendIntent =
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, text)
-                        }
-                    context.startActivity(Intent.createChooser(sendIntent, "分享消息"))
-                },
-                modifier = Modifier.size(34.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = "分享",
-                    tint = muted,
-                    modifier = Modifier.size(17.dp),
-                )
+            // 刷新（重新生成）
+            if (onRegenerate != null) {
+                IconButton(
+                    onClick = onRegenerate,
+                    modifier = Modifier.size(34.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.action_refresh),
+                        tint = muted,
+                        modifier = Modifier.size(17.dp),
+                    )
+                }
+            }
+            // ⋯更多（DropdownMenu）
+            Box {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    modifier = Modifier.size(34.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.action_more),
+                        tint = muted,
+                        modifier = Modifier.size(17.dp),
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    // 分享（含导出为文件）
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_share), fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Share, null, Modifier.size(18.dp)) },
+                        onClick = {
+                            menuExpanded = false
+                            shareMessage(context, text)
+                        },
+                    )
+                    // 导出为文件（txt，走系统分享）
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_export_file), fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.SaveAlt, null, Modifier.size(18.dp)) },
+                        onClick = {
+                            menuExpanded = false
+                            exportMessage(context, text)
+                        },
+                    )
+                    // 添加收藏（存本地文件）
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_add_favorite), fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Star, null, Modifier.size(18.dp)) },
+                        onClick = {
+                            menuExpanded = false
+                            favoriteMessage(context, text, favoritedToast)
+                        },
+                    )
+                    // 翻译（占位：提示开发中）
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_translate), fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Translate, null, Modifier.size(18.dp)) },
+                        onClick = {
+                            menuExpanded = false
+                            android.widget.Toast
+                                .makeText(context, translateComingSoon, android.widget.Toast.LENGTH_SHORT)
+                                .show()
+                        },
+                    )
+                    // 删除
+                    if (onDelete != null) {
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_delete), fontSize = 13.sp, color = Color(0xFFE5484D)) },
+                            leadingIcon = { Icon(Icons.Default.Delete, null, Modifier.size(18.dp), tint = Color(0xFFE5484D)) },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete(text)
+                            },
+                        )
+                    }
+                }
             }
         }
 
@@ -228,6 +319,54 @@ fun AssistantMessageBubble(
             codeTextColor = fg2,
             linkColor = accent,
         )
+    }
+}
+
+/** 2026-08-07：分享消息文本（系统分享面板）。 */
+private fun shareMessage(context: Context, text: String) {
+    val sendIntent =
+        Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+    context.startActivity(Intent.createChooser(sendIntent, "分享消息"))
+}
+
+/** 2026-08-07：导出消息为 txt 文件（写入 cacheDir 后走系统分享）。 */
+private fun exportMessage(context: Context, text: String) {
+    try {
+        val file = File(context.cacheDir, "message_${System.currentTimeMillis()}.txt")
+        file.writeText(text)
+        val sendIntent =
+            Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file,
+                ))
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        context.startActivity(Intent.createChooser(sendIntent, "导出消息"))
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(context, "导出失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** 2026-08-07：收藏消息到本地（应用 files/favorites/ 目录，追加 JSONL）。 */
+private fun favoriteMessage(context: Context, text: String, favoritedToast: String) {
+    try {
+        val dir = File(context.filesDir, "favorites").apply { mkdirs() }
+        val file = File(dir, "favorites.jsonl")
+        val entry =
+            org.json.JSONObject().apply {
+                put("ts", System.currentTimeMillis())
+                put("text", text)
+            }
+        file.appendText(entry.toString() + "\n")
+        android.widget.Toast.makeText(context, favoritedToast, android.widget.Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(context, "收藏失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -344,6 +483,7 @@ fun PhaseIndicator(text: String) {
 fun UsageStatsRow(
     usage: UsagePayload,
     balance: String? = null,
+    cumulativeTokens: Long = 0,
 ) {
     val total = usage.totalTokens
     val prompt = usage.promptTokens
@@ -451,6 +591,39 @@ fun UsageStatsRow(
                 Text(
                     text = "缓存 $cachePercent",
                     color = if (cacheHit > cacheMiss) success else muted2,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+
+        // 2026-08-07：累计统计（会话级）——本轮 vs 累计
+        if (cumulativeTokens > 0) {
+            Spacer(modifier = Modifier.height(6.dp))
+            HorizontalDivider(color = border.copy(alpha = 0.4f))
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "累计",
+                    color = muted,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = fmtTok(cumulativeTokens),
+                    color = fg2,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "本轮 ${fmtTok(total)}",
+                    color = muted2,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                 )

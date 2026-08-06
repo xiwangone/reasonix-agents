@@ -1,6 +1,7 @@
 package com.reasonix.agents.ui.screen
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +52,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.CustomModelStore
 import com.reasonix.agents.data.PinnedSessionsStore
+import com.reasonix.agents.R
+import com.reasonix.agents.data.ProfileStore
 import com.reasonix.agents.data.ServerConfigStore
 import com.reasonix.agents.data.model.ConnectionState
 import com.reasonix.agents.data.model.ModelInfo
@@ -63,6 +67,8 @@ import com.reasonix.agents.util.SessionExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import java.io.File
 
 // ═══════════════════════════════════════════════
@@ -114,6 +120,10 @@ fun ChatScreen(
 
     // ── 配置列表 / 模型分组选择 弹窗状态（批 C-1/C-3）──
     var showConfigsDialog by remember { mutableStateOf(false) }
+    // 2026-08-07：本地资料（昵称 + Emoji 头像）——左上角配置 → 编辑资料
+    val localContext = LocalContext.current
+    var profile by remember { mutableStateOf(ProfileStore.load(localContext)) }
+    var showProfileEdit by remember { mutableStateOf(false) }
     var showModelPicker by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
@@ -158,6 +168,9 @@ fun ChatScreen(
     var imageProcessing by remember { mutableStateOf(false) }
     // OCR 失败后待确认的本地图片路径（弹窗询问是否发送原图）
     var ocrFailedPath by remember { mutableStateOf<String?>(null) }
+    // 2026-08-07：OCR 转述确认——图片识别成功后先弹确认框（预览 + 可折叠编辑转述内容），
+    // 用户可修改转述文本避免 AI 误判，确认后发送
+    var pendingImage by remember { mutableStateOf<PendingImage?>(null) }
 
     // 相册选择：PickVisualMedia（Android 13+ Photo Picker，低版本自动回退系统选择器）
     val pickImageLauncher =
@@ -204,11 +217,8 @@ fun ChatScreen(
                         .show()
                     ocrFailedPath = saved
                 } else {
-                    // 识别成功：识别文本作为消息发送（图片+文字展示在消息中）
-                    android.widget.Toast
-                        .makeText(context, "识别成功，正在发送…", android.widget.Toast.LENGTH_SHORT)
-                        .show()
-                    viewModel.sendImageMessage(ocrText, saved)
+                    // 识别成功：弹出转述确认框（2026-08-07 起不再直接发送）
+                    pendingImage = PendingImage(imagePath = saved, ocrText = ocrText)
                 }
             }
         }
@@ -246,10 +256,8 @@ fun ChatScreen(
                             .show()
                         ocrFailedPath = cameraUri!!.path
                     } else {
-                        android.widget.Toast
-                            .makeText(context, "识别成功，正在发送…", android.widget.Toast.LENGTH_SHORT)
-                            .show()
-                        viewModel.sendImageMessage(ocrText, cameraUri!!.path)
+                        // 识别成功：弹出转述确认框（2026-08-07 起不再直接发送）
+                        pendingImage = PendingImage(imagePath = cameraUri!!.path ?: "", ocrText = ocrText)
                     }
                 }
             }
@@ -321,6 +329,58 @@ fun ChatScreen(
                     }
                 },
     ) {
+        // 2026-08-07：侧边栏融合——手写 overlay 改为 Material3 ModalNavigationDrawer
+        // （手势滑动 + 返回键关闭 + 遮罩，对齐 RikkaHub 抽屉交互）
+        val drawerState = rememberDrawerState(DrawerValue.Closed)
+        val drawerScope = rememberCoroutineScope()
+        LaunchedEffect(state.showSidebar) {
+            if (state.showSidebar) drawerState.open() else drawerState.close()
+        }
+        LaunchedEffect(drawerState) {
+            snapshotFlow { drawerState.currentValue }.collect { v ->
+                val show = v == DrawerValue.Open
+                if (show != state.showSidebar) viewModel.setSidebar(show)
+            }
+        }
+
+        // 返回键：抽屉打开时先关闭抽屉（而非退出页面）
+        BackHandler(enabled = drawerState.isOpen) {
+            drawerScope.launch { drawerState.close() }
+        }
+
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet(modifier = Modifier.width(280.dp)) {
+                    Sidebar(
+                        sessions = state.sessions,
+                        status = state.status,
+                        isStreaming = state.isStreaming,
+                        cumulativeCost = state.cumulativeCost,
+                        onNewSession = {
+                            viewModel.newSession()
+                            drawerScope.launch { drawerState.close() }
+                        },
+                        onSelectSession = {
+                            viewModel.selectSession(it)
+                            drawerScope.launch { drawerState.close() }
+                        },
+                        onDeleteSession = { viewModel.deleteSession(it) },
+                        onDeleteSessions = { viewModel.deleteSessions(it) },
+                        onCompact = { viewModel.compactConversation() },
+                        onRewind = { viewModel.showRewindPicker() },
+                        onFork = { viewModel.showRewindPicker() },
+                        onStats = { viewModel.showStatsDialog() },
+                        onExport = {
+                            drawerScope.launch { drawerState.close() }
+                            showExportDialog = true
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            },
+            gesturesEnabled = true,
+        ) {
         // ── 主内容区 ──
         Column(modifier = Modifier.fillMaxSize()) {
             // ── 顶部栏（批 A-2：左上品牌 logo / 右上 关于 + 设置 入口）──
@@ -340,7 +400,7 @@ fun ChatScreen(
                             .clickable { showConfigsDialog = true }
                             .padding(horizontal = 4.dp, vertical = 2.dp),
                 ) {
-                    // 头像：有认证用户名时显示其首字母（圆形头像），否则显示品牌 R 渐变块
+                    // 头像：优先本地 Emoji 头像；其次认证用户名首字母；否则品牌 R 渐变块（2026-08-07 支持编辑资料）
                     val avatarLetter =
                         initialAuth
                             ?.takeIf { it.username.isNotBlank() }
@@ -348,31 +408,49 @@ fun ChatScreen(
                             ?.trim()
                             ?.firstOrNull()
                             ?.uppercaseChar()
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    brush =
-                                        Brush.linearGradient(
-                                            colors =
-                                                if (avatarLetter != null) listOf(Violet, Accent)
-                                                else listOf(Accent, Violet),
-                                        ),
-                                ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = avatarLetter?.toString() ?: "R",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                        )
+                    if (profile.avatarEmoji.isNotBlank()) {
+                        // Emoji 头像
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Bg2)
+                                    .border(1.dp, Border, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = profile.avatarEmoji,
+                                fontSize = 15.sp,
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        brush =
+                                            Brush.linearGradient(
+                                                colors =
+                                                    if (avatarLetter != null) listOf(Violet, Accent)
+                                                    else listOf(Accent, Violet),
+                                            ),
+                                    ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = avatarLetter?.toString() ?: "R",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Reasonix",
+                        text = profile.displayName.ifBlank { "Reasonix" },
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Fg,
@@ -451,6 +529,14 @@ fun ChatScreen(
                     items = state.messages,
                     modifier = Modifier.weight(1f),
                     balance = state.status?.balance?.display,
+                    cumulativeTokens = state.cumulativeTokens,
+                    onRegenerate = { viewModel.regenerateLast() },
+                    onDeleteMessage = { viewModel.deleteMessage(it) },
+                    systemPrompt = state.systemPrompt,
+                    userPrompt = viewModel.activePromptContent(),
+                    memoryText = state.memoryText,
+                    onSaveUserPrompt = { viewModel.saveActivePrompt(it) },
+                    onSaveMemory = { viewModel.saveMemoryText(it) },
                     onApprove = { session, persist, scope ->
                         val approval =
                             state.messages.lastOrNull {
@@ -514,51 +600,17 @@ fun ChatScreen(
                 onToggleSidebar = { viewModel.toggleSidebar() },
             )
         }
+        } // ← ModalNavigationDrawer 关闭
 
-        // ── 侧边栏悬浮面板 ──
-        AnimatedVisibility(
-            visible = state.showSidebar,
-            enter = slideInHorizontally(initialOffsetX = { -it }),
-            exit = slideOutHorizontally(targetOffsetX = { -it }),
-            modifier = Modifier.zIndex(10f),
-        ) {
-            Sidebar(
-                sessions = state.sessions,
-                status = state.status,
-                isStreaming = state.isStreaming,
-                cumulativeCost = state.cumulativeCost,
-                onNewSession = {
-                    viewModel.newSession()
-                    viewModel.toggleSidebar()
+        // 2026-08-07：图片转述确认对话框（OCR 成功后弹出）
+        pendingImage?.let { pending ->
+            ImageTranscriptionDialog(
+                pending = pending,
+                onConfirm = { text ->
+                    viewModel.sendImageMessage(text, pending.imagePath)
+                    pendingImage = null
                 },
-                onSelectSession = {
-                    viewModel.selectSession(it)
-                    viewModel.toggleSidebar()
-                },
-                onDeleteSession = { viewModel.deleteSession(it) },
-                onDeleteSessions = { viewModel.deleteSessions(it) },
-                onCompact = { viewModel.compactConversation() },
-                onRewind = { viewModel.showRewindPicker() },
-                onFork = { viewModel.showRewindPicker() },
-                onStats = { viewModel.showStatsDialog() },
-                onExport = {
-                    viewModel.toggleSidebar()
-                    showExportDialog = true
-                },
-                // 2026-08-06 对齐 RikkaHub：侧边栏 220dp → 280dp（RikkaHub 为 300dp，手机取平衡值）
-                modifier = Modifier.width(280.dp),
-            )
-        }
-
-        // ── 侧边栏遮罩 ──
-        if (state.showSidebar) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .zIndex(9f)
-                        .background(Color.Black.copy(alpha = 0.35f))
-                        .clickable { viewModel.toggleSidebar() },
+                onDismiss = { pendingImage = null },
             )
         }
 
@@ -666,7 +718,7 @@ fun ChatScreen(
                     }) { Text("导出", color = Accent) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showExportDialog = false }) { Text("取消", color = Muted) }
+                    TextButton(onClick = { showExportDialog = false }) { Text(stringResource(R.string.action_cancel), color = Muted) }
                 },
                 containerColor = Panel,
             )
@@ -691,7 +743,7 @@ fun ChatScreen(
                     }) { Text("发送原图", color = Accent) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { ocrFailedPath = null }) { Text("取消", color = Muted) }
+                    TextButton(onClick = { ocrFailedPath = null }) { Text(stringResource(R.string.action_cancel), color = Muted) }
                 },
                 containerColor = Panel,
             )
@@ -733,7 +785,7 @@ fun ChatScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showAttachSheet = false }) { Text("取消", color = Muted) }
+                    TextButton(onClick = { showAttachSheet = false }) { Text(stringResource(R.string.action_cancel), color = Muted) }
                 },
                 containerColor = Panel,
             )
@@ -753,7 +805,24 @@ fun ChatScreen(
                     showConfigsDialog = false
                     onNavigateToServerConfig()
                 },
+                onEditProfile = {
+                    showConfigsDialog = false
+                    showProfileEdit = true
+                },
                 onDismiss = { showConfigsDialog = false },
+            )
+        }
+
+        // ── 2026-08-07：编辑资料对话框（昵称 + Emoji 头像）──
+        if (showProfileEdit) {
+            ProfileEditDialog(
+                profile = profile,
+                onSave = { newProfile ->
+                    ProfileStore.save(context, newProfile)
+                    profile = newProfile
+                    showProfileEdit = false
+                },
+                onDismiss = { showProfileEdit = false },
             )
         }
 
@@ -788,6 +857,7 @@ private fun SavedConfigsDialog(
     currentServerUrl: String,
     onSelect: (ServerConfigStore.ServerProfile) -> Unit,
     onAddNew: () -> Unit,
+    onEditProfile: () -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     // 第五批 E-4：按协议分组展示（HTTP / HTTPS），当前连接高亮并标记「当前」
@@ -802,6 +872,32 @@ private fun SavedConfigsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                // 2026-08-07：编辑资料入口（改名 / 换头像）
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(AccentS)
+                            .border(1.dp, Accent.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .clickable {
+                                onEditProfile()
+                            }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = Accent,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.edit_profile_title), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Fg)
+                        Text(stringResource(R.string.edit_profile_subtitle), fontSize = 11.sp, color = Muted2)
+                    }
+                }
                 if (profiles.isEmpty()) {
                     Text(
                         "暂无保存的配置，点击下方「新增配置」创建",
@@ -1048,7 +1144,7 @@ private fun ModelPickerDialog(
                 }) { Text("删除", color = Danger) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = null }) { Text("取消", color = Muted) }
+                TextButton(onClick = { showDeleteConfirm = null }) { Text(stringResource(R.string.action_cancel), color = Muted) }
             },
             containerColor = Panel,
         )
@@ -1988,5 +2084,233 @@ private fun GroupLabel(text: String) {
         letterSpacing = 0.6.sp,
         color = Muted2,
         modifier = Modifier.padding(start = 8.dp, top = 10.dp, bottom = 2.dp),
+    )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 2026-08-07：图片转述确认（OCR 增强）
+// 上传图片后先弹确认框：预览图片 + 可折叠编辑「转述内容」，
+// 避免 AI 对图片内容误判；确认后连同转述文本一起发送。
+// ═══════════════════════════════════════════════════════════════════
+
+/** OCR 成功后待确认的图片与识别文本。 */
+private data class PendingImage(
+    val imagePath: String,
+    val ocrText: String,
+)
+
+/** 图片转述确认对话框：预览 + 可折叠编辑转述内容。 */
+@Composable
+private fun ImageTranscriptionDialog(
+    pending: PendingImage,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val palette = LocalPalette.current
+    // 转述内容编辑状态（预填 OCR 文本）
+    var transcription by remember(pending) { mutableStateOf(pending.ocrText) }
+    // 折叠状态：默认折叠，点击展开编辑
+    var expanded by remember(pending) { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = palette.bg,
+        titleContentColor = palette.fg,
+        textContentColor = palette.fg2,
+        title = {
+            Text(
+                stringResource(R.string.image_transcription_title),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = palette.fg,
+            )
+        },
+        text = {
+            Column(Modifier.fillMaxWidth()) {
+                // 图片预览（coil 加载本地文件）
+                AsyncImage(
+                    model = File(pending.imagePath),
+                    contentDescription = "图片预览",
+                    contentScale = ContentScale.Fit,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(palette.bg2),
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // 提示文案：转述内容将随消息发送给 AI
+                Text(
+                    stringResource(R.string.image_transcription_hint),
+                    fontSize = 12.sp,
+                    color = palette.muted,
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // 可折叠编辑区：默认折叠，点击展开
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(palette.bg2)
+                            .border(1.dp, palette.border, RoundedCornerShape(8.dp))
+                            .clickable { expanded = !expanded },
+                ) {
+                    // 折叠头：展开/收起指示 + 摘要
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = palette.muted,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            if (expanded) stringResource(R.string.image_transcription_collapse) else stringResource(R.string.image_transcription_expand),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = palette.fg2,
+                        )
+                    }
+                    if (expanded) {
+                        HorizontalDivider(color = palette.border.copy(alpha = 0.5f))
+                        BasicTextField(
+                            value = transcription,
+                            onValueChange = { transcription = it },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 60.dp, max = 140.dp)
+                                    .padding(12.dp),
+                            textStyle =
+                                LocalTextStyle.current.copy(
+                                    fontSize = 13.sp,
+                                    color = palette.fg,
+                                ),
+                            cursorBrush = SolidColor(palette.accent),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(transcription.trim()) }) {
+                Text(stringResource(R.string.action_send), color = palette.accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel), color = palette.muted)
+            }
+        },
+    )
+}
+
+
+// ═══════════════════════════════════════════════
+// 2026-08-07：编辑资料对话框（改名 / Emoji 头像更换）
+// ═══════════════════════════════════════════════
+
+@Composable
+private fun ProfileEditDialog(
+    profile: ProfileStore.Profile,
+    onSave: (ProfileStore.Profile) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(profile.displayName) }
+    var emoji by remember { mutableStateOf(profile.avatarEmoji) }
+    val emojiOptions =
+        listOf("🤖", "🦊", "🐱", "🐶", "🦉", "🐼", "🐸", "🐵", "🦄", "🐯", "🐨", "🐷", "🦁", "🐧")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.edit_profile_title), color = Fg) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 昵称
+                LabeledField(stringResource(R.string.edit_profile_name)) {
+                    BasicTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        textStyle = TextStyle(color = Fg, fontSize = 13.sp),
+                        cursorBrush = SolidColor(Accent),
+                        singleLine = true,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .background(Panel)
+                                .border(1.dp, Border, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                    )
+                }
+                // Emoji 头像选择
+                Text(stringResource(R.string.edit_profile_avatar), fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Muted)
+                // 当前头像预览
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Bg2)
+                                .border(1.dp, Border, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(emoji.ifBlank { "R" }, fontSize = 20.sp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        if (emoji.isBlank()) stringResource(R.string.edit_profile_no_avatar) else stringResource(R.string.edit_profile_has_avatar),
+                        fontSize = 11.sp,
+                        color = Muted2,
+                    )
+                }
+                // Emoji 网格
+                Column {
+                    emojiOptions.chunked(7).forEach { row ->
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            row.forEach { e ->
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(if (e == emoji) AccentS else Panel)
+                                            .border(
+                                                1.dp,
+                                                if (e == emoji) Accent.copy(alpha = 0.6f) else Border,
+                                                CircleShape,
+                                            )
+                                            .clickable { emoji = e }
+                                            .padding(4.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(e, fontSize = 18.sp)
+                                }
+                                Spacer(Modifier.width(4.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(ProfileStore.Profile(name, emoji)) }) {
+                Text("保存", color = Accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel), color = Muted) }
+        },
+        containerColor = Panel,
     )
 }

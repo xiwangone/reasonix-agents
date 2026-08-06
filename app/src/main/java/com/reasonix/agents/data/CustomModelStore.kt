@@ -29,6 +29,7 @@ object CustomModelStore {
         val key: String = "",
         val provider: String = "custom",
         val baseUrl: String = "",
+        val apiKey: String = "", // 2026-08-07：API Key（第三方兼容端点认证，可空）
         val compat: String = "openai",
     ) {
         /** 分组展示名：key 非空用 key，否则回退到 id/name。 */

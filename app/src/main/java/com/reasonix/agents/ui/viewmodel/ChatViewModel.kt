@@ -31,6 +31,8 @@ data class ChatUiState(
     val models: List<ModelInfo> = emptyList(),
     val currentModel: String = "",
     val systemPrompt: String? = null,
+    // 2026-08-07：注入上下文——当前记忆注入文本（供 UI 查看/编辑）
+    val memoryText: String? = null,
     val isStreaming: Boolean = false,
     val planMode: Boolean = false,
     val toolApprovalMode: String = "auto",
@@ -106,6 +108,8 @@ class ChatViewModel(
     // 推理/正文累积缓冲（用于记忆解析 + 块合并）
     private var pendingReasoning: StringBuilder? = null
     private var pendingContent: StringBuilder? = null
+    // 2026-08-07：本轮 usage 快照（结束时追加一张汇总卡，不随事件反复插入）
+    private var pendingUsage: UsagePayload? = null
 
     // 双 Esc 倒带
     private var lastEscTime: Long = 0L
@@ -119,6 +123,7 @@ class ChatViewModel(
             it.copy(
                 customPrompts = PromptStore.load(getApplication()),
                 currentPromptId = PromptStore.getCurrentId(getApplication()),
+                memoryText = MemoryStore.activeMemoriesText(getApplication()),
             )
         }
         // 第五批 E-3：加载 CLI 集成设置（默认关闭）
@@ -289,6 +294,41 @@ class ChatViewModel(
             ?.content
             ?.trim() ?: ""
 
+    // ── 2026-08-07：注入上下文编辑（供「注入上下文」折叠卡使用）──
+
+    /** 保存当前选中用户提示词的新内容（保存到 PromptStore 并更新状态）。 */
+    fun saveActivePrompt(content: String) {
+        val currentId = _uiState.value.currentPromptId
+        if (currentId.isBlank()) return
+        val updated =
+            _uiState.value.customPrompts.map {
+                if (it.id == currentId) it.copy(content = content.trim()) else it
+            }
+        PromptStore.save(getApplication(), updated)
+        _uiState.update { it.copy(customPrompts = updated) }
+    }
+
+    /** 保存记忆注入文本（单条替换：编辑内容即新的唯一记忆；空则清空）。 */
+    fun saveMemoryText(content: String) {
+        val context: android.content.Context = getApplication()
+        val trimmed = content.trim()
+        if (trimmed.isBlank()) {
+            MemoryStore.save(context, emptyList())
+        } else {
+            MemoryStore.save(
+                context,
+                listOf(
+                    MemoryStore.MemoryItem(
+                        id = "manual-${System.currentTimeMillis()}",
+                        content = trimmed,
+                        createdAt = System.currentTimeMillis(),
+                    ),
+                ),
+            )
+        }
+        _uiState.update { it.copy(memoryText = MemoryStore.activeMemoriesText(context)) }
+    }
+
     // ── 更新 CI 监控设置 ──
     fun updateCiSettings(s: com.reasonix.agents.data.CiMonitorStore.CiSettings) {
         _uiState.update { it.copy(ciSettings = s) }
@@ -408,6 +448,30 @@ class ChatViewModel(
     }
 
     // ── 发送消息 ──
+
+    /**
+     * 2026-08-07：重新生成最后一条用户消息（消息操作行「刷新」）。
+     * 取最后一条用户消息文本回填输入框并重新发送；流式中禁用。
+     */
+    fun regenerateLast() {
+        if (_uiState.value.isStreaming) return
+        val lastUser =
+            _uiState.value.messages.lastOrNull { it is ChatItem.UserMessage } as? ChatItem.UserMessage
+                ?: return
+        _uiState.update { it.copy(inputText = lastUser.content) }
+        sendMessage()
+    }
+
+    /** 2026-08-07：删除指定内容的消息（消息操作行「删除」）。 */
+    fun deleteMessage(content: String) {
+        _uiState.update {
+            it.copy(messages = it.messages.filterNot { m ->
+                (m is ChatItem.UserMessage && m.content == content) ||
+                    (m is ChatItem.AssistantMessage && m.content == content) ||
+                    (m is ChatItem.AssistantTurn && m.blocks.any { b -> b is TurnBlock.Text && b.text == content })
+            })
+        }
+    }
 
     fun sendMessage() {
         val text = _uiState.value.inputText.trim()
@@ -724,19 +788,20 @@ class ChatViewModel(
                 pendingBlocks = mutableListOf()
                 pendingContent = StringBuilder()
                 pendingReasoning = StringBuilder()
+                pendingUsage = null
                 loadTodos()
             }
 
             "reasoning" -> {
                 event.reasoning?.let { r ->
-                    pendingReasoning?.append(r)
+                    pendingReasoning = appendSnapshotOrDelta(pendingReasoning, r)
                     appendOrExtendBlock(TurnBlock.Reasoning(pendingReasoning.toString()))
                 }
             }
 
             "text" -> {
                 event.text?.let { t ->
-                    pendingContent?.append(t)
+                    pendingContent = appendSnapshotOrDelta(pendingContent, t)
                     appendOrExtendBlock(TurnBlock.Text(pendingContent.toString()))
                 }
             }
@@ -762,8 +827,12 @@ class ChatViewModel(
                             args = tool.args ?: tool.arguments,
                             isRunning = true,
                         )
-                    // 同一工具 id 重复 dispatch 原位替换，保留最新状态，避免重复卡
-                    val idx = pendingBlocks.indexOfLast { it is TurnBlock.Tool && it.id == tool.id }
+                    // 同一工具 id（或同名同参）重复 dispatch 原位替换，保留最新状态，避免重复卡
+                    val idx =
+                        pendingBlocks.indexOfLast {
+                            it is TurnBlock.Tool &&
+                                (it.id == tool.id || (tool.id.isEmpty() && it.name == tool.name && it.args == (tool.args ?: tool.arguments)))
+                        }
                     if (idx >= 0) {
                         pendingBlocks[idx] = card
                     } else {
@@ -815,15 +884,9 @@ class ChatViewModel(
                             cumulativeCacheMiss = u.cacheMissTokens,
                         )
                     }
-                    // 设置关闭「显示 token 统计」时不生成统计卡（累计统计仍更新）
-                    if (!_uiState.value.settings.showTokens) return@handleSseEvent
-                    // 同一回合的多个 usage 快照只保留最新一张卡（流式累计，避免重复）
-                    val last = _uiState.value.messages.lastOrNull()
-                    if (last is ChatItem.UsageStats) {
-                        _uiState.update { it.copy(messages = it.messages.dropLast(1) + ChatItem.UsageStats(u)) }
-                    } else {
-                        appendMessage(ChatItem.UsageStats(u))
-                    }
+                    // 2026-08-07：usage 事件只更新累计统计，不再插入对话（避免 token 卡反复出现）；
+                    // 本轮结束时由 finalizeTurn 追加一张汇总卡
+                    pendingUsage = u
                 }
             }
 
@@ -905,6 +968,28 @@ class ChatViewModel(
      * - 若 pendingBlocks 末尾是同类块 → 合并（流式增量）
      * - 否则新增块（推理→正文→推理 交错出现时各自成块）
      */
+    /**
+     * 2026-08-07：区分服务端 text/reasoning 事件的「增量」与「快照」语义。
+     *
+     * 服务端若推完整快照（新文本以旧文本开头），旧代码按增量 append 会导致
+     * 「已说过的内容 + 末尾新增一两句」反复累积；此处自动判别：
+     * - 快照（新文本以旧文本开头且更长）→ 覆盖，避免重复累积
+     * - 增量（新片段不以旧文本开头）→ 追加
+     */
+    private fun appendSnapshotOrDelta(buffer: StringBuilder?, incoming: String): StringBuilder? {
+        if (incoming.isEmpty()) return buffer
+        if (buffer == null) return StringBuilder(incoming)
+        val cur = buffer.toString()
+        return if (incoming.startsWith(cur) && incoming.length > cur.length) {
+            // 快照语义：完整文本重复推送 → 直接覆盖
+            StringBuilder(incoming)
+        } else {
+            // 增量语义：新片段 → 追加
+            buffer.append(incoming)
+            buffer
+        }
+    }
+
     private fun appendOrExtendBlock(block: TurnBlock) {
         val last = pendingBlocks.lastOrNull()
         when {
@@ -924,15 +1009,20 @@ class ChatViewModel(
         id: String,
         card: TurnBlock.Tool,
     ) {
+        // 2026-08-07：id 为空时退化为「同名同参」匹配，保证 result/progress 回填
+        // 命中的是同一张卡，而不是每次新增一张重复的工具卡
+        fun matches(it: TurnBlock.Tool): Boolean =
+            it.id == id || (id.isEmpty() && it.name == card.name && it.args == card.args)
+
         var target = -1
         for (i in pendingBlocks.indices) {
             val it = pendingBlocks[i]
-            if (it is TurnBlock.Tool && it.id == id && it.isRunning) target = i
+            if (it is TurnBlock.Tool && matches(it) && it.isRunning) target = i
         }
         if (target < 0) {
             for (i in pendingBlocks.indices) {
                 val it = pendingBlocks[i]
-                if (it is TurnBlock.Tool && it.id == id) target = i
+                if (it is TurnBlock.Tool && matches(it)) target = i
             }
         }
         if (target >= 0) pendingBlocks[target] = card
@@ -988,6 +1078,14 @@ class ChatViewModel(
             NotificationHelper.notifyTaskDone(getApplication(), summary)
         }
         pendingBlocks = mutableListOf()
+        // 2026-08-07：本轮 token 统计——结束本轮时在回复末尾追加一张汇总卡（含会话累计），
+        // 不再随 usage 事件反复插入对话
+        pendingUsage?.let { u ->
+            if (_uiState.value.settings.showTokens) {
+                appendMessage(ChatItem.UsageStats(u))
+            }
+            pendingUsage = null
+        }
     }
 
     // ── 倒带 / 分叉 / 总结 ──
@@ -1383,6 +1481,11 @@ class ChatViewModel(
 
     fun toggleSidebar() {
         _uiState.update { it.copy(showSidebar = !it.showSidebar) }
+    }
+
+    /** 2026-08-07：侧边栏改 ModalNavigationDrawer 后，手势/遮罩关闭需显式置位（避免 toggle 双触发） */
+    fun setSidebar(show: Boolean) {
+        _uiState.update { it.copy(showSidebar = show) }
     }
 
     fun dismissError() {

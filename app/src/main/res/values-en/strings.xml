@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Reasonix Agents</string>
+
+    <!-- 2026-08-07: Injection context collapsible card -->
+    <string name="injection_context_title">Injected Context</string>
+    <string name="injection_context_count">%1$d items</string>
+    <string name="injection_context_expand">Expand to view/edit</string>
+    <string name="injection_context_collapse">Collapse</string>
+    <string name="section_system_prompt">System Prompt</string>
+    <string name="badge_backend_readonly">Backend · Read-only</string>
+    <string name="section_user_prompt">User Prompt</string>
+    <string name="badge_editable">Editable</string>
+    <string name="section_memory">Memory</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="dialog_edit_user_prompt">Edit user prompt</string>
+    <string name="dialog_edit_memory">Edit memory</string>
+
+    <!-- 2026-08-07: Image transcription confirm -->
+    <string name="image_transcription_title">Confirm Image Transcription</string>
+    <string name="image_transcription_hint">The OCR text below will be sent to the AI as a "transcription" along with your message, so it understands the image correctly. Expand to edit before sending.</string>
+    <string name="image_transcription_collapse">Collapse transcription</string>
+    <string name="image_transcription_expand">Transcription (tap to edit)</string>
+    <string name="action_send">Send</string>
+
+    <!-- 2026-08-07: Message action row -->
+    <string name="action_copy">Copy</string>
+    <string name="action_refresh">Regenerate</string>
+    <string name="action_more">More</string>
+    <string name="action_share">Share</string>
+    <string name="action_export_file">Export as file</string>
+    <string name="action_add_favorite">Add to favorites</string>
+    <string name="action_translate">Translate</string>
+    <string name="action_delete">Delete</string>
+    <string name="toast_translate_coming_soon">Translate coming soon</string>
+    <string name="toast_favorited">Added to favorites</string>
+
+    <!-- 2026-08-07: Add model -->
+    <string name="add_model_title">Add Model</string>
+    <string name="add_model_name">Model name (required for manual entry)</string>
+    <string name="add_model_key">Key (provider/model, required for manual entry)</string>
+    <string name="add_model_base_url">Base URL (required to fetch models)</string>
+    <string name="add_model_api_key">API Key (optional)</string>
+    <string name="add_model_fetch">Fetch model list</string>
+    <string name="add_model_fetching">Fetching…</string>
+    <string name="add_model_select_all">Select all</string>
+    <string name="add_model_deselect_all">Deselect all</string>
+    <string name="add_model_found">%1$d models (select to save)</string>
+    <string name="add_model_base_url_first">Please fill in Base URL first</string>
+
+    <!-- 2026-08-07: Edit profile -->
+    <string name="edit_profile_title">Edit Profile</string>
+    <string name="edit_profile_subtitle">Rename / change avatar (local only)</string>
+    <string name="edit_profile_name">Nickname (blank shows Reasonix)</string>
+    <string name="edit_profile_avatar">Choose avatar</string>
+    <string name="edit_profile_no_avatar">Not selected (shows letter avatar)</string>
+    <string name="edit_profile_has_avatar">Emoji avatar selected</string>
+</resources>

@@ -1,3 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Reasonix Agents</string>
+
+    <!-- 2026-08-07：注入上下文折叠卡 -->
+    <string name="injection_context_title">注入上下文</string>
+    <string name="injection_context_count">%1$d 项</string>
+    <string name="injection_context_expand">展开查看/编辑</string>
+    <string name="injection_context_collapse">收起</string>
+    <string name="section_system_prompt">系统提示词</string>
+    <string name="badge_backend_readonly">后端 · 只读</string>
+    <string name="section_user_prompt">用户提示词</string>
+    <string name="badge_editable">可编辑</string>
+    <string name="section_memory">记忆</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="dialog_edit_user_prompt">编辑用户提示词</string>
+    <string name="dialog_edit_memory">编辑记忆</string>
+
+    <!-- 2026-08-07：图片转述确认 -->
+    <string name="image_transcription_title">图片转述确认</string>
+    <string name="image_transcription_hint">以下为图片 OCR 识别内容，将作为「转述」随消息发送给 AI，帮助其准确理解图片，避免误判。可展开编辑后再发送。</string>
+    <string name="image_transcription_collapse">收起转述内容</string>
+    <string name="image_transcription_expand">转述内容（点击展开编辑）</string>
+    <string name="action_send">发送</string>
+
+    <!-- 2026-08-07：消息操作行 -->
+    <string name="action_copy">复制</string>
+    <string name="action_refresh">刷新</string>
+    <string name="action_more">更多</string>
+    <string name="action_share">分享</string>
+    <string name="action_export_file">导出为文件</string>
+    <string name="action_add_favorite">添加收藏</string>
+    <string name="action_translate">翻译</string>
+    <string name="action_delete">删除</string>
+    <string name="toast_translate_coming_soon">翻译功能开发中</string>
+    <string name="toast_favorited">已收藏</string>
+
+    <!-- 2026-08-07：模型添加 -->
+    <string name="add_model_title">添加模型</string>
+    <string name="add_model_name">模型名称（手输时必填）</string>
+    <string name="add_model_key">Key（provider/model，手输时必填）</string>
+    <string name="add_model_base_url">Base URL（获取模型列表必需）</string>
+    <string name="add_model_api_key">API Key（可选）</string>
+    <string name="add_model_fetch">获取模型列表</string>
+    <string name="add_model_fetching">获取中…</string>
+    <string name="add_model_select_all">全选</string>
+    <string name="add_model_deselect_all">全不选</string>
+    <string name="add_model_found">共 %1$d 个模型（勾选后保存）</string>
+    <string name="add_model_base_url_first">请先填写 Base URL</string>
+
+    <!-- 2026-08-07：编辑资料 -->
+    <string name="edit_profile_title">编辑资料</string>
+    <string name="edit_profile_subtitle">改名 / 更换头像（本地生效）</string>
+    <string name="edit_profile_name">昵称（留空显示 Reasonix）</string>
+    <string name="edit_profile_avatar">选择头像</string>
+    <string name="edit_profile_no_avatar">未选择（显示字母头像）</string>
+    <string name="edit_profile_has_avatar">已选择 Emoji 头像</string>
 </resources>

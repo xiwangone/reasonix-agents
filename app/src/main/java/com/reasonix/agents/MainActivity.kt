@@ -73,8 +73,23 @@ import android.app.Activity
 import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
+    // 2026-08-07：界面语言（zh/en）——attachBaseContext 阶段按设置应用 locale（重启/重建生效）
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val lang = AppSettingsStore.load(newBase).language
+        super.attachBaseContext(applyLocale(newBase, lang))
+    }
+
+    private fun applyLocale(context: android.content.Context, lang: String): android.content.Context {
+        val locale = if (lang == "en") java.util.Locale.ENGLISH else java.util.Locale.SIMPLIFIED_CHINESE
+        val config = android.content.res.Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        return context.createConfigurationContext(config)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 2026-08-07：捕获 Activity 引用，供嵌套 lambda（语言切换 recreate）使用
+        val activity = this
         // 2026-08-06 修复：状态栏/导航栏图标颜色跟随 App 主题（浅色主题用深色图标，深色主题用浅色图标），
         // 避免 App 与系统明暗不一致时状态栏看不清。初始按系统明暗，主题切换时由 updateSystemBars 再同步。
         enableEdgeToEdge()
@@ -200,8 +215,11 @@ class MainActivity : ComponentActivity() {
                             initialServerUrl = serverUrl,
                             initialAuth = serverAuth,
                             onSettingsChanged = { newSettings ->
+                                // 2026-08-07：语言切换后重建 Activity，让 attachBaseContext 重新应用 locale
+                                val langChanged = newSettings.language != settings.language
                                 settings = newSettings
                                 AppSettingsStore.save(context, newSettings)
+                                if (langChanged) activity.recreate()
                             },
                             onCiSettingsChanged = { newCi ->
                                 ciSettings = newCi
