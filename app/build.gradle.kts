@@ -78,6 +78,9 @@ android {
 
 configurations.all {
     exclude(group = "org.jetbrains", module = "annotations-java5")
+    // Markwon 4.6.2 传递引入 com.atlassian.commonmark:0.13.0（同 org.commonmark 包名），
+    // 与显式声明的 org.commonmark:0.21.0 冲突（checkReleaseDuplicateClasses 失败）——统一用 0.21.0
+    exclude(group = "com.atlassian.commonmark", module = "commonmark")
 }
 
 dependencies {
