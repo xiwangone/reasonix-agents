@@ -97,6 +97,11 @@
         <receiver
             android:name=".sync.WebDavSyncReceiver"
             android:exported="false" />
+
+        <!-- 2026-08-07：CI 监控通知「停止」按钮接收器（Android 12+ 通知 action 不能直接启 service） -->
+        <receiver
+            android:name=".service.CiMonitorStopReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

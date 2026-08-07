@@ -348,9 +348,11 @@ class CiMonitorService : Service() {
     }
 
     private fun buildNotification(text: String): Notification {
-        val stopIntent = Intent(this, CiMonitorService::class.java).setAction(ACTION_STOP)
+        // 2026-08-07：停止按钮改 PendingIntent.getBroadcast——Android 12+ 禁止从通知
+        // action 启动后台 service（getService 点击无反应），改由 BroadcastReceiver 停服务
+        val stopIntent = Intent(this, CiMonitorStopReceiver::class.java)
         val stopPi =
-            PendingIntent.getService(
+            PendingIntent.getBroadcast(
                 this,
                 0,
                 stopIntent,

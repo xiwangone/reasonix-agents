@@ -3,7 +3,9 @@ package com.reasonix.agents.util
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -37,6 +39,14 @@ object NotificationHelper {
             return
         }
         ensureChannel(context)
+        // 2026-08-07：通知可点击进入 app（之前无 contentIntent，点击无反应）
+        val openPi =
+            PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, com.reasonix.agents.MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
         val notification =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
@@ -44,6 +54,7 @@ object NotificationHelper {
                 .setContentTitle(title)
                 .setContentText(summary)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+                .setContentIntent(openPi)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .build()
@@ -80,6 +91,14 @@ object NotificationHelper {
             return
         }
         ensureChannel(context)
+        // 2026-08-07：任务完成通知可点击进入 app
+        val openPi =
+            PendingIntent.getActivity(
+                context,
+                1,
+                Intent(context, com.reasonix.agents.MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
         val notification =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
@@ -87,6 +106,7 @@ object NotificationHelper {
                 .setContentTitle("✅ Reasonix 任务完成")
                 .setContentText(summary)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+                .setContentIntent(openPi)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .build()
