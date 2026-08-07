@@ -113,8 +113,11 @@ class ChatViewModel(
     // 2026-08-07：流式 UI 刷新节流 job——高频 delta 事件合并成一次重组，避免每 token 全量重建消息列表
     private var uiRefreshJob: Job? = null
     // 2026-08-07：turn_done 兜底收尾 job——多 turn 合并模型下 turn_done 不立即 finalize，
-    // 8s 无新事件才收尾（防服务端长连接不关流导致消息永不落定）
+    // 无新内容事件才收尾（防服务端长连接不关流导致消息永不落定）。
+    // 注意：只跟踪「内容事件」（text/reasoning/tool/usage/turn_started 等），
+    // notice/phase 等通知类事件不会顺延收尾，避免回复完成被无限推迟。
     private var turnFinalizeJob: Job? = null
+    private var lastContentEventAt: Long = 0L
 
     // 双 Esc 倒带
     private var lastEscTime: Long = 0L
@@ -795,11 +798,22 @@ class ChatViewModel(
         }
     }
 
+    /** 2026-08-07：内容事件（会顺延兜底收尾）；通知类事件（notice/phase）不在其中 */
+    private val CONTENT_EVENT_KINDS =
+        setOf(
+            "turn_started", "reasoning", "text", "message",
+            "tool_dispatch", "tool_result", "tool_progress", "usage",
+            "approval_request", "ask_request",
+            "compaction_started", "compaction_done",
+        )
+
     private fun handleSseEvent(event: SseEvent) {
         lastSseEventAt = System.currentTimeMillis()
-        // 2026-08-07：任何事件到达都取消兜底收尾（多 turn 中间有新段继续累积）
-        turnFinalizeJob?.cancel()
-        turnFinalizeJob = null
+        // 2026-08-07：仅内容事件顺延兜底收尾——notice/phase 等通知类事件
+        // 不再取消 turnFinalizeJob（否则回复完成被无限推迟，表现为发送后迟迟收不到回复）
+        if (event.kind in CONTENT_EVENT_KINDS) {
+            lastContentEventAt = System.currentTimeMillis()
+        }
         when (event.kind) {
             "turn_started" -> {
                 // 2026-08-07 多 turn 合并模型：不再重置累积缓冲/消息索引。
@@ -971,11 +985,18 @@ class ChatViewModel(
      */
     private fun scheduleTurnFinalize() {
         turnFinalizeJob?.cancel()
+        val contentAt = lastContentEventAt
         turnFinalizeJob =
             viewModelScope.launch {
                 delay(8000)
                 turnFinalizeJob = null
-                finalizeTurn()
+                if (lastContentEventAt == contentAt) {
+                    // 8s 内无新内容事件 → 本轮结束，收尾
+                    finalizeTurn()
+                } else {
+                    // 有新内容（如多 turn 下一段已开始）→ 顺延重新调度
+                    scheduleTurnFinalize()
+                }
             }
     }
 
