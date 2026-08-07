@@ -112,6 +112,9 @@ class ChatViewModel(
     private var pendingUsage: UsagePayload? = null
     // 2026-08-07：流式 UI 刷新节流 job——高频 delta 事件合并成一次重组，避免每 token 全量重建消息列表
     private var uiRefreshJob: Job? = null
+    // 2026-08-07：turn_done 兜底收尾 job——多 turn 合并模型下 turn_done 不立即 finalize，
+    // 8s 无新事件才收尾（防服务端长连接不关流导致消息永不落定）
+    private var turnFinalizeJob: Job? = null
 
     // 双 Esc 倒带
     private var lastEscTime: Long = 0L
@@ -496,11 +499,14 @@ class ChatViewModel(
         // 添加用户消息
         appendMessage(ChatItem.UserMessage(text))
 
-        // 初始化流式缓冲区
+        // 初始化流式缓冲区（轮级重置：一轮回复=一条消息，多 turn 合并）
         currentAssistantMsgIndex = null
         pendingBlocks = mutableListOf()
         pendingContent = StringBuilder()
         pendingReasoning = StringBuilder()
+        pendingUsage = null
+        turnFinalizeJob?.cancel()
+        turnFinalizeJob = null
 
         // 提交消息 → 启动 SSE 监听
         // 第四批：选中用户提示词时，附加在系统提示词之后注入会话上下文
@@ -551,11 +557,14 @@ class ChatViewModel(
         // 添加用户消息（图片 + OCR 文字）
         appendMessage(ChatItem.UserMessage(text, imagePath))
 
-        // 初始化流式缓冲区
+        // 初始化流式缓冲区（轮级重置：一轮回复=一条消息，多 turn 合并）
         currentAssistantMsgIndex = null
         pendingBlocks = mutableListOf()
         pendingContent = StringBuilder()
         pendingReasoning = StringBuilder()
+        pendingUsage = null
+        turnFinalizeJob?.cancel()
+        turnFinalizeJob = null
 
         // 提交消息 → 启动 SSE 监听（复用 sendMessage 的提示词/CLI 注入逻辑）
         val promptContent = activePromptContent()
@@ -788,15 +797,16 @@ class ChatViewModel(
 
     private fun handleSseEvent(event: SseEvent) {
         lastSseEventAt = System.currentTimeMillis()
+        // 2026-08-07：任何事件到达都取消兜底收尾（多 turn 中间有新段继续累积）
+        turnFinalizeJob?.cancel()
+        turnFinalizeJob = null
         when (event.kind) {
             "turn_started" -> {
+                // 2026-08-07 多 turn 合并模型：不再重置累积缓冲/消息索引。
+                // 服务端一轮回复可能含多个 turn（多段正文+工具），若每段独立成消息
+                // 正文会被拆散、同命令工具卡反复出现；此处保持累积，全部合并进同一条 AssistantTurn。
                 uiRefreshJob?.cancel()
                 uiRefreshJob = null
-                currentAssistantMsgIndex = null
-                pendingBlocks = mutableListOf()
-                pendingContent = StringBuilder()
-                pendingReasoning = StringBuilder()
-                pendingUsage = null
                 loadTodos()
             }
 
@@ -819,9 +829,15 @@ class ChatViewModel(
                     pendingContent = StringBuilder(msg.content ?: "")
                     pendingReasoning = if (msg.reasoning != null) StringBuilder(msg.reasoning) else null
                     // 整体重置本 turn 块：正文 + 推理（历史中的近似顺序：推理块在前、正文在后）
-                    pendingBlocks = mutableListOf()
-                    pendingReasoning?.toString()?.takeIf { it.isNotBlank() }?.let { pendingBlocks.add(TurnBlock.Reasoning(it)) }
-                    if (msg.content?.isNotBlank() == true) pendingBlocks.add(TurnBlock.Text(msg.content))
+                    // 2026-08-07：不整体重置 blocks（多 turn 合并）——覆盖最后一个 Reasoning/Text 块，保留工具块
+                    pendingReasoning?.toString()?.takeIf { it.isNotBlank() }?.let {
+                        val ri = pendingBlocks.indexOfLast { b -> b is TurnBlock.Reasoning }
+                        if (ri >= 0) pendingBlocks[ri] = TurnBlock.Reasoning(it) else pendingBlocks.add(TurnBlock.Reasoning(it))
+                    }
+                    if (msg.content?.isNotBlank() == true) {
+                        val ti = pendingBlocks.indexOfLast { b -> b is TurnBlock.Text }
+                        if (ti >= 0) pendingBlocks[ti] = TurnBlock.Text(msg.content) else pendingBlocks.add(TurnBlock.Text(msg.content))
+                    }
                     updatePendingTurn()
                 }
             }
@@ -935,7 +951,9 @@ class ChatViewModel(
             }
 
             "turn_done" -> {
-                finalizeTurn()
+                // 2026-08-07：turn_done 不立即 finalize——多 turn 时这只是中间段。
+                // 调度 8s 兜底：之后无新事件才收尾（流关闭时 collect finally 会提前 finalize）。
+                scheduleTurnFinalize()
                 loadTodos()
             }
         }
@@ -947,6 +965,20 @@ class ChatViewModel(
      * 整轮重建 AssistantTurn + 全列表拷贝；此处合并 60ms 窗口内的事件为一次重组。
      * 工具卡/整体覆盖/回合收尾等低频路径仍走立即 updatePendingTurn。
      */
+    /**
+     * 2026-08-07：turn_done 兜底收尾。多 turn 合并模型下，最后一个 turn_done 之后
+     * 8s 无新事件即认为本轮结束并 finalize（流关闭时 collect finally 会提前触发）。
+     */
+    private fun scheduleTurnFinalize() {
+        turnFinalizeJob?.cancel()
+        turnFinalizeJob =
+            viewModelScope.launch {
+                delay(8000)
+                turnFinalizeJob = null
+                finalizeTurn()
+            }
+    }
+
     private fun scheduleUiRefresh() {
         if (uiRefreshJob?.isActive == true) return
         uiRefreshJob =
@@ -1015,14 +1047,17 @@ class ChatViewModel(
     }
 
     private fun appendOrExtendBlock(block: TurnBlock) {
-        val last = pendingBlocks.lastOrNull()
-        when {
-            block is TurnBlock.Reasoning && last is TurnBlock.Reasoning ->
-                pendingBlocks[pendingBlocks.size - 1] = block
-
-            block is TurnBlock.Text && last is TurnBlock.Text ->
-                pendingBlocks[pendingBlocks.size - 1] = block
-
+        // 2026-08-07：正文/推理覆盖「最后一个同类块」（任意位置，而非仅末尾）。
+        // 快照/增量累积的完整文本始终只保留一块，中间穿插工具/推理块也不会把正文拆散。
+        when (block) {
+            is TurnBlock.Text -> {
+                val idx = pendingBlocks.indexOfLast { it is TurnBlock.Text }
+                if (idx >= 0) pendingBlocks[idx] = block else pendingBlocks.add(block)
+            }
+            is TurnBlock.Reasoning -> {
+                val idx = pendingBlocks.indexOfLast { it is TurnBlock.Reasoning }
+                if (idx >= 0) pendingBlocks[idx] = block else pendingBlocks.add(block)
+            }
             else -> pendingBlocks.add(block)
         }
         scheduleUiRefresh()
@@ -1068,6 +1103,8 @@ class ChatViewModel(
     private fun finalizeTurn() {
         // 2026-08-07 幂等保护：流关闭/cancel 时 finally 也会调 finalizeTurn，
         // 若当前没有进行中的 turn（缓冲已空）直接返回，避免重复收尾/重复统计卡
+        turnFinalizeJob?.cancel()
+        turnFinalizeJob = null
         if (pendingContent == null && pendingBlocks.isEmpty() && currentAssistantMsgIndex == null) {
             return
         }
