@@ -67,6 +67,7 @@ import com.reasonix.agents.data.model.SessionInfo
 import com.reasonix.agents.data.model.StatusInfo
 import com.reasonix.agents.ui.components.*
 import com.reasonix.agents.ui.theme.LocalPalette
+import com.reasonix.agents.ui.theme.ToolNames
 import com.reasonix.agents.ui.viewmodel.ChatViewModel
 import com.reasonix.agents.util.ImageOcr
 import com.reasonix.agents.util.SessionExporter
@@ -576,6 +577,18 @@ fun ChatScreen(
             }
 
             // 底部输入区域
+            // 当前正在执行的工具名（供状态区显示「正在 <工具>…」；null=推理/正文阶段）
+            val runningToolName =
+                if (state.isStreaming) {
+                    state.messages.asReversed().firstNotNullOfOrNull { item ->
+                        (item as? com.reasonix.agents.data.model.ChatItem.AssistantTurn)
+                            ?.blocks
+                            ?.firstOrNull { it is com.reasonix.agents.data.model.TurnBlock.Tool && it.isRunning }
+                            ?.let { ToolNames.display((it as com.reasonix.agents.data.model.TurnBlock.Tool).name) }
+                    }
+                } else {
+                    null
+                }
             Footer(
                 inputText = state.inputText,
                 onInputChange = { viewModel.onInputChange(it) },
@@ -593,6 +606,7 @@ fun ChatScreen(
                 serverUrl = state.serverUrl,
                 onServerUrlChange = { viewModel.onServerUrlChange(it) },
                 connectionState = state.connectionState,
+                runningToolName = runningToolName,
                 cumulativeCost = state.cumulativeCost,
                 cumulativeTokens = state.cumulativeTokens,
                 balance = state.status?.balance?.display,
@@ -1819,6 +1833,7 @@ private fun Footer(
     serverUrl: String,
     onServerUrlChange: (String) -> Unit,
     connectionState: ConnectionState,
+    runningToolName: String?,
     cumulativeCost: Double,
     cumulativeTokens: Long,
     cumulativePromptTokens: Long = 0,
@@ -1893,14 +1908,15 @@ private fun Footer(
             // 分隔
             Box(modifier = Modifier.width(1.dp).height(16.dp).background(Border))
 
-            // 状态（连接健康度：绿=已连接 / 黄=重连中 / 红=流式中断开 / 灰=就绪）
+            // AI 状态（红/黄/绿）：流式中执行工具=黄「正在 <工具>…」/ 流式推理=黄「思考中…」/ 出错=红 / 空闲=绿
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val (dotColor, statusText) =
                     when {
                         connectionState == ConnectionState.RECONNECTING -> Warning to "重连中…"
                         connectionState == ConnectionState.DISCONNECTED && isStreaming -> Danger to "连接断开"
-                        isStreaming -> Accent to "思考中…"
-                        connectionState == ConnectionState.CONNECTED -> Success to "已连接"
+                        isStreaming && runningToolName != null -> Warning to "正在 $runningToolName…"
+                        isStreaming -> Warning to "思考中…"
+                        connectionState == ConnectionState.CONNECTED -> Success to "空闲"
                         else -> Muted2 to "就绪"
                     }
                 Box(
