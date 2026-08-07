@@ -23,6 +23,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+/** 忙时排队发送的最大消息条数（超过提示「正忙，请稍后」） */
+const val MAX_PENDING_MESSAGES = 5
+
 data class ChatUiState(
     val messages: List<ChatItem> = emptyList(),
     val sessions: List<SessionInfo> = emptyList(),
@@ -34,6 +37,8 @@ data class ChatUiState(
     // 2026-08-07：注入上下文——当前记忆注入文本（供 UI 查看/编辑）
     val memoryText: String? = null,
     val isStreaming: Boolean = false,
+    /** 忙时排队待发送的消息（AI 空闲后依次自动发送，最多 [MAX_PENDING_MESSAGES] 条） */
+    val pendingMessages: List<String> = emptyList(),
     val planMode: Boolean = false,
     val toolApprovalMode: String = "auto",
     val inputText: String = "",
@@ -511,6 +516,25 @@ class ChatViewModel(
         val text = _uiState.value.inputText.trim()
         if (text.isBlank()) return
 
+        // 2026-08-08 排队机制：AI 忙（isStreaming）时消息入队，最多 MAX_PENDING_MESSAGES 条
+        if (_uiState.value.isStreaming) {
+            val pending = _uiState.value.pendingMessages
+            if (pending.size >= MAX_PENDING_MESSAGES) {
+                _uiState.update { it.copy(inputText = "") }
+                appendMessage(ChatItem.SystemNotice("AI 正忙，请稍后（最多排队 $MAX_PENDING_MESSAGES 条）", isWarning = true))
+            } else {
+                _uiState.update {
+                    it.copy(inputText = "", pendingMessages = pending + text)
+                }
+            }
+            return
+        }
+
+        sendText(text)
+    }
+
+    /** 实际发送一条消息（AI 空闲时直接发；排队 dequeue 时也走这里） */
+    private fun sendText(text: String) {
         _uiState.update {
             it.copy(
                 inputText = "",
@@ -521,7 +545,7 @@ class ChatViewModel(
 
         // Slash 命令解析
         if (parseSlashCommand(text)) {
-            _uiState.update { it.copy(isStreaming = false) }
+            finishStreaming()
             return
         }
 
@@ -559,9 +583,29 @@ class ChatViewModel(
                 throw e
             } catch (e: Exception) {
                 appendMessage(ChatItem.ErrorMessage("提交失败: ${e.message}"))
-                _uiState.update { it.copy(isStreaming = false) }
+                finishStreaming()
             }
         }
+    }
+
+    /**
+     * 结束一轮流式：置 isStreaming=false 并尝试发送下一条排队消息。
+     * 所有流式结束点（turn_done / 提交失败 / slash 中断）统一走这里，保证排队消息被消费。
+     */
+    private fun finishStreaming() {
+        _uiState.update { it.copy(isStreaming = false) }
+        maybeDequeueNext()
+    }
+
+    /** 从队列取第一条待发消息发送（AI 已空闲时）。 */
+    private fun maybeDequeueNext() {
+        val state = _uiState.value
+        if (state.isStreaming || state.pendingMessages.isEmpty()) return
+        val next = state.pendingMessages.first()
+        _uiState.update {
+            it.copy(pendingMessages = it.pendingMessages.drop(1))
+        }
+        sendText(next)
     }
 
     /**
@@ -576,6 +620,11 @@ class ChatViewModel(
         imagePath: String?,
     ) {
         val text = ocrText.trim()
+        // 2026-08-08：图片消息忙时不入队（队列仅存文字），提示正忙
+        if (_uiState.value.isStreaming) {
+            appendMessage(ChatItem.SystemNotice("AI 正忙，请稍后（图片消息不支持排队）", isWarning = true))
+            return
+        }
         _uiState.update {
             it.copy(
                 isStreaming = true,
@@ -611,7 +660,7 @@ class ChatViewModel(
                 throw e
             } catch (e: Exception) {
                 appendMessage(ChatItem.ErrorMessage("提交失败: ${e.message}"))
-                _uiState.update { it.copy(isStreaming = false) }
+                finishStreaming()
             }
         }
     }
@@ -1190,7 +1239,7 @@ class ChatViewModel(
         currentAssistantMsgIndex = null
         pendingContent = null
         pendingReasoning = null
-        _uiState.update { it.copy(isStreaming = false) }
+        finishStreaming()
         // 2026-08-07 SSE 可靠性：此处不 cancel sseCollectionJob。
         // 原先 turn_done 即掐断整条 SSE 流，一轮多 turn（多工具子回合/多段回复）时
         // 后续事件全部丢失；流生命周期由 sendMessage 重启 / 服务端关流 / onCleared 管理。

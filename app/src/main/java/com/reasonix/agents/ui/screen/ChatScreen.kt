@@ -607,6 +607,7 @@ fun ChatScreen(
                 onServerUrlChange = { viewModel.onServerUrlChange(it) },
                 connectionState = state.connectionState,
                 runningToolName = runningToolName,
+                pendingCount = state.pendingMessages.size,
                 cumulativeCost = state.cumulativeCost,
                 cumulativeTokens = state.cumulativeTokens,
                 balance = state.status?.balance?.display,
@@ -1834,6 +1835,7 @@ private fun Footer(
     onServerUrlChange: (String) -> Unit,
     connectionState: ConnectionState,
     runningToolName: String?,
+    pendingCount: Int,
     cumulativeCost: Double,
     cumulativeTokens: Long,
     cumulativePromptTokens: Long = 0,
@@ -2140,8 +2142,48 @@ private fun Footer(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // 发送/停止按钮（独立于输入区）
+            // 排队计数 badge（忙时入队的消息数）
+            if (pendingCount > 0) {
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(99.dp))
+                            .background(Warning.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        "$pendingCount 排队中",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Warning,
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+
+            // 发送箭头（始终显示，只负责发送消息——忙时点击入队，不打断）
+            IconButton(
+                onClick = onSend,
+                enabled = inputText.isNotBlank(),
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(
+                                if (inputText.isNotBlank()) Accent else Panel2,
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // 打断按钮（仅流式中显示：红色方块，点击取消当前任务）
             if (isStreaming) {
+                Spacer(modifier = Modifier.width(4.dp))
                 IconButton(
                     onClick = onCancel,
                     modifier = Modifier.size(44.dp),
@@ -2161,25 +2203,6 @@ private fun Footer(
                                     .clip(RoundedCornerShape(2.dp))
                                     .background(Color.White),
                         )
-                    }
-                }
-            } else {
-                IconButton(
-                    onClick = onSend,
-                    enabled = inputText.isNotBlank(),
-                    modifier = Modifier.size(44.dp),
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(32.dp)
-                                .clip(RoundedCornerShape(9.dp))
-                                .background(
-                                    if (inputText.isNotBlank()) Accent else Panel2,
-                                ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
