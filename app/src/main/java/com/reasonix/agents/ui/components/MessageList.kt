@@ -140,15 +140,26 @@ private fun ChatItemRow(
         // （推理折叠 → 正文平铺 → 工具折叠 → 推理折叠 → …，不跳位）
         is ChatItem.AssistantTurn -> {
             Column(modifier = Modifier.fillMaxWidth()) {
+                // 2026-08-08：连续 Tool 块聚合为 ToolStepsCard（满屏工具卡 → 一轮一张折叠卡）
+                var toolAccumulator = mutableListOf<TurnBlock.Tool>()
+                @Composable
+                fun flushTools() {
+                    if (toolAccumulator.isNotEmpty()) {
+                        ToolStepsCard(blocks = toolAccumulator.toList(), isStreaming = isStreaming)
+                        toolAccumulator.clear()
+                    }
+                }
                 item.blocks.forEach { block ->
                     when (block) {
                         is TurnBlock.Reasoning -> {
+                            flushTools()
                             if (block.text.isNotBlank()) {
                                 ReasoningBlock(text = block.text, isStreaming = isStreaming)
                             }
                         }
 
                         is TurnBlock.Text -> {
+                            flushTools()
                             if (block.text.isNotBlank()) {
                                 AssistantMessageBubble(
                                     text = block.text,
@@ -159,18 +170,11 @@ private fun ChatItemRow(
                         }
 
                         is TurnBlock.Tool -> {
-                            ToolCard(
-                                id = block.id,
-                                name = block.name,
-                                args = block.args,
-                                output = block.output,
-                                err = block.err,
-                                truncated = block.truncated,
-                                isRunning = block.isRunning,
-                            )
+                            toolAccumulator.add(block)
                         }
                     }
                 }
+                flushTools()
             }
         }
 

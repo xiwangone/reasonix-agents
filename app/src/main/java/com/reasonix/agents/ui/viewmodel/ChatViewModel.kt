@@ -1009,11 +1009,19 @@ class ChatViewModel(
             }
     }
 
+    // 2026-08-08：流式缓冲——高频增量顺延刷新，停顿 ≥250ms 才批量显示（防正文蹦字/跳变）
+    private val streamBufferMs: Long = 250
+
     private fun scheduleUiRefresh() {
-        if (uiRefreshJob?.isActive == true) return
+        // 流式中：增量到达顺延刷新（停顿缓冲）；非流式：立即刷新
+        if (!_uiState.value.isStreaming) {
+            updatePendingTurn()
+            return
+        }
+        uiRefreshJob?.cancel()
         uiRefreshJob =
             viewModelScope.launch {
-                delay(60)
+                delay(streamBufferMs)
                 uiRefreshJob = null
                 updatePendingTurn()
             }
