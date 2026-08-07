@@ -865,11 +865,14 @@ class ChatViewModel(
                             args = tool.args ?: tool.arguments,
                             isRunning = true,
                         )
-                    // 同一工具 id（或同名同参）重复 dispatch 原位替换，保留最新状态，避免重复卡
+                    // 同一工具 id（或同名同参）重复 dispatch 原位替换，保留最新状态，避免重复卡。
+                    // 2026-08-07：服务端每次调用 id 均非空，若仅 id 为空才按同名同参合并则永远不触发；
+                    // 同命令反复执行（如多次 git status）只保留最新一张。
                     val idx =
                         pendingBlocks.indexOfLast {
                             it is TurnBlock.Tool &&
-                                (it.id == tool.id || (tool.id.isEmpty() && it.name == tool.name && it.args == (tool.args ?: tool.arguments)))
+                                (it.id == tool.id ||
+                                    (it.name == tool.name && it.args == (tool.args ?: tool.arguments)))
                         }
                     if (idx >= 0) {
                         pendingBlocks[idx] = card
@@ -1092,7 +1095,7 @@ class ChatViewModel(
         // 2026-08-07：id 为空时退化为「同名同参」匹配，保证 result/progress 回填
         // 命中的是同一张卡，而不是每次新增一张重复的工具卡
         fun matches(it: TurnBlock.Tool): Boolean =
-            it.id == id || (id.isEmpty() && it.name == card.name && it.args == card.args)
+            it.id == id || (it.name == card.name && it.args == card.args)
 
         var target = -1
         for (i in pendingBlocks.indices) {
