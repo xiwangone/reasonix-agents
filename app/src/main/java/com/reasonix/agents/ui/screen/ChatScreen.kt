@@ -1,6 +1,8 @@
 package com.reasonix.agents.ui.screen
 
 import android.net.Uri
+import java.util.Calendar
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -39,7 +41,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +56,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.CustomModelStore
 import com.reasonix.agents.data.PinnedSessionsStore
+import com.reasonix.agents.data.SessionTimestampsStore
 import com.reasonix.agents.R
 import com.reasonix.agents.data.ProfileStore
 import com.reasonix.agents.data.ServerConfigStore
@@ -529,6 +534,7 @@ fun ChatScreen(
                 MessageList(
                     items = state.messages,
                     modifier = Modifier.weight(1f),
+                    isStreaming = state.isStreaming,
                     balance = state.status?.balance?.display,
                     cumulativeTokens = state.cumulativeTokens,
                     onRegenerate = { viewModel.regenerateLast() },
@@ -1180,11 +1186,34 @@ private fun Sidebar(
     // 2026-08-06 对齐 RikkaHub 会话抽屉：置顶（本地记录，置顶排前 + 星标切换）
     val context = LocalContext.current
     var pinnedNames by remember { mutableStateOf(PinnedSessionsStore.load(context)) }
+    // 2026-08-07（设计稿 #1）：会话最近访问时间戳（本地记录，用于今天/昨天/更早分组）
+    var sessionTimes by remember { mutableStateOf(SessionTimestampsStore.loadAll(context)) }
     // 置顶会话排前（保持原有相对顺序）
     val orderedSessions =
         remember(sessions, pinnedNames) {
             sessions.sortedBy { if (it.name in pinnedNames) 0 else 1 }
         }
+    // 今天/昨天/更早 分组键（Calendar 兼容 minSdk 23）
+    fun dateGroupKey(ts: Long?): String {
+        if (ts == null) return "今天"
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val todayStart = cal.timeInMillis
+        return when {
+            ts >= todayStart -> "今天"
+            ts >= todayStart - 86_400_000L -> "昨天"
+            else -> "更早"
+        }
+    }
+    // 点击会话：记录最近访问时间（分组数据源）
+    val selectWithTouch: (String, String) -> Unit = { name, path ->
+        SessionTimestampsStore.touch(context, name)
+        sessionTimes = sessionTimes + (name to System.currentTimeMillis())
+        onSelectSession(path)
+    }
 
     // 会话列表刷新后清理已不存在的选中项；列表清空时退出多选
     LaunchedEffect(sessions) {
@@ -1329,9 +1358,9 @@ private fun Sidebar(
                     modifier = Modifier.padding(10.dp),
                 )
             } else {
-                // 2026-08-06 优化：会话分组（置顶 / 普通）——分组小标题 + 各自列表
+                // 2026-08-07（设计稿 #1）：会话分组（置顶 / 今天 / 昨天 / 更早）——分组小标题 + 各自列表
                 val pinned = orderedSessions.filter { it.name in pinnedNames }
-                val normal = orderedSessions.filter { it.name !in pinnedNames }
+                val others = orderedSessions.filter { it.name !in pinnedNames }
                 if (pinned.isNotEmpty()) {
                     GroupLabel("置顶")
                     pinned.forEach { session ->
@@ -1344,7 +1373,7 @@ private fun Sidebar(
                                 pinnedNames = PinnedSessionsStore.toggle(context, session.name)
                             },
                             selected = session.name in selectedNames,
-                            onSelect = { onSelectSession(session.path) },
+                            onSelect = { selectWithTouch(session.name, session.path) },
                             onToggleSelect = {
                                 selectedNames =
                                     if (session.name in selectedNames) {
@@ -1358,30 +1387,38 @@ private fun Sidebar(
                         )
                     }
                 }
-                if (normal.isNotEmpty()) {
-                    GroupLabel("最近")
-                    normal.forEach { session ->
-                        SessionRow(
-                            session = session,
-                            isStreaming = isStreaming,
-                            selectionMode = selectionMode,
-                            pinned = false,
-                            onTogglePin = {
-                                pinnedNames = PinnedSessionsStore.toggle(context, session.name)
-                            },
-                            selected = session.name in selectedNames,
-                            onSelect = { onSelectSession(session.path) },
-                            onToggleSelect = {
-                                selectedNames =
-                                    if (session.name in selectedNames) {
-                                        selectedNames - session.name
-                                    } else {
-                                        selectedNames + session.name
-                                    }
-                            },
-                            onLongPress = { enterSelection(session.name) },
-                            onDelete = { onDeleteSession(session.name) },
-                        )
+                // 非置顶按最近访问时间分三组（无记录→今天）
+                for (group in listOf("今天", "昨天", "更早")) {
+                    val grouped = others.filter { dateGroupKey(sessionTimes[it.name]) == group }
+                    if (grouped.isNotEmpty()) {
+                        GroupLabel(group)
+                        grouped.forEach { session ->
+                            SessionRow(
+                                session = session,
+                                isStreaming = isStreaming,
+                                selectionMode = selectionMode,
+                                pinned = false,
+                                onTogglePin = {
+                                    pinnedNames = PinnedSessionsStore.toggle(context, session.name)
+                                },
+                                selected = session.name in selectedNames,
+                                onSelect = { selectWithTouch(session.name, session.path) },
+                                onToggleSelect = {
+                                    selectedNames =
+                                        if (session.name in selectedNames) {
+                                            selectedNames - session.name
+                                        } else {
+                                            selectedNames + session.name
+                                        }
+                                },
+                                onLongPress = { enterSelection(session.name) },
+                                onDelete = {
+                                    SessionTimestampsStore.remove(context, session.name)
+                                    sessionTimes = sessionTimes - session.name
+                                    onDeleteSession(session.name)
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -1676,6 +1713,10 @@ private fun Footer(
     connectionState: ConnectionState,
     cumulativeCost: Double,
     cumulativeTokens: Long,
+    cumulativePromptTokens: Long = 0,
+    cumulativeCompletionTokens: Long = 0,
+    cumulativeCacheHit: Long = 0,
+    cumulativeCacheMiss: Long = 0,
     balance: String?,
     focusRequester: FocusRequester,
     imageProcessing: Boolean,
@@ -1813,6 +1854,51 @@ private fun Footer(
                 fontFamily = FontFamily.Monospace,
                 color = Muted2,
             )
+        }
+
+        // ── 会话 token 累计条（设计稿 #14：输入框上方常驻，点击复制） ──
+        if (cumulativeTokens > 0 || cumulativePromptTokens > 0) {
+            val context = LocalContext.current
+            val clipboardManager = LocalClipboardManager.current
+            val summary =
+                "会话统计｜↑输入 ${fmtTokens(cumulativePromptTokens)} · 缓存 ${fmtTokens(cumulativeCacheHit)} · ↓输出 ${fmtTokens(cumulativeCompletionTokens)}（累计 ${fmtTokens(cumulativeTokens)} · ${fmtCost(cumulativeCost)}）"
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            clipboardManager.setText(AnnotatedString(summary))
+                            Toast.makeText(context, "会话统计已复制", Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "会话",
+                    color = Accent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "↑${fmtTokens(cumulativePromptTokens)} · 缓存 ${fmtTokens(cumulativeCacheHit)} · ↓${fmtTokens(cumulativeCompletionTokens)}",
+                    color = Fg2,
+                    fontSize = 11.sp,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "累计 ${fmtTokens(cumulativeTokens)} · ${fmtCost(cumulativeCost)}",
+                    color = Muted2,
+                    fontSize = 11.sp,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = "复制统计",
+                    tint = Muted2,
+                    modifier = Modifier.size(13.dp),
+                )
+            }
         }
 
         // ── 输入框（输入区 + 独立发送按钮）──
@@ -2037,6 +2123,18 @@ private fun ToolbarButton(
 // ═══════════════════════════════════════════════
 
 private fun fmtTok(n: Long): String = if (n >= 1000) "%.1fk".format(n / 1000.0) else "$n"
+
+// 2026-08-07（设计稿 #14）：token 数格式化（1000→1k / 1000000→1M）
+private fun fmtTokens(n: Long): String =
+    when {
+        n >= 1_000_000 -> String.format("%.1fM", n / 1_000_000.0)
+        n >= 1_000 -> String.format("%.1fk", n / 1_000.0)
+        else -> n.toString()
+    }
+
+// 费用格式化（$）
+private fun fmtCost(c: Double): String =
+    if (c > 0) String.format("$%.2f", c) else "$0"
 
 private fun fmtMoney(n: Double): String =
     when {

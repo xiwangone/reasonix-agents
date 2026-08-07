@@ -39,6 +39,8 @@ fun MessageList(
     onAskSubmit: ((List<Map<String, String>>) -> Unit)? = null,
     onRegenerate: (() -> Unit)? = null,
     onDeleteMessage: ((String) -> Unit)? = null,
+    // 2026-08-07：是否流式生成中（推理卡三态折叠：生成中计时/脉动/完成后自动收起）
+    isStreaming: Boolean = false,
     // 2026-08-07：注入上下文折叠卡（系统提示词/用户提示词/记忆）
     systemPrompt: String? = null,
     userPrompt: String = "",
@@ -86,6 +88,7 @@ fun MessageList(
                 ChatItemRow(
                     item = item,
                     balance = balance,
+                    isStreaming = isStreaming,
                     onApprove = onApprove,
                     onDeny = onDeny,
                     onAskSubmit = onAskSubmit,
@@ -103,6 +106,7 @@ private fun ChatItemRow(
     item: ChatItem,
     balance: String? = null,
     cumulativeTokens: Long = 0,
+    isStreaming: Boolean = false,
     onApprove: ((session: Boolean, persist: Boolean, scope: String) -> Unit)?,
     onDeny: (() -> Unit)?,
     onAskSubmit: ((List<Map<String, String>>) -> Unit)?,
@@ -127,7 +131,7 @@ private fun ChatItemRow(
                 }
                 // 推理文本（如有）— 默认折叠，点击展开
                 if (!item.reasoning.isNullOrBlank()) {
-                    ReasoningBlock(text = item.reasoning)
+                    ReasoningBlock(text = item.reasoning, isStreaming = isStreaming)
                 }
             }
         }
@@ -140,7 +144,7 @@ private fun ChatItemRow(
                     when (block) {
                         is TurnBlock.Reasoning -> {
                             if (block.text.isNotBlank()) {
-                                ReasoningBlock(text = block.text)
+                                ReasoningBlock(text = block.text, isStreaming = isStreaming)
                             }
                         }
 

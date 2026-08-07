@@ -1,7 +1,9 @@
 package com.reasonix.agents.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,9 +14,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -61,13 +66,48 @@ private val danger: Color @Composable get() = LocalPalette.current.danger
 fun ReasoningBlock(
     text: String,
     modifier: Modifier = Modifier,
+    // 2026-08-07（设计稿 #5 推理三态折叠）：生成中状态 / 完成后自动收起
+    isStreaming: Boolean = false,
+    autoCollapse: Boolean = true,
 ) {
-    // 2026-08-06 优化：折叠状态记忆——rememberSaveable 保持展开（列表重组不重置）
+    // 三态折叠：预览（折叠·2 行渐隐）↔ 展开（全文滚动）
     var expanded by rememberSaveable { mutableStateOf(false) }
+    // 生成中已思考秒数
+    var elapsed by remember { mutableIntStateOf(0) }
+
+    // 生成中计时（秒）
+    LaunchedEffect(isStreaming) {
+        if (isStreaming) {
+            elapsed = 0
+            while (true) {
+                delay(1000)
+                elapsed++
+            }
+        }
+    }
+
+    // 生成结束 + 开启自动收起 → 回到预览态
+    LaunchedEffect(isStreaming, autoCollapse, text) {
+        if (!isStreaming && autoCollapse && text.isNotBlank()) {
+            expanded = false
+        }
+    }
+
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 90f else 0f,
         animationSpec = tween(durationMillis = 200),
         label = "chevronRotation",
+    )
+    // 生成中：内容区呼吸脉动（替代 shimmer，无额外依赖）
+    val pulseAlpha by animateFloatAsState(
+        targetValue = if (isStreaming) 0.45f else 1f,
+        animationSpec =
+            if (isStreaming) {
+                infiniteRepeatable(animation = tween(durationMillis = 650), repeatMode = RepeatMode.Reverse)
+            } else {
+                tween(durationMillis = 200)
+            },
+        label = "pulse",
     )
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -88,45 +128,87 @@ fun ReasoningBlock(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                // 2026-08-06 优化：推理条显示字数/状态
-                text = if (text.isBlank()) "思考中…" else "思考 · ${text.length} 字",
-                color = muted,
+                text =
+                    when {
+                        isStreaming && text.isBlank() -> "思考中 · ${elapsed}s"
+                        isStreaming -> "思考 · ${text.length} 字 · ${elapsed}s"
+                        text.isBlank() -> "思考中…"
+                        else -> "思考 · ${text.length} 字"
+                    },
+                color = if (isStreaming) accent else muted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
             )
+            if (isStreaming) {
+                Spacer(modifier = Modifier.width(6.dp))
+                // 生成中圆点呼吸
+                Box(
+                    modifier =
+                        Modifier
+                            .size(6.dp)
+                            .background(accent, RoundedCornerShape(3.dp)),
+                )
+            }
         }
 
-        // ── 展开面板 ──
-        if (expanded) {
+        // ── 内容区（预览 2 行 / 展开全文） ──
+        if (text.isNotBlank()) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Box(
                     modifier =
                         Modifier
                             .width(2.dp)
-                            .height(280.dp)
-                            .background(border, RoundedCornerShape(1.dp)),
+                            .height(if (expanded) 280.dp else 44.dp)
+                            .background(if (isStreaming) accent.copy(alpha = 0.5f) else border, RoundedCornerShape(1.dp)),
                 )
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .heightIn(max = 280.dp)
-                            .padding(start = 8.dp)
-                            .verticalScroll(rememberScrollState())
-                            .padding(bottom = 8.dp),
-                ) {
-                    Text(
-                        text = text,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        color = fg2,
-                        lineHeight = 20.sp,
-                    )
+                if (expanded) {
+                    // 展开：全文滚动（可点标题收起）
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .heightIn(max = 280.dp)
+                                .padding(start = 8.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(bottom = 8.dp),
+                    ) {
+                        Text(
+                            text = text,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            color = fg2,
+                            lineHeight = 20.sp,
+                        )
+                    }
+                } else {
+                    // 预览：2 行省略 + 底部渐隐
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp)
+                                .heightIn(min = 44.dp)
+                                .clickable { expanded = true },
+                    ) {
+                        Text(
+                            text = text,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            color = fg2.copy(alpha = pulseAlpha),
+                            lineHeight = 20.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.alpha(if (expanded) 1f else 0.9f),
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+// ═══════════════════════════════════════════════
+// 2. ApprovalCard}
 
 // ═══════════════════════════════════════════════
 // 2. ApprovalCard

@@ -53,6 +53,8 @@ data class ChatUiState(
         com.reasonix.agents.data.CliIntegrationStore
             .CliSettings(),
     val cumulativeTokens: Long = 0,
+    val cumulativePromptTokens: Long = 0,
+    val cumulativeCompletionTokens: Long = 0,
     val cumulativeCost: Double = 0.0,
     val cumulativeCacheHit: Long = 0,
     val cumulativeCacheMiss: Long = 0,
@@ -920,6 +922,8 @@ class ChatViewModel(
                     _uiState.update { state ->
                         state.copy(
                             cumulativeTokens = u.totalTokens,
+                            cumulativePromptTokens = u.promptTokens,
+                            cumulativeCompletionTokens = u.completionTokens,
                             cumulativeCost = u.costUsd ?: u.cost ?: 0.0,
                             cumulativeCacheHit = u.cacheHitTokens,
                             cumulativeCacheMiss = u.cacheMissTokens,
