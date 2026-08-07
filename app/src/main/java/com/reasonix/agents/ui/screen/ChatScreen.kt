@@ -364,6 +364,7 @@ fun ChatScreen(
                         sessions = state.sessions,
                         status = state.status,
                         isStreaming = state.isStreaming,
+                        hasError = state.error != null,
                         cumulativeCost = state.cumulativeCost,
                         onNewSession = {
                             viewModel.newSession()
@@ -1225,6 +1226,7 @@ private fun Sidebar(
     sessions: List<SessionInfo>,
     status: StatusInfo?,
     isStreaming: Boolean,
+    hasError: Boolean,
     cumulativeCost: Double,
     onNewSession: () -> Unit,
     onSelectSession: (String) -> Unit,
@@ -1429,6 +1431,7 @@ private fun Sidebar(
                         SessionRow(
                             session = session,
                             isStreaming = isStreaming,
+                            hasError = hasError,
                             selectionMode = selectionMode,
                             pinned = true,
                             onTogglePin = {
@@ -1458,6 +1461,7 @@ private fun Sidebar(
                             SessionRow(
                                 session = session,
                                 isStreaming = isStreaming,
+                                hasError = hasError,
                                 selectionMode = selectionMode,
                                 pinned = false,
                                 onTogglePin = {
@@ -1589,24 +1593,46 @@ private fun Sidebar(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 状态指示器
+            // ── AI 状态指示器（红/黄/绿：空闲/忙碌/错误）──
+            // 纯前端：isStreaming=当前会话生成中（忙碌/黄）；hasError=出错（红）；否则空闲（绿）
             Row(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val aiColor =
+                    when {
+                        hasError -> Danger
+                        isStreaming -> Warning
+                        else -> Success
+                    }
+                val aiText =
+                    when {
+                        hasError -> "出错"
+                        isStreaming -> "忙碌中…"
+                        else -> "空闲"
+                    }
                 Box(
                     modifier =
                         Modifier
-                            .size(5.dp)
+                            .size(7.dp)
                             .clip(CircleShape)
-                            .background(if (isStreaming) Accent else Muted2),
+                            .background(aiColor),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = aiText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = aiColor,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = status?.label ?: "-",
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     color = Muted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -1653,6 +1679,7 @@ private fun SidebarItem(
 private fun SessionRow(
     session: SessionInfo,
     isStreaming: Boolean,
+    hasError: Boolean,
     selectionMode: Boolean,
     pinned: Boolean = false,
     onTogglePin: () -> Unit = {},
@@ -1685,6 +1712,25 @@ private fun SessionRow(
                 ).padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 会话 AI 状态点（红/黄/绿）：错误=红 / 生成中=黄（忙碌）/ 其余会话=绿（空闲）
+        // 纯前端显示：serve 单活跃会话；当前会话流式期间其他会话不可切换，视为「排队等待」
+        if (!selectionMode) {
+            val dotColor =
+                when {
+                    session.current && hasError -> Danger
+                    session.current && isStreaming -> Warning
+                    else -> Success
+                }
+            Box(
+                modifier =
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(dotColor),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
         // 多选模式：勾选指示器
         if (selectionMode) {
             Box(
