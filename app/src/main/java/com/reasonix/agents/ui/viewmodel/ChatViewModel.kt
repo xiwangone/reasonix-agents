@@ -133,7 +133,7 @@ class ChatViewModel(
             it.copy(
                 customPrompts = PromptStore.load(getApplication()),
                 currentPromptId = PromptStore.getCurrentId(getApplication()),
-                memoryText = MemoryStore.activeMemoriesText(getApplication()),
+                memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey()),
             )
         }
         // 第五批 E-3：加载 CLI 集成设置（默认关闭）
@@ -318,12 +318,33 @@ class ChatViewModel(
         _uiState.update { it.copy(customPrompts = updated) }
     }
 
+    /** 当前会话记忆 key：sessions 里 current 的 path；无则 null（=全局互通）。 */
+    private fun currentSessionKey(): String? =
+        _uiState.value.sessions.firstOrNull { it.current }?.path
+
+    /** UI 层取当前会话 key（记忆模式对话框用）。 */
+    fun currentSessionKeyForUi(): String? = currentSessionKey()
+
+    /** 刷新 memoryText（记忆模式切换后调用）。 */
+    fun refreshMemoryText() {
+        val context: android.content.Context = getApplication()
+        val text = MemoryStore.activeMemoriesText(context, currentSessionKey())
+        _uiState.update { it.copy(memoryText = text) }
+    }
+
     /** 保存记忆注入文本（单条替换：编辑内容即新的唯一记忆；空则清空）。 */
     fun saveMemoryText(content: String) {
         val context: android.content.Context = getApplication()
+        val sessionKey = currentSessionKey()
+        val memoryKey =
+            when (MemoryStore.memoryMode(context, sessionKey)) {
+                MemoryStore.MemoryMode.GLOBAL -> null
+                MemoryStore.MemoryMode.LOCAL -> sessionKey
+                MemoryStore.MemoryMode.OFF -> null
+            }
         val trimmed = content.trim()
         if (trimmed.isBlank()) {
-            MemoryStore.save(context, emptyList())
+            MemoryStore.save(context, emptyList(), memoryKey)
         } else {
             MemoryStore.save(
                 context,
@@ -334,9 +355,10 @@ class ChatViewModel(
                         createdAt = System.currentTimeMillis(),
                     ),
                 ),
+                memoryKey,
             )
         }
-        _uiState.update { it.copy(memoryText = MemoryStore.activeMemoriesText(context)) }
+        _uiState.update { it.copy(memoryText = MemoryStore.activeMemoriesText(context, sessionKey)) }
     }
 
     // ── 更新 CI 监控设置 ──
@@ -519,7 +541,7 @@ class ChatViewModel(
         // 第四批：选中用户提示词时，附加在系统提示词之后注入会话上下文
         val promptContent = activePromptContent()
         // 2026-08-06：记忆功能第一版——启用时注入【记忆】段落（提示词之后、用户文本之前）
-        val memoryText = MemoryStore.activeMemoriesText(getApplication())
+        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey())
         // 第五批 E-3：CLI 集成开启时，注入部署 CLI 工具可用性指令（提示词层）
         val cliInstruction = cliInstruction()
         // 2026-08-07 防复述：注入内容（提示词/记忆/CLI 指令）仅供上下文参考，
@@ -576,7 +598,7 @@ class ChatViewModel(
         // 提交消息 → 启动 SSE 监听（复用 sendMessage 的提示词/CLI 注入逻辑）
         val promptContent = activePromptContent()
         // 2026-08-06：记忆功能第一版——启用时注入【记忆】段落
-        val memoryText = MemoryStore.activeMemoriesText(getApplication())
+        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey())
         val cliInstruction = cliInstruction()
         val effectiveInput =
             listOfNotNull(promptContent, memoryText, cliInstruction, text.ifBlank { "[图片]" })
@@ -1150,7 +1172,7 @@ class ChatViewModel(
         // 应用增删并剔除标记行后刷新 UI 展示
         val raw = pendingContent?.toString()
         if (!raw.isNullOrBlank() && MemoryStore.isEnabled(getApplication())) {
-            val cleaned = MemoryStore.processMarkers(getApplication(), raw)
+            val cleaned = MemoryStore.processMarkers(getApplication(), raw, currentSessionKey())
             if (cleaned != raw) {
                 pendingContent = StringBuilder(cleaned)
                 // 更新最后一个 Text 块为剔除标记后的内容

@@ -35,11 +35,48 @@ object MemoryStore {
         val createdAt: Long = 0L,
     )
 
-    fun load(context: Context): List<MemoryItem> {
+    /** 记忆模式：互通(全局共享) / 隔离(本会话独立) / 关闭 */
+    enum class MemoryMode { GLOBAL, LOCAL, OFF }
+
+    private const val KEY_MODE_PREFIX = "memory_mode"
+
+    /** 会话记忆 key 前缀：null=全局互通（默认），非空=按会话隔离 */
+    private fun prefsKey(sessionKey: String?): String =
+        if (sessionKey.isNullOrBlank()) KEY_MEMORIES else "${KEY_MEMORIES}_${sessionKey}"
+
+    /** 会话记忆模式（sessionKey 为空=全局互通默认；否则查本会话配置，默认 GLOBAL 互通） */
+    fun memoryMode(
+        context: Context,
+        sessionKey: String?,
+    ): MemoryMode {
+        if (sessionKey.isNullOrBlank()) return MemoryMode.GLOBAL
         val raw =
             context
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getString(KEY_MEMORIES, "") ?: ""
+                .getString("${KEY_MODE_PREFIX}_$sessionKey", null)
+        return MemoryMode.valueOf(raw ?: MemoryMode.GLOBAL.name)
+    }
+
+    fun setMemoryMode(
+        context: Context,
+        sessionKey: String?,
+        mode: MemoryMode,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString("${KEY_MODE_PREFIX}_$sessionKey", mode.name)
+            .apply()
+    }
+
+    fun load(
+        context: Context,
+        sessionKey: String? = null,
+    ): List<MemoryItem> {
+        val raw =
+            context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(prefsKey(sessionKey), "") ?: ""
         if (raw.isBlank()) return emptyList()
         return try {
             val type = object : TypeToken<List<MemoryItem>>() {}.type
@@ -53,11 +90,12 @@ object MemoryStore {
     fun save(
         context: Context,
         items: List<MemoryItem>,
+        sessionKey: String? = null,
     ) {
         context
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
-            .putString(KEY_MEMORIES, gson.toJson(items))
+            .putString(prefsKey(sessionKey), gson.toJson(items))
             .apply()
     }
 
@@ -65,13 +103,14 @@ object MemoryStore {
     fun add(
         context: Context,
         content: String,
+        sessionKey: String? = null,
     ): List<MemoryItem> {
-        val items = load(context).toMutableList()
+        val items = load(context, sessionKey).toMutableList()
         val item = MemoryItem(id = "${System.currentTimeMillis()}-${items.size}", content = content.trim(), createdAt = System.currentTimeMillis())
         items.removeAll { it.id == item.id }
         items.add(item)
         val result = items.toList()
-        save(context, result)
+        save(context, result, sessionKey)
         return result
     }
 
@@ -79,9 +118,10 @@ object MemoryStore {
     fun remove(
         context: Context,
         id: String,
+        sessionKey: String? = null,
     ): List<MemoryItem> {
-        val result = load(context).filterNot { it.id == id }
-        save(context, result)
+        val result = load(context, sessionKey).filterNot { it.id == id }
+        save(context, result, sessionKey)
         return result
     }
 
@@ -89,9 +129,10 @@ object MemoryStore {
     fun removeByContent(
         context: Context,
         content: String,
+        sessionKey: String? = null,
     ) {
-        val result = load(context).filterNot { it.content == content.trim() }
-        save(context, result)
+        val result = load(context, sessionKey).filterNot { it.content == content.trim() }
+        save(context, result, sessionKey)
     }
 
     /** 启用开关（默认关闭）。 */
@@ -116,9 +157,19 @@ object MemoryStore {
      * 由 ChatViewModel 拼入 effectiveInput（在提示词之后、用户文本之前）。
      * 无记忆时也注入（携带约定，AI 首次即可写入）。
      */
-    fun activeMemoriesText(context: Context): String? {
+    fun activeMemoriesText(
+        context: Context,
+        sessionKey: String? = null,
+    ): String? {
         if (!isEnabled(context)) return null
-        val items = load(context).filter { it.content.isNotBlank() }
+        // 2026-08-08：按会话记忆模式选 key——GLOBAL=互通(全局记忆) / LOCAL=隔离(本会话记忆) / OFF=关闭
+        val effectiveKey =
+            when (memoryMode(context, sessionKey)) {
+                MemoryMode.GLOBAL -> null
+                MemoryMode.LOCAL -> sessionKey
+                MemoryMode.OFF -> return null
+            }
+        val items = load(context, effectiveKey).filter { it.content.isNotBlank() }
         if (items.isEmpty()) return null
         // 2026-08-06 优化：注入截断——总长超限时按条截断（保留最新，尾部省略号），防 token 膨胀
         val body = StringBuilder()
@@ -154,6 +205,7 @@ object MemoryStore {
     fun processMarkers(
         context: Context,
         content: String,
+        sessionKey: String? = null,
     ): String {
         val lines = content.split("\n")
         val kept = mutableListOf<String>()
@@ -162,12 +214,12 @@ object MemoryStore {
             when {
                 trimmed.startsWith(MARK_ADD) -> {
                     val c = trimmed.removePrefix(MARK_ADD).trim()
-                    if (c.isNotBlank()) add(context, c)
+                    if (c.isNotBlank()) add(context, c, sessionKey)
                     // 不保留该行
                 }
                 trimmed.startsWith(MARK_DEL) -> {
                     val c = trimmed.removePrefix(MARK_DEL).trim()
-                    if (c.isNotBlank()) removeByContent(context, c)
+                    if (c.isNotBlank()) removeByContent(context, c, sessionKey)
                     // 不保留该行
                 }
                 else -> kept.add(line)

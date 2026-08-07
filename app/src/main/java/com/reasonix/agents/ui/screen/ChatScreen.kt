@@ -55,6 +55,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.CustomModelStore
+import com.reasonix.agents.data.MemoryStore
 import com.reasonix.agents.data.PinnedSessionsStore
 import com.reasonix.agents.data.SessionTimestampsStore
 import com.reasonix.agents.R
@@ -136,6 +137,7 @@ fun ChatScreen(
     // ── 会话导出（批 B-16）──
     val context = LocalContext.current
     var showExportDialog by remember { mutableStateOf(false) }
+    var showMemoryModeDialog by remember { mutableStateOf(false) }
     var exportFormat by remember { mutableStateOf("文本") }
     val exportLauncher =
         rememberLauncherForActivityResult(
@@ -380,6 +382,10 @@ fun ChatScreen(
                         onExport = {
                             drawerScope.launch { drawerState.close() }
                             showExportDialog = true
+                        },
+                        onMemoryMode = {
+                            drawerScope.launch { drawerState.close() }
+                            showMemoryModeDialog = true
                         },
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -726,6 +732,58 @@ fun ChatScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showExportDialog = false }) { Text(stringResource(R.string.action_cancel), color = Muted) }
+                },
+                containerColor = Panel,
+            )
+        }
+
+        // ── 记忆模式对话框（2026-08-08：会话级 互通/隔离/关闭）──
+        if (showMemoryModeDialog) {
+            val ctx = LocalContext.current
+            val sk = viewModel.currentSessionKeyForUi()
+            val currentMode = MemoryStore.memoryMode(ctx, sk)
+            AlertDialog(
+                onDismissRequest = { showMemoryModeDialog = false },
+                title = { Text("会话记忆模式", color = Fg) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = if (sk.isNullOrBlank()) "当前：未进入会话（使用全局设置）" else "当前会话：$sk",
+                            fontSize = 12.sp,
+                            color = Muted,
+                        )
+                        listOf(
+                            Triple("互通", "所有对话共享同一份记忆", MemoryStore.MemoryMode.GLOBAL),
+                            Triple("隔离", "本会话使用独立记忆，不影响其他对话", MemoryStore.MemoryMode.LOCAL),
+                            Triple("关闭", "本会话不使用记忆", MemoryStore.MemoryMode.OFF),
+                        ).forEach { (label, desc, mode) ->
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (currentMode == mode) Accent.copy(alpha = 0.12f) else Color.Transparent)
+                                        .clickable {
+                                            MemoryStore.setMemoryMode(ctx, sk, mode)
+                                            viewModel.refreshMemoryText()
+                                            showMemoryModeDialog = false
+                                        }
+                                        .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(label, fontSize = 14.sp, color = Fg, fontWeight = FontWeight.Medium)
+                                    Text(desc, fontSize = 11.sp, color = Fg2)
+                                }
+                                if (currentMode == mode) {
+                                    Text("✓", color = Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showMemoryModeDialog = false }) { Text("完成", color = Accent) }
                 },
                 containerColor = Panel,
             )
@@ -1177,6 +1235,7 @@ private fun Sidebar(
     onFork: () -> Unit,
     onStats: () -> Unit,
     onExport: () -> Unit,
+    onMemoryMode: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // 第五批 E-2：会话多选模式——长按进入，支持全选 / 批量删除 / 单条删除
@@ -1287,6 +1346,9 @@ private fun Sidebar(
 
             // 批七：侧边栏不再重复「设置 / 关于」入口（底部导航已有「设置」，关于保留设置页入口）
             SidebarItem("导出会话", onClick = onExport)
+
+            // 2026-08-08：会话记忆模式（互通/隔离/关闭）
+            SidebarItem("记忆模式", onClick = onMemoryMode)
         }
 
         // ── 会话标签 ──
