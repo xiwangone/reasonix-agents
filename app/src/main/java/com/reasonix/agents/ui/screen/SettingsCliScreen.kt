@@ -104,7 +104,7 @@ fun SettingsCliScreen(
                 },
             )
             Text(
-                "开启后，发送消息时将自动附带指令：你可使用部署的 CLI 工具（aide-wrap.sh / oc-wrap.sh）完成任务（注入提示词层）。",
+                "开启后，发送消息时将自动附带指令：你可使用部署的 CLI 工具（/root/aide-wrap.sh / /root/oc-wrap.sh）完成任务（注入提示词层）。",
                 fontSize = 11.sp,
                 color = Muted2,
                 lineHeight = 16.sp,
@@ -129,7 +129,7 @@ fun SettingsCliScreen(
                 }
             }
             Text(
-                "选择「全部」时两条包装脚本均可用（aide-wrap.sh / oc-wrap.sh）。",
+                "选择「全部」时两条包装脚本均可用（/root/aide-wrap.sh / /root/oc-wrap.sh）。工作目录仅允许 /tmp 及子目录。",
                 fontSize = 11.sp,
                 color = Muted2,
                 modifier = Modifier.padding(top = 4.dp),
@@ -188,11 +188,11 @@ fun SettingsCliScreen(
                     Text(
                         text = "注入指令预览：\n「你可使用部署的 CLI 工具（${
                             when (cliSettings.tool) {
-                                CliIntegrationStore.TOOL_AIDER -> "aide-wrap.sh"
-                                CliIntegrationStore.TOOL_OPENCODE -> "oc-wrap.sh"
-                                else -> "aide-wrap.sh / oc-wrap.sh"
+                                CliIntegrationStore.TOOL_AIDER -> "/root/aide-wrap.sh"
+                                CliIntegrationStore.TOOL_OPENCODE -> "/root/oc-wrap.sh"
+                                else -> "/root/aide-wrap.sh / /root/oc-wrap.sh"
                             }
-                        }）完成任务。工作目录：${cliSettings.workdir.ifBlank { "/tmp" }}；调用超时：${cliSettings.timeoutSec.coerceIn(10, 3600)}s。」",
+                        }）完成任务。调用格式：bash <脚本> \"任务描述\" [工作目录] [超时秒]；工作目录仅允许 /tmp 及子目录，超时默认 120s。工作目录：${cliSettings.workdir.ifBlank { "/tmp" }}；调用超时：${cliSettings.timeoutSec.coerceIn(10, 3600)}s。」",
                         fontSize = 12.sp,
                         color = Fg2,
                         lineHeight = 18.sp,

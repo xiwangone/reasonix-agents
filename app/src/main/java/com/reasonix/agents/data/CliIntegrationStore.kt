@@ -6,12 +6,12 @@ import android.content.Context
  * CLI 集成设置本地持久化（第五批 E-3）。
  *
  * 开关开启后，发送消息时 ChatViewModel 会在提示词层注入指令，
- * 告知模型可使用部署的 CLI 工具（aide-wrap.sh / oc-wrap.sh）完成任务。
+ * 告知模型可使用部署的 CLI 工具（/root/aide-wrap.sh / /root/oc-wrap.sh）完成任务。
  *
  * - enabled：启用 / 禁用 reasonix 调用部署 CLI
  * - tool：   所选工具（aider / opencode / all）
- * - workdir：工作目录（默认 /tmp）
- * - timeoutSec：调用超时（默认 120s）
+ * - workdir：工作目录（默认 /tmp，脚本侧白名单仅允许 /tmp 及子目录）
+ * - timeoutSec：调用超时（默认 120s，范围 10–3600，脚本侧有 timeout 硬约束）
  */
 object CliIntegrationStore {
     private const val PREFS_NAME = "reasonix_cli_integration"

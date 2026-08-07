@@ -439,19 +439,21 @@ class ChatViewModel(
 
     /**
      * 构建 CLI 集成注入指令（提示词层）。开关关闭时返回 null。
-     * 按所选工具列出可用的部署 CLI 包装脚本（aide-wrap.sh / oc-wrap.sh）。
+     * 按所选工具列出可用的部署 CLI 包装脚本（/root/aide-wrap.sh / /root/oc-wrap.sh）。
      */
     private fun cliInstruction(): String? {
         val s = _uiState.value.cliSettings
         if (!s.enabled) return null
         val scripts =
             when (s.tool) {
-                CliIntegrationStore.TOOL_AIDER -> "aide-wrap.sh"
-                CliIntegrationStore.TOOL_OPENCODE -> "oc-wrap.sh"
-                else -> "aide-wrap.sh / oc-wrap.sh"
+                CliIntegrationStore.TOOL_AIDER -> "/root/aide-wrap.sh"
+                CliIntegrationStore.TOOL_OPENCODE -> "/root/oc-wrap.sh"
+                else -> "/root/aide-wrap.sh / /root/oc-wrap.sh"
             }
         return buildString {
             append("你可使用部署的 CLI 工具（$scripts）完成任务。")
+            append("脚本调用格式：bash <脚本> \"任务描述\" [工作目录] [超时秒]，")
+            append("工作目录仅允许 /tmp 及子目录，超时默认 120s。")
             append("工作目录：${s.workdir.ifBlank { "/tmp" }}；调用超时：${s.timeoutSec}s。")
             append("如需执行，请通过可用的 shell 工具调用对应包装脚本。")
         }
