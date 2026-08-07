@@ -288,7 +288,8 @@ fun ChatScreen(
             Modifier
                 .fillMaxSize()
                 .background(Bg)
-                .safeDrawingPadding()
+                // 2026-08-07：移除 safeDrawingPadding——Scaffold contentWindowInsets 已通过
+                // NavHost innerPadding 处理安全区，此处再 padding 会双重下移（顶栏离刘海过远）
                 .imePadding()
                 .onKeyEvent { event ->
                     if (event.type == KeyEventType.KeyUp) return@onKeyEvent false

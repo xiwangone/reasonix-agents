@@ -63,8 +63,7 @@ fun SettingsCiScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Bg)
-                .safeDrawingPadding(),
+                .background(Bg),
     ) {
         Column(
             modifier =

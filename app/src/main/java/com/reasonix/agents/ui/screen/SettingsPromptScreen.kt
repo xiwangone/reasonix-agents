@@ -125,7 +125,6 @@ fun SettingsPromptScreen(
             Modifier
                 .fillMaxSize()
                 .background(Bg)
-                .safeDrawingPadding()
                 .imePadding(),
     ) {
         Column(

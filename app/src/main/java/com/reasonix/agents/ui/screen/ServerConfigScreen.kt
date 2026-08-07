@@ -206,7 +206,6 @@ fun ServerConfigScreen(
             Modifier
                 .fillMaxSize()
                 .background(Bg)
-                .safeDrawingPadding()
                 .imePadding(),
         contentAlignment = Alignment.Center,
     ) {

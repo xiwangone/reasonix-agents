@@ -126,8 +126,7 @@ fun AboutScreen(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Bg)
-                .safeDrawingPadding(),
+                .background(Bg),
     ) {
         Column(
             modifier =

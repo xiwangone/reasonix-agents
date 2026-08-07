@@ -117,7 +117,6 @@ fun SettingsMemoryScreen(
             Modifier
                 .fillMaxSize()
                 .background(Bg)
-                .safeDrawingPadding()
                 .imePadding(),
     ) {
         Column(

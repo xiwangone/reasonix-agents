@@ -187,7 +187,6 @@ fun SettingsWebDavScreen(
             Modifier
                 .fillMaxSize()
                 .background(Bg)
-                .safeDrawingPadding()
                 .imePadding(),
     ) {
         Column(

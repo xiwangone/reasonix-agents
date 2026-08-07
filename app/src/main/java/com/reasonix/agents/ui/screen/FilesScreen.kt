@@ -287,8 +287,7 @@ fun FilesScreen(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(palette.bg)
-                .safeDrawingPadding(),
+                .background(palette.bg),
     ) {
         // ── 标题栏 ──
         Row(

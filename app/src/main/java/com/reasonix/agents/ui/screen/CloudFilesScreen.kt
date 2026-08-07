@@ -126,8 +126,7 @@ fun CloudFilesScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(palette.bg)
-                .safeDrawingPadding(),
+                .background(palette.bg),
     ) {
         // ── 标题栏 ──
         Row(

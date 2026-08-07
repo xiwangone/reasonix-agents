@@ -68,7 +68,6 @@ fun SettingsCliScreen(
             Modifier
                 .fillMaxSize()
                 .background(Bg)
-                .safeDrawingPadding()
                 .imePadding(),
     ) {
         Column(

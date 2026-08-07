@@ -168,7 +168,6 @@ fun SettingsBackupScreen(
             Modifier
                 .fillMaxSize()
                 .background(Bg)
-                .safeDrawingPadding()
                 .imePadding(),
     ) {
         Column(

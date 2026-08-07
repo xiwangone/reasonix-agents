@@ -54,8 +54,7 @@ fun SettingsSystemPromptScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Bg)
-                .safeDrawingPadding(),
+                .background(Bg),
     ) {
         Column(
             modifier =
