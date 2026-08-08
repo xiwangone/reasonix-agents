@@ -128,18 +128,10 @@ jobs:
             fi
           fi
           # Release 不存在则创建，已存在则跳过创建
+          # notes 自动生成：git log 变更摘要（无需后补描述）
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
             --title "🚀 Reasonix Agents $TAG" \
-            --notes "## ✨ v$TAG
-
-            ### 📦 安装包
-            - \`Reasonix-Agents-arm64-v8a-release.apk\`（arm64-v8a 固定签名版）
-            - \`Reasonix-Agents-universal-release.apk\`（universal 全架构版）
-
-            ### 🔐 连接配置
-            - 协议：HTTP / HTTPS（HTTPS 默认端口 443）
-            - 认证：用户名/密码（Basic Auth，可选）
-            - 服务器：Reasonix 后端（DeepSeek-Reasonix 协议）" || true
+            --notes "$(git log --oneline --no-merges $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~10)..HEAD 2>/dev/null | head -40 | sed 's/^/- /' || echo '## ✨ v$TAG\n\n### 📦 安装包\n- arm64-v8a 固定签名版\n- universal 全架构版')" || true
           # 上传 APK 到 Release
           cd app/build/outputs/apk/release
           for apk in *.apk; do
