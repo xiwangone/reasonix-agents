@@ -3,11 +3,14 @@ package com.reasonix.agents.ui.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,10 +21,13 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +60,67 @@ internal fun SectionTitle(title: String) {
         color = Accent,
         modifier = Modifier.padding(bottom = 8.dp),
     )
+}
+
+/**
+ * 2026-08-08：圆角卡片分组容器（自写实现，视觉对齐主流设置页观感）。
+ * - 大圆角（16dp）卡片承载一组设置项，内部条目间以细分隔线区隔
+ * - 顶部小标题（Accent 色，同 SectionTitle 风格）
+ * - 不复制任何第三方实现（RikkaHub CardGroup 为 AGPL，避免许可传染）
+ */
+// 卡片组内「当前是否为首条」——用于条目间分隔线（首条前不加线）
+private val LocalGroupFirstItem = compositionLocalOf { true }
+
+@Composable
+internal fun SettingCardGroup(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            fontSize = 13.sp,
+            color = Accent,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
+        )
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Bg2)
+                    .border(1.dp, Border, RoundedCornerShape(16.dp))
+                    .padding(vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
+            // 组内首个条目：不画上方分隔线
+            CompositionLocalProvider(LocalGroupFirstItem provides true) {
+                content()
+            }
+        }
+    }
+}
+
+/** 卡片组内条目包装：非首条自动在顶部画细分隔线。 */
+@Composable
+internal fun ColumnScope.CardGroupItem(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val isFirst = LocalGroupFirstItem.current
+    CompositionLocalProvider(LocalGroupFirstItem provides false) {
+        Column(modifier = modifier.fillMaxWidth()) {
+            if (!isFirst) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    color = Border.copy(alpha = 0.6f),
+                    thickness = 1.dp,
+                )
+            }
+            content()
+        }
+    }
 }
 
 @Composable
@@ -253,16 +320,25 @@ internal fun SettingEntry(
     title: String,
     subtitle: String? = null,
     onClick: () -> Unit,
+    grouped: Boolean = false,
 ) {
     Row(
         modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(Bg2)
-                .border(1.dp, Border, RoundedCornerShape(8.dp))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            if (grouped) {
+                // 2026-08-08：卡片组内条目——背景/边框由父级 SettingCardGroup 提供，仅保留点击区与内边距
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Bg2)
+                    .border(1.dp, Border, RoundedCornerShape(8.dp))
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))

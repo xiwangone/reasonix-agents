@@ -186,128 +186,123 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ── 提示词（批七：移入二级界面，一级只保留入口）──
-            SectionTitle("提示词")
-            SettingEntry(
-                Icons.Default.Edit,
-                "提示词",
-                "自定义提示词：添加 / 保存 / 切换 / 删除（最多 ${PromptStore.MAX_PROMPTS} 条）",
-                onClick = onOpenPrompt,
-            )
-
-            // ── 记忆（2026-08-06 新增：仿 RikkaHub 记忆功能第一版）──
-            SettingEntry(
-                Icons.Default.Favorite,
-                "记忆",
-                "长期记忆：启用注入 / 添加 / 删除（最多 ${MemoryStore.MAX_MEMORIES} 条）",
-                onClick = onOpenMemory,
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ── 常规设置（第四批：设置组件化，点击进入二级界面）──
-            SectionTitle("常规")
-            // 第六批：系统提示词移入二级页面（只读展示完整内容）
-            SettingEntry(
-                Icons.Default.Info,
-                "系统提示词",
-                "服务端系统提示词（只读，完整查看）",
-                onClick = onOpenSystemPrompt,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.Palette, "主题", "配色风格 / 明暗模式 / 语言", onClick = onOpenTheme)
-            Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.List, "模型", "模型切换 / 添加 / 删除自定义模型", onClick = onOpenModel)
-            Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.Visibility, "显示", "推理过程 / Token 费用开关", onClick = onOpenDisplay)
-            Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.Wifi, "网络", "连接超时 / SSE 断线重连", onClick = onOpenNetwork)
-            Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.Build, "CLI 集成", "启用 reasonix 调用部署 CLI（aide-wrap.sh / oc-wrap.sh）", onClick = onOpenCli)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ── 服务器 ──
-            SectionTitle("服务器")
-            SettingEntry(Icons.Default.Dns, "服务器信息", "地址 / 标签 / 计划模式 / 工具审批 / 余额", onClick = onOpenServerInfo)
-            Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.OpenInNew, "部署自己的服务", "查看部署说明（GitHub README）", onClick = onOpenDeploy)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ── 数据（第五批 E-1 + 第八批坚果云同步）──
-            SectionTitle("数据")
-            SettingEntry(Icons.Default.Lock, "备份与恢复", "导出 / 导入单文件备份（配置加密 + 会话历史）", onClick = onOpenBackup)
-            Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.CloudSync, "WebDAV 同步", "通用 WebDAV（坚果云等）备份上传 / 下载 / 定时自动同步，服务器地址可自定", onClick = onOpenWebDav)
-            Spacer(modifier = Modifier.height(6.dp))
-            SettingEntry(Icons.Default.Folder, "云盘文件", "filebrowser 云盘（cloud.louxia.xyz）文件浏览 / 上传 / 下载，RikkaHub 与 Reasonix 中转", onClick = onOpenCloudFiles)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ── 监控 ──
-            SectionTitle("监控")
-            SettingEntry(Icons.Default.CheckCircle, "CI 监控", "GitHub Actions 悬浮球 / Token / 刷新间隔", onClick = onOpenCi)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ── 关于（批 A-6 多入口 + 批 A-7 检测更新）──
-            SectionTitle("关于")
-            InfoRow("版本", "Reasonix Agents v$versionName")
-            // 检查更新按钮
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Bg2)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
-                        .clickable { checkUpdate() }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (checkingUpdate) "检查中…" else "检查更新",
-                    fontSize = 13.sp,
-                    color = Accent,
-                    modifier = Modifier.weight(1f),
-                )
+            // ── 提示词组（批 2：圆角卡片分组，2026-08-08）──
+            SettingCardGroup("提示词") {
+                CardGroupItem {
+                    SettingEntry(
+                        Icons.Default.Edit,
+                        "提示词",
+                        "自定义提示词：添加 / 保存 / 切换 / 删除（最多 ${PromptStore.MAX_PROMPTS} 条）",
+                        onClick = onOpenPrompt,
+                        grouped = true,
+                    )
+                }
+                CardGroupItem {
+                    SettingEntry(
+                        Icons.Default.Favorite,
+                        "记忆",
+                        "长期记忆：启用注入 / 添加 / 删除（最多 ${MemoryStore.MAX_MEMORIES} 条）",
+                        onClick = onOpenMemory,
+                        grouped = true,
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            // 关于页入口
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Bg2)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
-                        .clickable { onOpenAbout() }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "关于本应用（版本 / 项目 / 并列项目）",
-                    fontSize = 13.sp,
-                    color = Accent,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Muted2, modifier = Modifier.size(14.dp))
+
+            // ── 常规组（批 2：圆角卡片分组）──
+            SettingCardGroup("常规") {
+                CardGroupItem {
+                    SettingEntry(
+                        Icons.Default.Info,
+                        "系统提示词",
+                        "服务端系统提示词（只读，完整查看）",
+                        onClick = onOpenSystemPrompt,
+                        grouped = true,
+                    )
+                }
+                CardGroupItem { SettingEntry(Icons.Default.Palette, "主题", "配色风格 / 明暗模式 / 语言", onClick = onOpenTheme, grouped = true) }
+                CardGroupItem { SettingEntry(Icons.Default.List, "模型", "模型切换 / 添加 / 删除自定义模型", onClick = onOpenModel, grouped = true) }
+                CardGroupItem { SettingEntry(Icons.Default.Visibility, "显示", "推理过程 / Token 费用开关", onClick = onOpenDisplay, grouped = true) }
+                CardGroupItem { SettingEntry(Icons.Default.Wifi, "网络", "连接超时 / SSE 断线重连", onClick = onOpenNetwork, grouped = true) }
+                CardGroupItem { SettingEntry(Icons.Default.Build, "CLI 集成", "启用 reasonix 调用部署 CLI（aide-wrap.sh / oc-wrap.sh）", onClick = onOpenCli, grouped = true) }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            // 仓库链接（可点击跳转浏览器；批 C-2：上游只保留协议上游一个连接）
-            ClickableInfoRow("本项目", "github.com/xiwangone/reasonix-agents") {
-                uriHandler.openUri("https://github.com/xiwangone/reasonix-agents")
+
+            // ── 服务器组（批 2：圆角卡片分组）──
+            SettingCardGroup("服务器") {
+                CardGroupItem { SettingEntry(Icons.Default.Dns, "服务器信息", "地址 / 标签 / 计划模式 / 工具审批 / 余额", onClick = onOpenServerInfo, grouped = true) }
+                CardGroupItem { SettingEntry(Icons.Default.OpenInNew, "部署自己的服务", "查看部署说明（GitHub README）", onClick = onOpenDeploy, grouped = true) }
             }
-            ClickableInfoRow("并列项目", "RikkaHub Agents · github.com/xiwangone/rikkahub-agents") {
-                uriHandler.openUri("https://github.com/xiwangone/rikkahub-agents")
+
+            // ── 数据组（批 2：圆角卡片分组）──
+            SettingCardGroup("数据") {
+                CardGroupItem { SettingEntry(Icons.Default.Lock, "备份与恢复", "导出 / 导入单文件备份（配置加密 + 会话历史）", onClick = onOpenBackup, grouped = true) }
+                CardGroupItem { SettingEntry(Icons.Default.CloudSync, "WebDAV 同步", "通用 WebDAV（坚果云等）备份上传 / 下载 / 定时自动同步，服务器地址可自定", onClick = onOpenWebDav, grouped = true) }
+                CardGroupItem { SettingEntry(Icons.Default.Folder, "云盘文件", "filebrowser 云盘（cloud.louxia.xyz）文件浏览 / 上传 / 下载，RikkaHub 与 Reasonix 中转", onClick = onOpenCloudFiles, grouped = true) }
             }
-            ClickableInfoRow("上游项目", "协议上游 · github.com/esengine/DeepSeek-Reasonix") {
-                uriHandler.openUri("https://github.com/esengine/DeepSeek-Reasonix")
+
+            // ── 监控组（批 2：圆角卡片分组）──
+            SettingCardGroup("监控") {
+                CardGroupItem { SettingEntry(Icons.Default.CheckCircle, "CI 监控", "GitHub Actions 悬浮球 / Token / 刷新间隔", onClick = onOpenCi, grouped = true) }
+            }
+
+            // ── 关于组（批 2：圆角卡片分组）──
+            SettingCardGroup("关于") {
+                CardGroupItem { InfoRow("版本", "Reasonix Agents v$versionName") }
+                CardGroupItem {
+                    // 检查更新
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { checkUpdate() }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (checkingUpdate) "检查中…" else "检查更新",
+                            fontSize = 13.sp,
+                            color = Accent,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                CardGroupItem {
+                    // 关于页入口
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenAbout() }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "关于本应用（版本 / 项目 / 并列项目）",
+                            fontSize = 13.sp,
+                            color = Accent,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Muted2, modifier = Modifier.size(14.dp))
+                    }
+                }
+                CardGroupItem {
+                    ClickableInfoRow("本项目", "github.com/xiwangone/reasonix-agents") {
+                        uriHandler.openUri("https://github.com/xiwangone/reasonix-agents")
+                    }
+                }
+                CardGroupItem {
+                    ClickableInfoRow("并列项目", "RikkaHub Agents · github.com/xiwangone/rikkahub-agents") {
+                        uriHandler.openUri("https://github.com/xiwangone/rikkahub-agents")
+                    }
+                }
+                CardGroupItem {
+                    ClickableInfoRow("上游项目", "协议上游 · github.com/esengine/DeepSeek-Reasonix") {
+                        uriHandler.openUri("https://github.com/esengine/DeepSeek-Reasonix")
+                    }
+                }
             }
         }
     }
