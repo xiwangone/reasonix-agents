@@ -19,6 +19,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
@@ -95,6 +96,8 @@ private fun fmtCost(
 fun UserMessageBubble(
     text: String,
     imagePath: String? = null,
+    // 2026-08-08：用户名称（本地资料 displayName），显示在消息上方右侧
+    userName: String? = null,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -103,6 +106,23 @@ fun UserMessageBubble(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End,
     ) {
+        // 2026-08-08：用户名行（右侧对齐，气泡上方）
+        if (!userName.isNullOrBlank()) {
+            Row(
+                modifier = Modifier.padding(start = 16.dp, end = 12.dp, top = 2.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Text(
+                    text = userName,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = fg2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         // 2026-08-06：操作行（对齐 RikkaHub）——复制 + 分享
         Row(
             modifier = Modifier.fillMaxWidth(),

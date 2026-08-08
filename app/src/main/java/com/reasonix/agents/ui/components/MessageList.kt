@@ -22,6 +22,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
@@ -34,6 +36,8 @@ import com.reasonix.agents.ui.theme.LocalPalette
 private val bg: Color @Composable get() = LocalPalette.current.bg
 private val border: Color @Composable get() = LocalPalette.current.border
 private val Accent: Color @Composable get() = LocalPalette.current.accent
+private val Fg: Color @Composable get() = LocalPalette.current.fg
+private val Fg2: Color @Composable get() = LocalPalette.current.fg2
 private val Muted: Color @Composable get() = LocalPalette.current.muted
 
 /**
@@ -53,6 +57,9 @@ fun MessageList(
     onDeleteMessage: ((String) -> Unit)? = null,
     // 2026-08-07：是否流式生成中（推理卡三态折叠：生成中计时/脉动/完成后自动收起）
     isStreaming: Boolean = false,
+    // 2026-08-08：消息区显示 AI/用户名称（AI 名 = 服务端 label，用户 = 本地资料 displayName）
+    assistantName: String? = null,
+    userName: String? = null,
     // 2026-08-07：注入上下文折叠卡（系统提示词/用户提示词/记忆）
     systemPrompt: String? = null,
     userPrompt: String = "",
@@ -122,6 +129,8 @@ fun MessageList(
                     exit = fadeOut(),
                 ) {
                     ChatItemRow(
+                        assistantName = assistantName,
+                        userName = userName,
                         item = item,
                         balance = balance,
                         isStreaming = isStreaming,
@@ -230,6 +239,8 @@ private fun ChatItemRow(
     balance: String? = null,
     cumulativeTokens: Long = 0,
     isStreaming: Boolean = false,
+    assistantName: String? = null,
+    userName: String? = null,
     onApprove: ((session: Boolean, persist: Boolean, scope: String) -> Unit)?,
     onDeny: (() -> Unit)?,
     onAskSubmit: ((List<Map<String, String>>) -> Unit)?,
@@ -238,7 +249,7 @@ private fun ChatItemRow(
 ) {
     when (item) {
         is ChatItem.UserMessage -> {
-            UserMessageBubble(item.content, item.imagePath)
+            UserMessageBubble(text = item.content, imagePath = item.imagePath, userName = userName)
         }
 
         is ChatItem.AssistantMessage -> {
@@ -263,24 +274,46 @@ private fun ChatItemRow(
         // （推理折叠 → 正文平铺 → 工具折叠 → 推理折叠 → …，不跳位）
         is ChatItem.AssistantTurn -> {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // 2026-08-08：全轮 Tool 块聚合为【一个】ToolStepsCard（一轮正文一个折叠卡）
-                // 折叠态只显示「N 个工具步骤」，snipped/输出原文完全隐藏，展开才可见
+                // 2026-08-08：AI 名称行（名称下方依次：思考卡 → 工具卡 → 正文）
+                if (!assistantName.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier.padding(start = 8.dp, top = 2.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Accent),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = assistantName,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Fg,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                // 2026-08-08：全轮 Tool 块聚合为【一个】ToolStepsCard；正文块聚合到工具卡之后渲染，
+                // 满足「思考卡 → 工具命令卡 → 正文」的固定层次（原为正文在工具前，随 blocks 顺序穿插）
                 val toolAccumulator = mutableListOf<TurnBlock.Tool>()
+                val textAccumulator = mutableListOf<String>()
                 item.blocks.forEach { block ->
                     when (block) {
                         is TurnBlock.Reasoning -> {
-                            if (block.text.isNotBlank()) {
+                            // 2026-08-08：思考中（text 尚空）也渲染——显示「思考中 · Ns」而非整体消失
+                            if (block.text.isNotBlank() || isStreaming) {
                                 ReasoningBlock(text = block.text, isStreaming = isStreaming)
                             }
                         }
 
                         is TurnBlock.Text -> {
                             if (block.text.isNotBlank()) {
-                                AssistantMessageBubble(
-                                    text = block.text,
-                                    onRegenerate = onRegenerate,
-                                    onDelete = onDeleteMessage,
-                                )
+                                textAccumulator.add(block.text)
                             }
                         }
 
@@ -291,6 +324,14 @@ private fun ChatItemRow(
                 }
                 if (toolAccumulator.isNotEmpty()) {
                     ToolStepsCard(blocks = toolAccumulator.toList(), isStreaming = isStreaming)
+                }
+                // 正文统一在思考卡/工具卡之后渲染
+                textAccumulator.forEach { t ->
+                    AssistantMessageBubble(
+                        text = t,
+                        onRegenerate = onRegenerate,
+                        onDelete = onDeleteMessage,
+                    )
                 }
             }
         }

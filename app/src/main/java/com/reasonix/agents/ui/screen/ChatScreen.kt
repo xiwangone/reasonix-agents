@@ -553,6 +553,8 @@ fun ChatScreen(
                     items = state.messages,
                     modifier = Modifier.weight(1f),
                     isStreaming = state.isStreaming,
+                    assistantName = state.status?.label,
+                    userName = profile.displayName.ifBlank { null },
                     balance = state.status?.balance?.display,
                     cumulativeTokens = state.cumulativeTokens,
                     onRegenerate = { viewModel.regenerateLast() },
