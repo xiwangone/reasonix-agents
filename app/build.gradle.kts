@@ -15,8 +15,8 @@ android {
         applicationId = "com.reasonix.agents"
         minSdk = 23
         targetSdk = 36
-        versionCode = 3
-        versionName = "2.3"
+        versionCode = 4
+        versionName = "3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
