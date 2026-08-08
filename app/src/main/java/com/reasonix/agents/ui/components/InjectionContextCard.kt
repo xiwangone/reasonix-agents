@@ -65,6 +65,10 @@ fun InjectionContextCard(
     var expanded by rememberSaveable { mutableStateOf(false) }
     // 编辑对话框状态
     var editTarget by remember { mutableStateOf<EditTarget?>(null) }
+    // 2026-08-08：各 section 独立折叠（默认折叠），点击标题行展开/收起
+    var sysExpanded by rememberSaveable { mutableStateOf(false) }
+    var userExpanded by rememberSaveable { mutableStateOf(false) }
+    var memExpanded by rememberSaveable { mutableStateOf(false) }
 
     val sectionCount = listOfNotNull(systemPrompt, userPrompt.takeIf { it.isNotBlank() }, memoryText).size
 
@@ -125,7 +129,7 @@ fun InjectionContextCard(
         if (expanded) {
             HorizontalDivider(color = p.border.copy(alpha = 0.5f))
             Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                // ── 系统提示词（只读）──
+                // ── 系统提示词（只读，独立折叠）──
                 systemPrompt?.let { sp ->
                     SectionHeader(
                         title = stringResource(R.string.section_system_prompt),
@@ -133,11 +137,13 @@ fun InjectionContextCard(
                         badgeColor = p.muted2,
                         icon = { Icon(Icons.Default.Lock, null, Modifier.size(13.dp), tint = p.muted2) },
                         onEdit = null,
+                        expanded = sysExpanded,
+                        onToggle = { sysExpanded = !sysExpanded },
                     )
-                    SectionBody(sp)
+                    if (sysExpanded) SectionBody(sp)
                 }
 
-                // ── 用户提示词（可编辑）──
+                // ── 用户提示词（可编辑，独立折叠）──
                 if (userPrompt.isNotBlank()) {
                     SectionHeader(
                         title = stringResource(R.string.section_user_prompt),
@@ -145,11 +151,13 @@ fun InjectionContextCard(
                         badgeColor = p.accent,
                         icon = null,
                         onEdit = { editTarget = EditTarget.UserPrompt(userPrompt) },
+                        expanded = userExpanded,
+                        onToggle = { userExpanded = !userExpanded },
                     )
-                    SectionBody(userPrompt)
+                    if (userExpanded) SectionBody(userPrompt)
                 }
 
-                // ── 记忆（可编辑）──
+                // ── 记忆（可编辑，独立折叠）──
                 if (!memoryText.isNullOrBlank()) {
                     SectionHeader(
                         title = stringResource(R.string.section_memory),
@@ -157,8 +165,10 @@ fun InjectionContextCard(
                         badgeColor = p.accent,
                         icon = null,
                         onEdit = { editTarget = EditTarget.Memory(memoryText) },
+                        expanded = memExpanded,
+                        onToggle = { memExpanded = !memExpanded },
                     )
-                    SectionBody(memoryText)
+                    if (memExpanded) SectionBody(memoryText)
                 }
             }
         }
@@ -186,7 +196,7 @@ private sealed class EditTarget {
     data class Memory(val content: String) : EditTarget()
 }
 
-/** 区块标题行（含徽标与编辑按钮）。 */
+/** 区块标题行（含徽标与编辑按钮）。点击整行可折叠/展开该区块正文。 */
 @Composable
 private fun SectionHeader(
     title: String,
@@ -194,10 +204,18 @@ private fun SectionHeader(
     badgeColor: Color,
     icon: (@Composable () -> Unit)?,
     onEdit: (() -> Unit)?,
+    expanded: Boolean,
+    onToggle: () -> Unit,
 ) {
     val p = LocalPalette.current
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp, bottom = 2.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .clickable { onToggle() }
+                .padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.fg2)
@@ -223,6 +241,12 @@ private fun SectionHeader(
                 modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { onEdit() }.padding(4.dp),
             )
         }
+        Icon(
+            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            contentDescription = null,
+            tint = p.muted,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }
 
