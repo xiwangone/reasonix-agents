@@ -32,6 +32,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -47,6 +48,11 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -1903,6 +1909,47 @@ private fun Footer(
             ToolbarButton("Plan", active = planMode, accent = false) { onTogglePlan() }
             // YOLO
             ToolbarButton("YOLO", active = toolApprovalMode == "yolo", danger = true) { onToggleBypass?.invoke() }
+            Spacer(modifier = Modifier.width(2.dp))
+
+            // AI 状态（红/黄/绿）：流式中执行工具=黄「正在 <工具>…」/ 流式推理=黄「思考中…」/ 出错=红 / 空闲=绿
+            // 2026-08-08：移到 YOLO 旁（原在最右需横向滑动才可见），加大到 8dp + 运行中脉冲
+            val (dotColor, statusText) =
+                when {
+                    connectionState == ConnectionState.RECONNECTING -> Warning to "重连中…"
+                    connectionState == ConnectionState.DISCONNECTED && isStreaming -> Danger to "连接断开"
+                    isStreaming && runningToolName != null -> Warning to "正在 $runningToolName…"
+                    isStreaming -> Warning to "思考中…"
+                    connectionState == ConnectionState.CONNECTED -> Success to "空闲"
+                    else -> Muted2 to "就绪"
+                }
+            val pulse =
+                rememberInfiniteTransition(label = "aiStatus")
+                    .animateFloat(
+                        initialValue = 0.6f,
+                        targetValue = 1f,
+                        animationSpec =
+                            infiniteRepeatable(
+                                animation = tween(600),
+                                repeatMode = RepeatMode.Reverse,
+                            ),
+                        label = "pulse",
+                    )
+            Box(
+                modifier =
+                    Modifier
+                        .size(9.dp)
+                        .clip(CircleShape)
+                        .background(dotColor)
+                        .alpha(if (isStreaming || connectionState != ConnectionState.CONNECTED) pulse.value else 1f),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = statusText,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace,
+                color = dotColor,
+            )
 
             // ── 快捷任务模板（run 常用功能点击项）──
             if (onQuickAction != null) {
@@ -1918,33 +1965,6 @@ private fun Footer(
 
             // 分隔
             Box(modifier = Modifier.width(1.dp).height(16.dp).background(Border))
-
-            // AI 状态（红/黄/绿）：流式中执行工具=黄「正在 <工具>…」/ 流式推理=黄「思考中…」/ 出错=红 / 空闲=绿
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val (dotColor, statusText) =
-                    when {
-                        connectionState == ConnectionState.RECONNECTING -> Warning to "重连中…"
-                        connectionState == ConnectionState.DISCONNECTED && isStreaming -> Danger to "连接断开"
-                        isStreaming && runningToolName != null -> Warning to "正在 $runningToolName…"
-                        isStreaming -> Warning to "思考中…"
-                        connectionState == ConnectionState.CONNECTED -> Success to "空闲"
-                        else -> Muted2 to "就绪"
-                    }
-                Box(
-                    modifier =
-                        Modifier
-                            .size(5.dp)
-                            .clip(CircleShape)
-                            .background(dotColor),
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    text = statusText,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = Muted,
-                )
-            }
 
             Spacer(modifier = Modifier.weight(1f))
 
