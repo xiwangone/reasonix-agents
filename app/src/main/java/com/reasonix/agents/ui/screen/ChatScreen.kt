@@ -1989,8 +1989,17 @@ private fun Footer(
         run {
             val context = LocalContext.current
             val clipboardManager = LocalClipboardManager.current
+            val cacheTotal = cumulativeCacheHit + cumulativeCacheMiss
+            val cachePct: String? =
+                if (cacheTotal > 0) {
+                    val pct = cumulativeCacheHit.toDouble() / cacheTotal * 100.0
+                    if (pct >= 1.0) "${pct.toInt()}%" else "%.1f%%".format(pct)
+                } else {
+                    null
+                }
+            val cacheShow = cachePct?.let { "${fmtTokens(cumulativeCacheHit)}·$it" } ?: "${fmtTokens(cumulativeCacheHit)}"
             val summary =
-                "会话统计｜↑输入 ${fmtTokens(cumulativePromptTokens)} · 缓存 ${fmtTokens(cumulativeCacheHit)} · ↓输出 ${fmtTokens(cumulativeCompletionTokens)}（累计 ${fmtTokens(cumulativeTokens)} · ${fmtCost(cumulativeCost)}）"
+                "会话统计｜↑输入 ${fmtTokens(cumulativePromptTokens)} · 缓存 $cacheShow · ↓输出 ${fmtTokens(cumulativeCompletionTokens)}（累计 ${fmtTokens(cumulativeTokens)} · ${fmtCost(cumulativeCost)}）"
             Row(
                 modifier =
                     Modifier
@@ -2010,7 +2019,7 @@ private fun Footer(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "↑${fmtTokens(cumulativePromptTokens)} · 缓存 ${fmtTokens(cumulativeCacheHit)} · ↓${fmtTokens(cumulativeCompletionTokens)}",
+                    text = "↑${fmtTokens(cumulativePromptTokens)} · 缓存 $cacheShow · ↓${fmtTokens(cumulativeCompletionTokens)}",
                     color = Fg2,
                     fontSize = 11.sp,
                 )

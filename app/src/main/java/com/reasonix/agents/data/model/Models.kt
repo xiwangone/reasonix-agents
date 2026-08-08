@@ -187,6 +187,13 @@ data class LastUsage(
     val costUsd: Double? = null,
     val totalCost: Double? = null,
     val currency: String? = null,
+    // 2026-08-08：对齐服务端 lastUsage（provider.Usage Go 大写字段，无 JSON tag），
+    // 否则 Gson 全解析为 null → 顶部 ↑输入/↓输出 与费用初始化永远为 0。
+    @SerializedName("PromptTokens") val promptTokens: Long? = null,
+    @SerializedName("CompletionTokens") val completionTokens: Long? = null,
+    @SerializedName("TotalTokens") val totalTokens: Long? = null,
+    @SerializedName("CacheHitTokens") val cacheHitTokens: Long? = null,
+    @SerializedName("CacheMissTokens") val cacheMissTokens: Long? = null,
 )
 
 data class BalanceInfo(

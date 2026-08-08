@@ -216,6 +216,8 @@ class ChatViewModel(
                     systemPrompt = systemPrompt,
                     messages = historyItems,
                     cumulativeTokens = status?.used ?: 0,
+                    cumulativePromptTokens = status?.lastUsage?.promptTokens ?: 0,
+                    cumulativeCompletionTokens = status?.lastUsage?.completionTokens ?: 0,
                     cumulativeCacheHit = status?.cacheHit ?: 0,
                     cumulativeCacheMiss = status?.cacheMiss ?: 0,
                     cumulativeCost = status?.lastUsage?.totalCost ?: status?.lastUsage?.cost ?: status?.lastUsage?.costUsd ?: 0.0,
@@ -1318,6 +1320,8 @@ class ChatViewModel(
                     _uiState.update { state ->
                         state.copy(
                             cumulativeTokens = it.used,
+                            cumulativePromptTokens = it.lastUsage?.promptTokens ?: state.cumulativePromptTokens,
+                            cumulativeCompletionTokens = it.lastUsage?.completionTokens ?: state.cumulativeCompletionTokens,
                             cumulativeCacheHit = it.cacheHit,
                             cumulativeCacheMiss = it.cacheMiss,
                         )
