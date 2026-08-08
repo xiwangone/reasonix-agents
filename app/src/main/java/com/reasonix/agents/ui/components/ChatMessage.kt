@@ -1,5 +1,6 @@
 package com.reasonix.agents.ui.components
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -208,7 +209,9 @@ fun AssistantMessageBubble(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(start = 4.dp, end = 16.dp, top = 2.dp, bottom = 6.dp),
+                .padding(start = 4.dp, end = 16.dp, top = 2.dp, bottom = 6.dp)
+                // 2026-08-08（批1-b）：内容增长平滑过渡，流式 Markdown 渲染完成时尺寸不突变跳动
+                .animateContentSize(),
     ) {
         // 2026-08-06：操作行（对齐 RikkaHub 消息操作行）——复制 + 分享（本地能力，无需服务端）
         Row(
