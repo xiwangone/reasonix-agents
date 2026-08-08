@@ -192,10 +192,14 @@ class ReasonixApi(
             }
         }
 
-    // ── 切换模型（POST /settings {model}）──
+    // ── 切换模型（官方 serve 协议：POST /submit {"input": "/model <ref>"} → 204）──
+    // 2026-08-08：原 POST /settings 在服务端不存在（405 假阳性）；/model 斜杠命令
+    // 由 serve submit handler 拦截并调 switchModel（会话级切换，保留历史）。
     suspend fun setModel(model: String) =
         withContext(Dispatchers.IO) {
-            post("/settings", mapOf("model" to model))
+            val ref = model.trim()
+            if (ref.isBlank()) return@withContext
+            post("/submit", mapOf("input" to "/model $ref"))
         }
 
     // ── 获取系统提示词（从 history 提取 role=system）──

@@ -68,6 +68,10 @@ data class UsagePayload(
     val completionTokens: Long = 0,
     val cacheHitTokens: Long = 0,
     val cacheMissTokens: Long = 0,
+    // 2026-08-08：服务端额外推送的会话累计缓存快照（SSE usage 事件），
+    // 比单轮 cacheHitTokens 更适合顶部累计统计展示。
+    val sessionCacheHitTokens: Long = 0,
+    val sessionCacheMissTokens: Long = 0,
     val cost: Double? = null,
     val costUsd: Double? = null,
     val currency: String? = null,

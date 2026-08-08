@@ -228,6 +228,8 @@ class ChatViewModel(
     }
 
     // ── 切换模型 ──
+    // 2026-08-08：官方协议 = POST /submit 发 /model <ref>（会话级 switchModel，保留历史）。
+    // 服务端在 turn/后台任务运行时会拒绝切换（500），故 streaming 时禁止并提示。
     fun setModel(model: String) {
         val customNames = CustomModelStore.load(getApplication()).map { it.name }.toSet()
         if (model in customNames) {
@@ -236,16 +238,24 @@ class ChatViewModel(
             _uiState.update { it.copy(currentModel = model) }
             return
         }
+        if (_uiState.value.isStreaming) {
+            appendMessage(ChatItem.ErrorMessage("AI 正在回复中，请等本轮结束后再切换模型"))
+            return
+        }
         viewModelScope.launch {
-            repository.setModel(model)
-            // 刷新状态与模型列表
-            val status = repository.getStatus()
-            val modelsResp = repository.getModels()
-            _uiState.update {
-                it.copy(
-                    status = status,
-                    currentModel = modelsResp?.current ?: status?.label ?: model,
-                )
+            try {
+                repository.setModel(model)
+                // 刷新状态与模型列表
+                val status = repository.getStatus()
+                val modelsResp = repository.getModels()
+                _uiState.update {
+                    it.copy(
+                        status = status,
+                        currentModel = modelsResp?.current ?: status?.label ?: model,
+                    )
+                }
+            } catch (e: Exception) {
+                appendMessage(ChatItem.ErrorMessage("模型切换失败：${e.message ?: "服务端正忙或 ref 不存在"}"))
             }
         }
     }
@@ -1014,15 +1024,19 @@ class ChatViewModel(
 
             "usage" -> {
                 event.usage?.let { u ->
-                    // 累计统计（会话级）——服务端推送的是会话累计快照，直接覆盖，避免多次事件虚高
+                    // 2026-08-08：统计语义修正——单轮值与会话累计区分：
+                    // - 输入/输出 token、费用：单轮值累加到会话累计（顶部条随轮次增长）
+                    // - 缓存：优先服务端 session 累计快照（sessionCacheHit/Miss），缺失时回退单轮累加
+                    // - cumulativeTokens（上下文窗口用量）以 /status used 为准，由 refreshStats 校准
                     _uiState.update { state ->
                         state.copy(
-                            cumulativeTokens = u.totalTokens,
-                            cumulativePromptTokens = u.promptTokens,
-                            cumulativeCompletionTokens = u.completionTokens,
-                            cumulativeCost = u.costUsd ?: u.cost ?: 0.0,
-                            cumulativeCacheHit = u.cacheHitTokens,
-                            cumulativeCacheMiss = u.cacheMissTokens,
+                            cumulativePromptTokens = state.cumulativePromptTokens + u.promptTokens,
+                            cumulativeCompletionTokens = state.cumulativeCompletionTokens + u.completionTokens,
+                            cumulativeCost = state.cumulativeCost + (u.costUsd ?: u.cost ?: 0.0),
+                            cumulativeCacheHit =
+                                if (u.sessionCacheHitTokens > 0) u.sessionCacheHitTokens else state.cumulativeCacheHit + u.cacheHitTokens,
+                            cumulativeCacheMiss =
+                                if (u.sessionCacheMissTokens > 0) u.sessionCacheMissTokens else state.cumulativeCacheMiss + u.cacheMissTokens,
                         )
                     }
                     // 2026-08-07：usage 事件只更新累计统计，不再插入对话（避免 token 卡反复出现）；
@@ -1289,6 +1303,29 @@ class ChatViewModel(
                 appendMessage(ChatItem.UsageStats(u))
             }
             pendingUsage = null
+        }
+        // 2026-08-08：每轮结束拉一次 /status 校准会话累计统计（used / cacheHit / cacheMiss），
+        // 不依赖 usage 事件是否到达——保证顶部统计条随对话推进持续更新。
+        refreshStats()
+    }
+
+    /** 2026-08-08：从 /status 刷新会话累计统计（上下文用量 + 缓存命中）。费用无会话累计源，保持 SSE 累加。 */
+    private fun refreshStats() {
+        viewModelScope.launch {
+            try {
+                val status = repository.getStatus()
+                status?.let {
+                    _uiState.update { state ->
+                        state.copy(
+                            cumulativeTokens = it.used,
+                            cumulativeCacheHit = it.cacheHit,
+                            cumulativeCacheMiss = it.cacheMiss,
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // 统计刷新失败不打扰对话
+            }
         }
     }
 
