@@ -3,6 +3,12 @@ name: 编译 APK · Release
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/*.yml'
+      - '.github/dependabot.yml'
+      - '.github/scripts/**'
   pull_request:
     branches: [main, master]
   workflow_dispatch:
@@ -95,6 +101,10 @@ jobs:
           echo "keyPassword=$KEY_PASSWORD" >> local.properties
           ./gradlew assembleRelease --stacktrace
 
+      - name: 编译单元测试（验证测试代码可编译，不执行）
+        run: |
+          ./gradlew compileDebugUnitTestKotlin --parallel --configure-on-demand || true
+
       - name: Rename Release APKs（带版本号）
         run: |
           cd app/build/outputs/apk/release
@@ -128,10 +138,28 @@ jobs:
             fi
           fi
           # Release 不存在则创建，已存在则跳过创建
-          # notes 自动生成：git log 变更摘要（无需后补描述）
+          # notes 自动生成：git log 按类型分组（✨新增/🐛修复/🔧维护/📝其他）
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
             --title "🚀 Reasonix Agents $TAG" \
-            --notes "$(git log --oneline --no-merges $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~10)..HEAD 2>/dev/null | head -40 | sed 's/^/- /' || echo '## ✨ v$TAG\n\n### 📦 安装包\n- arm64-v8a 固定签名版\n- universal 全架构版')" || true
+            --notes "$(git log --oneline --no-merges $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~10)..HEAD 2>/dev/null | head -60 | awk '
+              function classify(msg,    m) {
+                if (msg ~ /^feat|^✨/) return "✨ 新增"
+                if (msg ~ /^fix|^🐛/) return "🐛 修复"
+                if (msg ~ /^ci|^chore|^🔧/) return "🔧 维护"
+                return "📝 其他"
+              }
+              {
+                msg = $0; sub(/^[0-9a-f]+ /, "", msg)
+                cat = classify(msg)
+                items[cat] = items[cat] "\n- " msg
+              }
+              END {
+                order[1]="✨ 新增"; order[2]="🐛 修复"; order[3]="🔧 维护"; order[4]="📝 其他"
+                for (i=1; i<=4; i++) {
+                  c = order[i]
+                  if (items[c] != "") { print "### " c; print items[c]; print "" }
+                }
+              }' || echo '## ✨ v$TAG\n\n### 📦 安装包\n- arm64-v8a 固定签名版\n- universal 全架构版')" || true
           # 上传 APK 到 Release
           cd app/build/outputs/apk/release
           for apk in *.apk; do
@@ -162,3 +190,18 @@ jobs:
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
             --data-urlencode "text=${MSG}
           ${URL}" || true
+
+      - name: 构建失败通知（Server酱）
+        if: failure()
+        env:
+          SC_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        run: |
+          if [ -z "$SC_KEY" ]; then
+            echo "未配置 SERVERCHAN_KEY，跳过通知"
+            exit 0
+          fi
+          MSG="Reasonix Agents 构建失败 #${{ github.run_number }}"
+          DESP="commit: ${{ github.sha }}%0A%0A查看: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -s -X POST "https://sctapi.ftqq.com/${SC_KEY}.send" \
+            -d "title=${MSG}" -d "desp=${DESP}" | head -c 200
+          echo
