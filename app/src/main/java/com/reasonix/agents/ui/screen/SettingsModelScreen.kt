@@ -301,7 +301,9 @@ private fun ModelDropdown(
                     text = {
                         Column {
                             Text(label, fontSize = 13.sp, color = Fg)
-                            if (m.kind.isNotBlank()) {
+                            // 2026-08-08：kind 几乎恒为 "openai"（openai 兼容协议默认），
+                            // 显示无信息量且造成「模型名/openai」冗余交替；仅非默认 kind（如 anthropic）才展示
+                            if (m.kind.isNotBlank() && m.kind != "openai") {
                                 Text(m.kind, fontSize = 10.sp, color = Muted2)
                             }
                         }
