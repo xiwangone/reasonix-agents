@@ -50,10 +50,18 @@ fun MessageList(
 ) {
     val listState = rememberLazyListState()
 
-    // 新消息到达时自动滚到底部
-    LaunchedEffect(items.size) {
+    // 新消息到达时自动滚到底部（流式中 instant 不蹦跳；离开底部不抢夺）
+    LaunchedEffect(items.size, isStreaming) {
         if (items.isNotEmpty()) {
-            listState.animateScrollToItem(items.size - 1)
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val nearBottom = lastVisible >= items.size - 3
+            if (nearBottom) {
+                if (isStreaming) {
+                    listState.scrollToItem(items.size - 1)
+                } else {
+                    listState.animateScrollToItem(items.size - 1)
+                }
+            }
         }
     }
 
@@ -61,10 +69,11 @@ fun MessageList(
         state = listState,
         modifier =
             modifier
+                .fillMaxWidth()
                 .fillMaxSize()
                 .background(bg),
         contentPadding = PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // 2026-08-07：注入上下文折叠卡——默认折叠，展示/编辑注入 AI 的上下文
         if (systemPrompt != null || userPrompt.isNotBlank() || !memoryText.isNullOrBlank()) {

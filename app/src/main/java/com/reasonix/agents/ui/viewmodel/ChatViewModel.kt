@@ -93,7 +93,7 @@ class ChatViewModel(
      * true（默认）：初始加载时先调用服务端 newSession，且不加载上次会话的 messages；
      * false：恢复上次会话（切换服务器配置等场景保持原行为）。
      */
-    private val freshSession: Boolean = true,
+    private val freshSession: Boolean = false,  // 2026-08-08: 默认恢复上次会话+历史，不再强制新建
 ) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(ChatUiState(serverUrl = initialServerUrl))
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
@@ -106,6 +106,9 @@ class ChatViewModel(
     private var connectionStateJob: Job? = null
 
     // 最近一次收到 SSE 事件的时间戳（重连后判定流是否还活着）
+    // 2026-08-08: 排队超时检测 Job
+    private var pendingTimeoutJob: Job? = null
+
     private var lastSseEventAt: Long = 0L
 
     // 当前流的助手消息 builder（增量）
@@ -211,6 +214,10 @@ class ChatViewModel(
                     currentModel = modelsResp?.current ?: status?.label ?: "",
                     systemPrompt = systemPrompt,
                     messages = historyItems,
+                    cumulativeTokens = status?.used ?: 0,
+                    cumulativeCacheHit = status?.cacheHit ?: 0,
+                    cumulativeCacheMiss = status?.cacheMiss ?: 0,
+                    cumulativeCost = status?.lastUsage?.totalCost ?: status?.lastUsage?.cost ?: status?.lastUsage?.costUsd ?: 0.0,
                     planMode = status?.plan ?: false,
                     toolApprovalMode = status?.toolApprovalMode ?: "auto",
                     customModels = CustomModelStore.load(getApplication()),
@@ -513,6 +520,8 @@ class ChatViewModel(
     }
 
     fun sendMessage() {
+        // 新消息清除旧的排队超时标记
+        _uiState.update { it.copy(pendingTimeoutHit = false) }
         val text = _uiState.value.inputText.trim()
         if (text.isBlank()) return
 
@@ -594,6 +603,19 @@ class ChatViewModel(
      */
     private fun finishStreaming() {
         _uiState.update { it.copy(isStreaming = false) }
+        // 排队超时兜底：延迟后检查是否仍卡在排队
+        pendingTimeoutJob?.cancel()
+        pendingTimeoutJob = viewModelScope.launch {
+            delay(60_000L) // 60 秒
+            val s = _uiState.value
+            if (s.pendingMessages.isNotEmpty() && !s.isStreaming) {
+                _uiState.update { it.copy(pendingTimeoutHit = true) }
+                appendMessage(ChatItem.SystemNotice(
+                    "您有 ${s.pendingMessages.size} 条消息排队超时未发出，AI 可能因异常未响应。请尝试新建会话或检查服务器状态。",
+                    isWarning = true,
+                ))
+            }
+        }
         maybeDequeueNext()
     }
 

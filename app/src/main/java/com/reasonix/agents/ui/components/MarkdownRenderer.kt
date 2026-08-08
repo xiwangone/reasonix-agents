@@ -46,12 +46,7 @@ import java.util.concurrent.Executors
 //  2026-08-07：浅色模式修复——Markdown 渲染不再硬编码近白文字，
 //  改为跟随 LocalPalette（fg/fg2/bg2/panel2/accent），浅色下正文深色可读。
 // ═══════════════════════════════════════════════════════════════════
-private val CODE_BLOCK_BG_DARK = 0xFF2E2C2E.toInt() // 代码块恒深底（明暗一致，保持代码区对比度）
-private val CODE_BLOCK_BG_LIGHT = 0xFFF1EEF6.toInt() // 浅色代码块背景
-private val CODE_BLOCK_TEXT_DARK = 0xFFE8E6F0.toInt() // 代码块文字（深底）
-private val CODE_BLOCK_TEXT_LIGHT = 0xFF3A3547.toInt() // 代码块文字（浅底）
-private val FG_TEXT_DARK = 0xFFF5F2F0.toInt() // 深色模式正文基准（近白）
-private val ACCENT_DARK = 0xFFEA8800.toInt() // 深色模式链接色
+// 颜色从 LocalPalette 动态读取（跟随主题切换）
 
 /**
  * 安卓原生 Markdown 渲染器 —— 基于 Markwon v4 + AndroidView。
@@ -82,19 +77,31 @@ fun MarkdownRenderer(
     val isDark = palette.fg.luminance() < 0.5f
 
     // 使用 applicationContext 避免泄露 Activity；按明暗缓存两个 Markwon 实例
-    val markwon = remember(isDark) { buildMarkwon(context.applicationContext, isDark) }
+    // 缓存含 accent 值——切换主题时重建 Markwon（不同主题链接色不同）
+    val cacheKey = isDark.toString() + palette.accent.hashCode()
+    val markwon = remember(cacheKey) {
+        buildMarkwon(
+            context.applicationContext,
+            isDark,
+            palette.accent.toArgb(),
+            palette.fg.toArgb(),
+            palette.fg2.toArgb(),
+            palette.bg2.toArgb(),
+            palette.border.toArgb(),
+        )
+    }
 
     AndroidView(
         factory = { ctx ->
             // 2026-08-06：去掉 HorizontalScrollView 外层，TextView 直接铺满父容器宽度——
             // 长文本/代码/表格均在屏幕宽度内自动换行，适配不同屏幕布局（手机/平板均不横向溢出）。
             TextView(ctx).apply {
-                // 2026-08-07：浅色下用 palette.fg（深色），深色下用近白
-                setTextColor(if (isDark) Color(FG_TEXT_DARK).toArgb() else palette.fg.toArgb())
+                // 正文色跟随 palette.fg（深浅一致跟随主题）
+                setTextColor(palette.fg.toArgb())
                 // 2026-08-06：RikkaHub ChatFont 适配——应用聊天字体（默认/衬线/等宽/JetBrains Mono）
                 chatTypeface?.let { typeface = it }
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                setLineSpacing(4f, 1f)
+                setLineSpacing(8f, 1f)
                 movementMethod = LinkMovementMethod.getInstance()
                 isClickable = true
                 // 流式更新时不复制 Spannable，防止闪烁
@@ -121,13 +128,22 @@ fun MarkdownRenderer(
 
 
 private val LOCK = Any()
-private val markwonCache = HashMap<Boolean, Markwon>()
+private val markwonCache = HashMap<String, Markwon>()
 
-private fun buildMarkwon(context: Context, isDark: Boolean): Markwon {
-    markwonCache[isDark]?.let { return it }
+private fun buildMarkwon(
+    context: Context,
+    isDark: Boolean,
+    accentColor: Int,
+    fgColor: Int,
+    fg2Color: Int,
+    bg2Color: Int,
+    borderColor: Int,
+): Markwon {
+    val cacheKey = "$isDark:$accentColor"
+    markwonCache[cacheKey]?.let { return it }
 
     synchronized(LOCK) {
-        markwonCache[isDark]?.let { return it }
+        markwonCache[cacheKey]?.let { return it }
 
         // Prism4j — 语法高亮引擎（暂无 language grammar）
         val prism4j = Prism4j(DefaultGrammarLocator())
@@ -154,8 +170,8 @@ private fun buildMarkwon(context: Context, isDark: Boolean): Markwon {
                 1
             }
 
-        val tableBorder = if (isDark) 0xFF3D3938.toInt() else 0xFFD8D2E2.toInt()
-        val tableHeader = if (isDark) 0xFF2E2C2E.toInt() else 0xFFE9E4F2.toInt()
+        val tableBorder = borderColor
+        val tableHeader = if (isDark) 0xFF2E2C2E.toInt() else bg2Color
         val tableTheme =
             TableTheme
                 .emptyBuilder()
@@ -188,10 +204,10 @@ private fun buildMarkwon(context: Context, isDark: Boolean): Markwon {
                 .usePlugin(LinkifyPlugin.create())
                 .usePlugin(MarkwonInlineParserPlugin.create())
                 // ⑨ 主题覆盖（必须在 SyntaxHighlightPlugin 之后注册，以覆盖内联代码背景色）
-                .usePlugin(ReasonixThemePlugin(isDark))
+                .usePlugin(ReasonixThemePlugin(isDark, accentColor, fgColor, fg2Color, bg2Color, borderColor))
                 .textSetter(PrecomputedTextSetterCompat.create(Executors.newCachedThreadPool()))
                 .build()
-        markwonCache[isDark] = markwon
+        markwonCache[cacheKey] = markwon
         return markwon
     }
 }
@@ -199,13 +215,20 @@ private fun buildMarkwon(context: Context, isDark: Boolean): Markwon {
 /**
  * Reasonix 暗色主题插件 —— 覆盖核心颜色以匹配 index.html 色板。
  */
-private class ReasonixThemePlugin(private val isDark: Boolean) : AbstractMarkwonPlugin() {
+private class ReasonixThemePlugin(
+    private val isDark: Boolean,
+    private val accentColor: Int,
+    private val fgColor: Int,
+    private val fg2Color: Int,
+    private val bg2Color: Int,
+    private val borderColor: Int,
+) : AbstractMarkwonPlugin() {
     override fun configureTheme(builder: MarkwonTheme.Builder) {
-        val accent = if (isDark) ACCENT_DARK else 0xFF5B3DF0.toInt()
-        val codeBg = if (isDark) 0xFF222022.toInt() else 0xFFEFEBF8.toInt()
-        val border = if (isDark) 0xFF3D3938.toInt() else 0xFFD8D2E2.toInt()
-        val fg = if (isDark) FG_TEXT_DARK else 0xFF1B1726.toInt()
-        val fg2 = if (isDark) 0xFFCCC5C0.toInt() else 0xFF403A52.toInt()
+        val accent = accentColor
+        val codeBg = if (isDark) 0xFF222022.toInt() else bg2Color
+        val border = borderColor
+        val fg = fgColor
+        val fg2 = fg2Color
         builder
             // 链接
             .linkColor(accent)
@@ -214,8 +237,8 @@ private class ReasonixThemePlugin(private val isDark: Boolean) : AbstractMarkwon
             .codeBackgroundColor(codeBg)
             .codeTextColor(fg2)
             // 代码块（明暗各自底色，保持对比度）
-            .codeBlockBackgroundColor(if (isDark) CODE_BLOCK_BG_DARK else CODE_BLOCK_BG_LIGHT)
-            .codeBlockTextColor(if (isDark) CODE_BLOCK_TEXT_DARK else CODE_BLOCK_TEXT_LIGHT)
+            .codeBlockBackgroundColor(if (isDark) 0xFF2E2C2E.toInt() else 0xFFF1EEF6.toInt())
+            .codeBlockTextColor(if (isDark) 0xFFE8E6F0.toInt() else 0xFF3A3547.toInt())
             // 2026-08-07：代码块独立字体——正文按聊天字体，代码块恒 JetBrains Mono
             // （官方 API，替代 CodeFontPlugin/SpanFactory——后者依赖的 CodeBlock 类
             //   在 markwon 4.6.2 配套的 commonmark 0.13.0/0.21.0 中均不存在，是编译失败的根因）

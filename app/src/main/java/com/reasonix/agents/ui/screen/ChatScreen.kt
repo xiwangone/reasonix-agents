@@ -360,7 +360,10 @@ fun ChatScreen(
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
-                ModalDrawerSheet(modifier = Modifier.width(280.dp)) {
+                ModalDrawerSheet(
+                    modifier = Modifier.width(280.dp),
+                    drawerContainerColor = Bg,
+                ) {
                     Sidebar(
                         sessions = state.sessions,
                         status = state.status,
@@ -1982,8 +1985,8 @@ private fun Footer(
             )
         }
 
-        // ── 会话 token 累计条（设计稿 #14：输入框上方常驻，点击复制） ──
-        if (cumulativeTokens > 0 || cumulativePromptTokens > 0) {
+        // ── 会话 token 累计条（输入框上方常驻，始终显示；0 值也可见布局位置） ──
+        run {
             val context = LocalContext.current
             val clipboardManager = LocalClipboardManager.current
             val summary =
@@ -2027,7 +2030,56 @@ private fun Footer(
             }
         }
 
-        // ── 输入框（输入区 + 独立发送按钮）──
+        // ── AI 状态条（输入框上方常驻，替代工具栏微小状态点）──
+        if (isStreaming || connectionState == ConnectionState.RECONNECTING || connectionState == ConnectionState.DISCONNECTED) {
+            val statusColor: Color
+            val statusLabel: String
+            val statusIcon: String
+            when {
+                connectionState == ConnectionState.RECONNECTING -> {
+                    statusColor = Warning; statusIcon = "⟳"; statusLabel = "重连中…"
+                }
+                connectionState == ConnectionState.DISCONNECTED -> {
+                    statusColor = Danger; statusIcon = "✕"; statusLabel = "连接断开"
+                }
+                isStreaming && runningToolName != null -> {
+                    statusColor = Warning; statusIcon = "⚡"; statusLabel = "正在 $runningToolName…"
+                }
+                isStreaming -> {
+                    statusColor = Warning; statusIcon = "💭"; statusLabel = "思考中…"
+                }
+                else -> {
+                    statusColor = Success; statusIcon = "●"; statusLabel = "空闲"
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = statusLabel,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = statusColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (isStreaming) {
+                    Text(
+                        text = "点击 ⬛ 取消",
+                        fontSize = 11.sp,
+                        color = Muted2,
+                    )
+                }
+            }
+        }
+
+        // ── 输入框（输入区 + 发送/打断）──
         Row(
             modifier =
                 Modifier
@@ -2161,29 +2213,9 @@ private fun Footer(
                 Spacer(modifier = Modifier.width(6.dp))
             }
 
-            // 发送箭头（始终显示，只负责发送消息——忙时点击入队，不打断）
-            IconButton(
-                onClick = onSend,
-                enabled = inputText.isNotBlank(),
-                modifier = Modifier.size(44.dp),
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(
-                                if (inputText.isNotBlank()) Accent else Panel2,
-                            ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            // 打断按钮（仅流式中显示：红色方块，点击取消当前任务）
+            // 流式时只显打断按钮；空闲时只显发送箭头（视觉无歧义）
             if (isStreaming) {
-                Spacer(modifier = Modifier.width(4.dp))
+                // 打断按钮（红色方块，点击取消当前任务）
                 IconButton(
                     onClick = onCancel,
                     modifier = Modifier.size(44.dp),
@@ -2203,6 +2235,26 @@ private fun Footer(
                                     .clip(RoundedCornerShape(2.dp))
                                     .background(Color.White),
                         )
+                    }
+                }
+            } else {
+                // 发送箭头（仅空闲时显示，输入框有内容才亮起）
+                IconButton(
+                    onClick = onSend,
+                    enabled = inputText.isNotBlank(),
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(
+                                    if (inputText.isNotBlank()) Accent else Panel2,
+                                ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

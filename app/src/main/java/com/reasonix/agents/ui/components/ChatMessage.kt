@@ -404,7 +404,7 @@ fun SystemNotice(
             text = "$prefix$text",
             color = if (isWarning) fg2 else muted,
             fontSize = 13.sp,
-            lineHeight = 20.sp,
+            lineHeight = 22.sp,
         )
     }
 }
@@ -439,7 +439,7 @@ fun ErrorMessage(text: String) {
             text = text,
             color = danger,
             fontSize = 13.sp,
-            lineHeight = 20.sp,
+            lineHeight = 22.sp,
         )
     }
 }
