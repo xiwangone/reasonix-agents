@@ -294,26 +294,37 @@ private fun ModelDropdown(
             if (customModels.isNotEmpty() && models.isNotEmpty()) {
                 androidx.compose.material3.HorizontalDivider(color = Border, thickness = 1.dp)
             }
-            // 服务端模型
-            models.forEach { m ->
-                val label = m.model.ifEmpty { m.ref }
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(label, fontSize = 13.sp, color = Fg)
-                            // 2026-08-08：kind 几乎恒为 "openai"（openai 兼容协议默认），
-                            // 显示无信息量且造成「模型名/openai」冗余交替；仅非默认 kind（如 anthropic）才展示
-                            if (m.kind.isNotBlank() && m.kind != "openai") {
-                                Text(m.kind, fontSize = 10.sp, color = Muted2)
-                            }
-                        }
-                    },
-                    onClick = {
-                        expanded = false
-                        onSelect(m.ref)
-                    },
-                )
-            }
+            // 服务端模型（2026-08-08：按 provider 分组，组间加标题行）
+            models
+                .groupBy { it.provider.ifBlank { "服务器模型" } }
+                .forEach { (provider, list) ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(provider, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Muted2)
+                        },
+                        enabled = false,
+                        onClick = {},
+                    )
+                    list.forEach { m ->
+                        val label = m.model.ifEmpty { m.ref }
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(label, fontSize = 13.sp, color = Fg)
+                                    // 2026-08-08：kind 几乎恒为 "openai"（openai 兼容协议默认），
+                                    // 显示无信息量且造成「模型名/openai」冗余交替；仅非默认 kind（如 anthropic）才展示
+                                    if (m.kind.isNotBlank() && m.kind != "openai") {
+                                        Text(m.kind, fontSize = 10.sp, color = Muted2)
+                                    }
+                                }
+                            },
+                            onClick = {
+                                expanded = false
+                                onSelect(m.ref)
+                            },
+                        )
+                    }
+                }
             if (customModels.isEmpty() && models.isEmpty()) {
                 DropdownMenuItem(
                     text = { Text("暂无模型（可点击 + 添加自定义模型）", fontSize = 12.sp, color = Muted2) },

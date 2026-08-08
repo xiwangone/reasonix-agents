@@ -184,7 +184,8 @@ fun ChatScreen(
     var ocrFailedPath by remember { mutableStateOf<String?>(null) }
     // 2026-08-07：OCR 转述确认——图片识别成功后先弹确认框（预览 + 可折叠编辑转述内容），
     // 用户可修改转述文本避免 AI 误判，确认后发送
-    var pendingImage by remember { mutableStateOf<PendingImage?>(null) }
+    // 2026-08-08：待发送图片列表（最多 3 张，选图先入附件条随消息一起发送）
+    var pendingImages by remember { mutableStateOf<List<PendingImage>>(emptyList()) }
 
     // 相册选择：PickVisualMedia（Android 13+ Photo Picker，低版本自动回退系统选择器）
     val pickImageLauncher =
@@ -232,7 +233,11 @@ fun ChatScreen(
                     ocrFailedPath = saved
                 } else {
                     // 识别成功：弹出转述确认框（2026-08-07 起不再直接发送）
-                    pendingImage = PendingImage(imagePath = saved, ocrText = ocrText)
+                    if (pendingImages.size >= 3) {
+                        android.widget.Toast.makeText(context, "最多同时添加 3 张图片", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        pendingImages = pendingImages + PendingImage(imagePath = saved, ocrText = ocrText)
+                    }
                 }
             }
         }
@@ -271,7 +276,11 @@ fun ChatScreen(
                         ocrFailedPath = cameraUri!!.path
                     } else {
                         // 识别成功：弹出转述确认框（2026-08-07 起不再直接发送）
-                        pendingImage = PendingImage(imagePath = cameraUri!!.path ?: "", ocrText = ocrText)
+                        if (pendingImages.size >= 3) {
+                            android.widget.Toast.makeText(context, "最多同时添加 3 张图片", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            pendingImages = pendingImages + PendingImage(imagePath = cameraUri!!.path ?: "", ocrText = ocrText)
+                        }
                     }
                 }
             }
@@ -605,15 +614,18 @@ fun ChatScreen(
                 inputText = state.inputText,
                 onInputChange = { viewModel.onInputChange(it) },
                 onSend = {
-                    val img = pendingImage
-                    if (img != null) {
-                        // 2026-08-08：图片先加到输入框附件条，发送时与输入文字合并一起提交
+                    if (pendingImages.isNotEmpty()) {
+                        // 2026-08-08：图片先加到输入框附件条，发送时与输入文字合并一起提交（多张 OCR 文本拼接）
                         val typed = state.inputText.trim()
+                        val ocrParts =
+                            pendingImages
+                                .map { it.ocrText }
+                                .filter { it.isNotBlank() }
                         val combined =
-                            listOfNotNull(typed.ifBlank { null }, img.ocrText.ifBlank { null })
+                            listOfNotNull(typed.ifBlank { null }, ocrParts.joinToString("\n").ifBlank { null })
                                 .joinToString("\n")
-                        viewModel.sendImageMessage(combined, img.imagePath)
-                        pendingImage = null
+                        viewModel.sendImageMessage(combined, pendingImages.map { it.imagePath })
+                        pendingImages = emptyList()
                         viewModel.onInputChange("")
                     } else {
                         viewModel.sendMessage()
@@ -640,8 +652,8 @@ fun ChatScreen(
                 balance = state.status?.balance?.display,
                 focusRequester = focusRequester,
                 imageProcessing = imageProcessing,
-                pendingImage = pendingImage,
-                onRemoveImage = { pendingImage = null },
+                pendingImages = pendingImages,
+                onRemoveImage = { img -> pendingImages = pendingImages - img },
                 onPickImage = {
                     pickImageLauncher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
@@ -837,7 +849,7 @@ fun ChatScreen(
                 confirmButton = {
                     TextButton(onClick = {
                         ocrFailedPath = null
-                        viewModel.sendImageMessage("", failedPath)
+                        viewModel.sendImageMessage("", listOf(failedPath))
                     }) { Text("发送原图", color = Accent) }
                 },
                 dismissButton = {
@@ -1863,8 +1875,8 @@ private fun Footer(
     balance: String?,
     focusRequester: FocusRequester,
     imageProcessing: Boolean,
-    pendingImage: PendingImage? = null,
-    onRemoveImage: () -> Unit = {},
+    pendingImages: List<PendingImage> = emptyList(),
+    onRemoveImage: (PendingImage) -> Unit = {},
     onPickImage: () -> Unit,
     onAttach: () -> Unit = {},
     onQuickAction: ((String) -> Unit)? = null,
@@ -2121,52 +2133,56 @@ private fun Footer(
             }
         }
 
-        // ── 待发送图片附件条（2026-08-08：选图先加到对话框，随消息一起发送）──
-        pendingImage?.let { img ->
+        // ── 待发送图片附件条（2026-08-08：选图先加到对话框，随消息一起发送；最多 3 张横排）──
+        if (pendingImages.isNotEmpty()) {
             Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                AsyncImage(
-                    model = File(img.imagePath),
-                    contentDescription = "待发送图片",
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Bg2),
+                pendingImages.forEach { img ->
+                    Box {
+                        AsyncImage(
+                            model = File(img.imagePath),
+                            contentDescription = "待发送图片",
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Bg2),
+                        )
+                        // 右上角删除
+                        Box(
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xCC000000))
+                                    .clickable { onRemoveImage(img) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "移除图片",
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp),
+                            )
+                        }
+                    }
+                }
+                // 计数提示
+                Text(
+                    "${pendingImages.size}/3",
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = Muted2,
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "图片待发送（随消息一起发送）",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Fg,
-                    )
-                    Text(
-                        img.ocrText.ifBlank { "无文字内容" },
-                        fontSize = 10.sp,
-                        color = Muted2,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(
-                    onClick = onRemoveImage,
-                    modifier = Modifier.size(32.dp),
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "移除图片",
-                        tint = Muted2,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
             }
         }
 
@@ -2210,7 +2226,7 @@ private fun Footer(
                                 if (event.type == KeyEventType.KeyUp &&
                                     event.key == Key.Enter &&
                                     !event.isShiftPressed &&
-                                    (inputText.isNotBlank() || pendingImage != null)
+                                    (inputText.isNotBlank() || pendingImages.isNotEmpty())
                                 ) {
                                     onSend()
                                     true
@@ -2332,7 +2348,7 @@ private fun Footer(
                 // 发送箭头（仅空闲时显示，输入框有内容才亮起）
                 IconButton(
                     onClick = onSend,
-                    enabled = inputText.isNotBlank() || pendingImage != null,
+                    enabled = inputText.isNotBlank() || pendingImages.isNotEmpty(),
                     modifier = Modifier.size(44.dp),
                 ) {
                     Box(
@@ -2341,7 +2357,7 @@ private fun Footer(
                                 .size(32.dp)
                                 .clip(RoundedCornerShape(9.dp))
                                 .background(
-                                    if (inputText.isNotBlank() || pendingImage != null) Accent else Panel2,
+                                    if (inputText.isNotBlank() || pendingImages.isNotEmpty()) Accent else Panel2,
                                 ),
                         contentAlignment = Alignment.Center,
                     ) {

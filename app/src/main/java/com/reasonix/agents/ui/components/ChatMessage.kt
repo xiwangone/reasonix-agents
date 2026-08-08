@@ -95,7 +95,7 @@ private fun fmtCost(
 @Composable
 fun UserMessageBubble(
     text: String,
-    imagePath: String? = null,
+    imagePaths: List<String> = emptyList(),
     // 2026-08-08：用户名称（本地资料 displayName），显示在消息上方右侧
     userName: String? = null,
 ) {
@@ -173,17 +173,20 @@ fun UserMessageBubble(
         ) {
             Column(horizontalAlignment = Alignment.End) {
                 // 图片（本地缓存文件，coil 异步加载；气泡 wrap-content，用固定宽度限宽）
-                if (imagePath != null) {
-                    AsyncImage(
-                        model = File(imagePath),
-                        contentDescription = "发送的图片",
-                        modifier =
-                            Modifier
-                                .width(240.dp)
-                                .heightIn(max = 260.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0x22000000)),
-                    )
+                if (imagePaths.isNotEmpty()) {
+                    imagePaths.forEach { path ->
+                        AsyncImage(
+                            model = File(path),
+                            contentDescription = "发送的图片",
+                            modifier =
+                                Modifier
+                                    .padding(bottom = 2.dp)
+                                    .width(240.dp)
+                                    .heightIn(max = 260.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0x22000000)),
+                        )
+                    }
                     if (text.isNotBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
                     }

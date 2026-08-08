@@ -249,7 +249,7 @@ private fun ChatItemRow(
 ) {
     when (item) {
         is ChatItem.UserMessage -> {
-            UserMessageBubble(text = item.content, imagePath = item.imagePath, userName = userName)
+            UserMessageBubble(text = item.content, imagePaths = item.imagePaths, userName = userName)
         }
 
         is ChatItem.AssistantMessage -> {

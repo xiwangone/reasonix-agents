@@ -219,7 +219,8 @@ sealed class ChatItem {
      */
     data class UserMessage(
         val content: String,
-        val imagePath: String? = null,
+        // 2026-08-08：多图支持（最多 3 张），本地路径列表仅用于展示
+        val imagePaths: List<String> = emptyList(),
     ) : ChatItem()
 
     data class AssistantMessage(

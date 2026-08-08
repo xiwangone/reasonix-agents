@@ -211,7 +211,7 @@ object SessionExporter {
                 is ChatItem.UserMessage -> {
                     base["role"] = "user"
                     base["content"] = item.content
-                    item.imagePath?.let { base["image"] = it }
+                    item.imagePaths.firstOrNull()?.let { base["image"] = it }
                     sb.append(gson.toJson(base)).append('\n')
                 }
 

@@ -654,7 +654,7 @@ class ChatViewModel(
      */
     fun sendImageMessage(
         ocrText: String,
-        imagePath: String?,
+        imagePaths: List<String>,
     ) {
         val text = ocrText.trim()
         // 2026-08-08：图片消息忙时不入队（队列仅存文字），提示正忙
@@ -670,7 +670,7 @@ class ChatViewModel(
         }
 
         // 添加用户消息（图片 + OCR 文字）
-        appendMessage(ChatItem.UserMessage(text, imagePath))
+        appendMessage(ChatItem.UserMessage(text, imagePaths))
 
         // 初始化流式缓冲区（轮级重置：一轮回复=一条消息，多 turn 合并）
         currentAssistantMsgIndex = null
