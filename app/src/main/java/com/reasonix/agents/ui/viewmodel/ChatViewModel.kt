@@ -37,6 +37,8 @@ data class ChatUiState(
     // 2026-08-07：注入上下文——当前记忆注入文本（供 UI 查看/编辑）
     val memoryText: String? = null,
     val isStreaming: Boolean = false,
+    // 2026-08-08：服务端 /status running 校准（AI 是否在跑 turn）
+    val serverRunning: Boolean = false,
     /** 忙时排队待发送的消息（AI 空闲后依次自动发送，最多 [MAX_PENDING_MESSAGES] 条） */
     val pendingMessages: List<String> = emptyList(),
     val planMode: Boolean = false,
@@ -1324,6 +1326,7 @@ class ChatViewModel(
                             cumulativeCompletionTokens = it.lastUsage?.completionTokens ?: state.cumulativeCompletionTokens,
                             cumulativeCacheHit = it.cacheHit,
                             cumulativeCacheMiss = it.cacheMiss,
+                            serverRunning = it.running,
                         )
                     }
                 }

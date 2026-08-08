@@ -174,6 +174,8 @@ data class StatusInfo(
     val toolApprovalMode: String? = null,
     val autoApproveTools: Boolean? = null,
     val bypass: Boolean? = null,
+    // 2026-08-08：服务端 turn 活动标记（/status running），用于 AI 状态点校准
+    val running: Boolean = false,
     val used: Long = 0,
     val window: Long = 0,
     val cacheHit: Long = 0,

@@ -411,7 +411,7 @@ fun ChatScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // 左侧：品牌 logo（随主题渐变）+ 应用名 + 连接状态点；点击弹出「保存的配置」列表（批 C-1）
@@ -505,19 +505,20 @@ fun ChatScreen(
                             .background(Panel2)
                             .border(1.dp, Border, RoundedCornerShape(8.dp))
                             .clickable { showModelPicker = true }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Text(
                         text = state.currentModel.ifEmpty { "选择模型" },
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.Monospace,
                         color = if (state.currentModel.isEmpty()) Muted2 else Fg2,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 120.dp),
+                        modifier = Modifier.widthIn(max = 180.dp),
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(13.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Muted, modifier = Modifier.size(16.dp))
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 // 右侧：设置入口（关于入口统一在设置页中）
@@ -630,6 +631,7 @@ fun ChatScreen(
                 onServerUrlChange = { viewModel.onServerUrlChange(it) },
                 connectionState = state.connectionState,
                 runningToolName = runningToolName,
+                serverRunning = state.serverRunning,
                 pendingCount = state.pendingMessages.size,
                 cumulativeCost = state.cumulativeCost,
                 cumulativeTokens = state.cumulativeTokens,
@@ -1848,6 +1850,7 @@ private fun Footer(
     onServerUrlChange: (String) -> Unit,
     connectionState: ConnectionState,
     runningToolName: String?,
+    serverRunning: Boolean = false,
     pendingCount: Int,
     cumulativeCost: Double,
     cumulativeTokens: Long,
@@ -1919,6 +1922,8 @@ private fun Footer(
                     connectionState == ConnectionState.DISCONNECTED && isStreaming -> Danger to "连接断开"
                     isStreaming && runningToolName != null -> Warning to "正在 $runningToolName…"
                     isStreaming -> Warning to "思考中…"
+                    // 2026-08-08：服务端 running 校准——本地流已收尾但服务端 turn 仍活动（如断线重连后工具还在跑）
+                    serverRunning -> Warning to "运行中…"
                     connectionState == ConnectionState.CONNECTED -> Success to "空闲"
                     else -> Muted2 to "就绪"
                 }
