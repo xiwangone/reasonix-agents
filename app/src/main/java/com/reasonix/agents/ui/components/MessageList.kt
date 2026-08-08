@@ -8,12 +8,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.reasonix.agents.data.model.ChatItem
@@ -23,6 +33,8 @@ import com.reasonix.agents.ui.theme.LocalPalette
 // 匹配 index.html 调色板
 private val bg: Color @Composable get() = LocalPalette.current.bg
 private val border: Color @Composable get() = LocalPalette.current.border
+private val Accent: Color @Composable get() = LocalPalette.current.accent
+private val Muted: Color @Composable get() = LocalPalette.current.muted
 
 /**
  * 聊天消息列表 — LazyColumn 渲染所有 ChatItem 类型。
@@ -49,62 +61,164 @@ fun MessageList(
     onSaveMemory: (String) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    // 2026-08-08：首次进入（恢复历史）强制跳到最后一条记录；之后保持「靠近底部才跟随」逻辑
+    var didInitialScroll by remember { mutableStateOf(false) }
 
     // 新消息到达时自动滚到底部（流式中 instant 不蹦跳；离开底部不抢夺）
     LaunchedEffect(items.size, isStreaming) {
         if (items.isNotEmpty()) {
-            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            val nearBottom = lastVisible >= items.size - 3
-            if (nearBottom) {
-                if (isStreaming) {
-                    listState.scrollToItem(items.size - 1)
-                } else {
-                    listState.animateScrollToItem(items.size - 1)
+            if (!didInitialScroll) {
+                listState.scrollToItem(items.size - 1)
+                didInitialScroll = true
+            } else {
+                val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                val nearBottom = lastVisible >= items.size - 3
+                if (nearBottom) {
+                    if (isStreaming) {
+                        listState.scrollToItem(items.size - 1)
+                    } else {
+                        listState.animateScrollToItem(items.size - 1)
+                    }
                 }
             }
         }
     }
 
-    LazyColumn(
-        state = listState,
+    Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .fillMaxSize()
-                .background(bg),
-        contentPadding = PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+                .fillMaxSize(),
     ) {
-        // 2026-08-07：注入上下文折叠卡——默认折叠，展示/编辑注入 AI 的上下文
-        if (systemPrompt != null || userPrompt.isNotBlank() || !memoryText.isNullOrBlank()) {
-            item(key = "injection_context") {
-                InjectionContextCard(
-                    systemPrompt = systemPrompt,
-                    userPrompt = userPrompt,
-                    memoryText = memoryText,
-                    onSaveUserPrompt = onSaveUserPrompt,
-                    onSaveMemory = onSaveMemory,
-                )
+        LazyColumn(
+            state = listState,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .background(bg),
+            contentPadding = PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // 2026-08-07：注入上下文折叠卡——默认折叠，展示/编辑注入 AI 的上下文
+            if (systemPrompt != null || userPrompt.isNotBlank() || !memoryText.isNullOrBlank()) {
+                item(key = "injection_context") {
+                    InjectionContextCard(
+                        systemPrompt = systemPrompt,
+                        userPrompt = userPrompt,
+                        memoryText = memoryText,
+                        onSaveUserPrompt = onSaveUserPrompt,
+                        onSaveMemory = onSaveMemory,
+                    )
+                }
+            }
+
+            itemsIndexed(items, key = { index, _ -> "msg_$index" }) { _, item ->
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                ) {
+                    ChatItemRow(
+                        item = item,
+                        balance = balance,
+                        isStreaming = isStreaming,
+                        onApprove = onApprove,
+                        onDeny = onDeny,
+                        onAskSubmit = onAskSubmit,
+                        cumulativeTokens = cumulativeTokens,
+                        onRegenerate = onRegenerate,
+                        onDeleteMessage = onDeleteMessage,
+                    )
+                }
             }
         }
 
-        itemsIndexed(items, key = { index, _ -> "msg_$index" }) { _, item ->
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn(),
-                exit = fadeOut(),
+        // 2026-08-08：消息足够多时显示右侧快速导航——垂直滑动条（拖动跳转）+ 跳最上/最下按钮
+        if (items.size > 8) {
+            val total = items.size
+            val firstVisible = listState.firstVisibleItemIndex.coerceIn(0, total - 1)
+            var barHeightPx by remember { mutableIntStateOf(0) }
+            val thumbSizePx = with(density) { 14.dp.toPx() }
+            val thumbOffsetPx =
+                if (barHeightPx > 0 && total > 1) {
+                    ((barHeightPx - thumbSizePx) * (firstVisible.toFloat() / (total - 1).toFloat())).toInt()
+                } else {
+                    0
+                }
+            Column(
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 2.dp)
+                        .fillMaxHeight(0.94f)
+                        .width(30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                ChatItemRow(
-                    item = item,
-                    balance = balance,
-                    isStreaming = isStreaming,
-                    onApprove = onApprove,
-                    onDeny = onDeny,
-                    onAskSubmit = onAskSubmit,
-                    cumulativeTokens = cumulativeTokens,
-                    onRegenerate = onRegenerate,
-                    onDeleteMessage = onDeleteMessage,
-                )
+                IconButton(
+                    onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                    modifier = Modifier.size(22.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowUp,
+                        contentDescription = "跳转到最上",
+                        tint = Muted,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                // 垂直快速滑动条：按下/拖动按 y 比例跳转到对应消息
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black.copy(alpha = 0.10f))
+                                .onSizeChanged { barHeightPx = it.height }
+                                .pointerInput(total) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val y = event.changes.firstOrNull()?.position?.y ?: continue
+                                            val target =
+                                                ((y / size.height) * total)
+                                                    .toInt()
+                                                    .coerceIn(0, total - 1)
+                                            scope.launch { listState.scrollToItem(target) }
+                                            event.changes.forEach { it.consume() }
+                                        }
+                                    }
+                                },
+                    )
+                    Box(
+                        modifier =
+                            Modifier
+                                .offset { IntOffset(0, thumbOffsetPx) }
+                                .padding(horizontal = 6.dp)
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(Accent.copy(alpha = 0.7f)),
+                    )
+                }
+                IconButton(
+                    onClick = { scope.launch { listState.animateScrollToItem(items.size - 1) } },
+                    modifier = Modifier.size(22.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "跳转到最下",
+                        tint = Muted,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
         }
     }
