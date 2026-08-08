@@ -70,11 +70,14 @@ jobs:
           echo "keyPassword=$KEY_PASSWORD" >> local.properties
           ./gradlew assembleRelease --stacktrace
 
-      - name: Rename Release APKs（ABI 拆分版）
+      - name: Rename Release APKs（带版本号）
         run: |
           cd app/build/outputs/apk/release
-          mv app-arm64-v8a-release.apk Reasonix-Agents-arm64-v8a-release.apk 2>/dev/null || true
-          mv app-universal-release.apk Reasonix-Agents-universal-release.apk 2>/dev/null || true
+          # release 目录回 repo 根：../../../../../（release→apk→outputs→build→app→根）
+          VER=$(grep 'versionName' ../../../../../app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo 0.0)
+          [ -f app-arm64-v8a-release.apk ] && mv app-arm64-v8a-release.apk Reasonix-Agents-${VER}-arm64-v8a-release.apk || true
+          [ -f app-universal-release.apk ] && mv app-universal-release.apk Reasonix-Agents-${VER}-universal-release.apk || true
+          echo "版本号: ${VER}"
 
       - name: 创建/更新 Release（仅 workflow_dispatch）
         if: github.event_name == 'workflow_dispatch'

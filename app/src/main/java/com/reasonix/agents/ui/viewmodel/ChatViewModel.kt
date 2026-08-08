@@ -67,6 +67,7 @@ data class ChatUiState(
     val error: String? = null,
     /** 正在删除的会话名称集合（乐观移除 + 加载指示） */
     val deletingSessions: Set<String> = emptySet(),
+    val pendingTimeoutHit: Boolean = false,  // 2026-08-08: 排队超时标记
 )
 
 /** 备份导出结果（第五批 E-1）：json 为生成的备份文件内容，失败时 error 非空。 */
