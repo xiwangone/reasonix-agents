@@ -595,7 +595,21 @@ fun ChatScreen(
             Footer(
                 inputText = state.inputText,
                 onInputChange = { viewModel.onInputChange(it) },
-                onSend = { viewModel.sendMessage() },
+                onSend = {
+                    val img = pendingImage
+                    if (img != null) {
+                        // 2026-08-08：图片先加到输入框附件条，发送时与输入文字合并一起提交
+                        val typed = state.inputText.trim()
+                        val combined =
+                            listOfNotNull(typed.ifBlank { null }, img.ocrText.ifBlank { null })
+                                .joinToString("\n")
+                        viewModel.sendImageMessage(combined, img.imagePath)
+                        pendingImage = null
+                        viewModel.onInputChange("")
+                    } else {
+                        viewModel.sendMessage()
+                    }
+                },
                 onCancel = { viewModel.cancelStreaming() },
                 isStreaming = state.isStreaming,
                 planMode = state.planMode,
@@ -616,6 +630,8 @@ fun ChatScreen(
                 balance = state.status?.balance?.display,
                 focusRequester = focusRequester,
                 imageProcessing = imageProcessing,
+                pendingImage = pendingImage,
+                onRemoveImage = { pendingImage = null },
                 onPickImage = {
                     pickImageLauncher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
@@ -633,18 +649,6 @@ fun ChatScreen(
             )
         }
         } // ← ModalNavigationDrawer 关闭
-
-        // 2026-08-07：图片转述确认对话框（OCR 成功后弹出）
-        pendingImage?.let { pending ->
-            ImageTranscriptionDialog(
-                pending = pending,
-                onConfirm = { text ->
-                    viewModel.sendImageMessage(text, pending.imagePath)
-                    pendingImage = null
-                },
-                onDismiss = { pendingImage = null },
-            )
-        }
 
         // ── Slash 菜单（悬浮在输入框上方，向上展开） ──
         val slashPrefix =
@@ -1848,6 +1852,8 @@ private fun Footer(
     balance: String?,
     focusRequester: FocusRequester,
     imageProcessing: Boolean,
+    pendingImage: PendingImage? = null,
+    onRemoveImage: () -> Unit = {},
     onPickImage: () -> Unit,
     onAttach: () -> Unit = {},
     onQuickAction: ((String) -> Unit)? = null,
@@ -2088,6 +2094,55 @@ private fun Footer(
             }
         }
 
+        // ── 待发送图片附件条（2026-08-08：选图先加到对话框，随消息一起发送）──
+        pendingImage?.let { img ->
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AsyncImage(
+                    model = File(img.imagePath),
+                    contentDescription = "待发送图片",
+                    contentScale = ContentScale.Crop,
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Bg2),
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "图片待发送（随消息一起发送）",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Fg,
+                    )
+                    Text(
+                        img.ocrText.ifBlank { "无文字内容" },
+                        fontSize = 10.sp,
+                        color = Muted2,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                IconButton(
+                    onClick = onRemoveImage,
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "移除图片",
+                        tint = Muted2,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
+
         // ── 输入框（输入区 + 发送/打断）──
         Row(
             modifier =
@@ -2128,7 +2183,7 @@ private fun Footer(
                                 if (event.type == KeyEventType.KeyUp &&
                                     event.key == Key.Enter &&
                                     !event.isShiftPressed &&
-                                    inputText.isNotBlank()
+                                    (inputText.isNotBlank() || pendingImage != null)
                                 ) {
                                     onSend()
                                     true
@@ -2250,7 +2305,7 @@ private fun Footer(
                 // 发送箭头（仅空闲时显示，输入框有内容才亮起）
                 IconButton(
                     onClick = onSend,
-                    enabled = inputText.isNotBlank(),
+                    enabled = inputText.isNotBlank() || pendingImage != null,
                     modifier = Modifier.size(44.dp),
                 ) {
                     Box(
@@ -2259,7 +2314,7 @@ private fun Footer(
                                 .size(32.dp)
                                 .clip(RoundedCornerShape(9.dp))
                                 .background(
-                                    if (inputText.isNotBlank()) Accent else Panel2,
+                                    if (inputText.isNotBlank() || pendingImage != null) Accent else Panel2,
                                 ),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -2406,120 +2461,6 @@ private data class PendingImage(
     val ocrText: String,
 )
 
-/** 图片转述确认对话框：预览 + 可折叠编辑转述内容。 */
-@Composable
-private fun ImageTranscriptionDialog(
-    pending: PendingImage,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val palette = LocalPalette.current
-    // 转述内容编辑状态（预填 OCR 文本）
-    var transcription by remember(pending) { mutableStateOf(pending.ocrText) }
-    // 折叠状态：默认折叠，点击展开编辑
-    var expanded by remember(pending) { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = palette.bg,
-        titleContentColor = palette.fg,
-        textContentColor = palette.fg2,
-        title = {
-            Text(
-                stringResource(R.string.image_transcription_title),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = palette.fg,
-            )
-        },
-        text = {
-            Column(Modifier.fillMaxWidth()) {
-                // 图片预览（coil 加载本地文件）
-                AsyncImage(
-                    model = File(pending.imagePath),
-                    contentDescription = "图片预览",
-                    contentScale = ContentScale.Fit,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 200.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(palette.bg2),
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                // 提示文案：转述内容将随消息发送给 AI
-                Text(
-                    stringResource(R.string.image_transcription_hint),
-                    fontSize = 12.sp,
-                    color = palette.muted,
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                // 可折叠编辑区：默认折叠，点击展开
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(palette.bg2)
-                            .border(1.dp, palette.border, RoundedCornerShape(8.dp))
-                            .clickable { expanded = !expanded },
-                ) {
-                    // 折叠头：展开/收起指示 + 摘要
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = palette.muted,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            if (expanded) stringResource(R.string.image_transcription_collapse) else stringResource(R.string.image_transcription_expand),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = palette.fg2,
-                        )
-                    }
-                    if (expanded) {
-                        HorizontalDivider(color = palette.border.copy(alpha = 0.5f))
-                        BasicTextField(
-                            value = transcription,
-                            onValueChange = { transcription = it },
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 60.dp, max = 140.dp)
-                                    .padding(12.dp),
-                            textStyle =
-                                LocalTextStyle.current.copy(
-                                    fontSize = 13.sp,
-                                    color = palette.fg,
-                                ),
-                            cursorBrush = SolidColor(palette.accent),
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(transcription.trim()) }) {
-                Text(stringResource(R.string.action_send), color = palette.accent)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel), color = palette.muted)
-            }
-        },
-    )
-}
 
 
 // ═══════════════════════════════════════════════
