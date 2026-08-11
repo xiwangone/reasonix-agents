@@ -3,6 +3,12 @@ package com.reasonix.agents.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +30,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
@@ -107,7 +114,6 @@ fun MessageList(
                     .fillMaxSize()
                     .background(bg),
             contentPadding = PaddingValues(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // 2026-08-07：注入上下文折叠卡——默认折叠，展示/编辑注入 AI 的上下文
             if (systemPrompt != null || userPrompt.isNotBlank() || !memoryText.isNullOrBlank()) {
@@ -122,11 +128,14 @@ fun MessageList(
                 }
             }
 
-            itemsIndexed(items, key = { index, _ -> "msg_$index" }) { _, item ->
+            itemsIndexed(items, key = { index, _ -> "msg_$index" }) { index, item ->
+                // 2026-08-09：入场动画 = 淡入 + 轻微上滑（1/4 高度）——新消息「浮现」而非硬出现；
+                // 分组视觉：同轮助手内容紧凑（4dp）、轮间/新用户轮稍大（12~14dp），见 gapBefore
                 AnimatedVisibility(
                     visible = true,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
+                    enter = fadeIn(tween(240)) + slideInVertically(animationSpec = tween(240), initialOffsetY = { it / 4 }),
+                    exit = fadeOut(tween(160)),
+                    modifier = Modifier.padding(top = gapBefore(items, index)),
                 ) {
                     ChatItemRow(
                         assistantName = assistantName,
@@ -134,6 +143,8 @@ fun MessageList(
                         item = item,
                         balance = balance,
                         isStreaming = isStreaming,
+                        // 2026-08-09：最后一条且流式生成中 → 正文尾部显示闪烁光标
+                        streamCursor = isStreaming && index == items.lastIndex,
                         onApprove = onApprove,
                         onDeny = onDeny,
                         onAskSubmit = onAskSubmit,
@@ -141,6 +152,13 @@ fun MessageList(
                         onRegenerate = onRegenerate,
                         onDeleteMessage = onDeleteMessage,
                     )
+                }
+            }
+
+            // 2026-08-09：流式生成中，列表底部显示「正在思考…」呼吸微光提示
+            if (isStreaming) {
+                item(key = "streaming_thinking") {
+                    StreamingThinkingHint()
                 }
             }
         }
@@ -233,12 +251,77 @@ fun MessageList(
     }
 }
 
+// ═══════════════════════════════════════════════
+// 分组视觉：同一轮内紧凑、轮与轮之间留白
+// ═══════════════════════════════════════════════
+
+/** 判断两个相邻 ChatItem 是否属于同一侧（都是助手侧 / 都是用户侧）。 */
+private fun sameSide(a: ChatItem, b: ChatItem): Boolean =
+    (a is ChatItem.UserMessage) == (b is ChatItem.UserMessage)
+
+/**
+ * 第 [index] 条消息相对上一条的顶部间距：
+ * - 助手侧连续（思考/工具/正文/用量同一轮）→ 4dp 紧凑
+ * - 用户 → 助手（轮内回复开始）→ 10dp
+ * - 助手 → 用户（新轮开始）→ 14dp 留白
+ * - 用户连续两条（各自独立请求）→ 12dp
+ */
+private fun gapBefore(items: List<ChatItem>, index: Int): Dp {
+    if (index == 0) return 0.dp
+    val prev = items[index - 1]
+    val cur = items[index]
+    val prevUser = prev is ChatItem.UserMessage
+    val curUser = cur is ChatItem.UserMessage
+    return when {
+        sameSide(prev, cur) && !curUser -> 4.dp // 助手侧同轮
+        prevUser && curUser -> 12.dp // 用户独立轮次
+        prevUser -> 10.dp // 用户 → 助手回复
+        else -> 14.dp // 助手 → 新用户轮
+    }
+}
+
+/** 流式生成中底部「正在思考…」——alpha 0.4→1.0 呼吸微光。 */
+@Composable
+private fun StreamingThinkingHint() {
+    val alpha by
+        rememberInfiniteTransition(label = "thinkingPulse").animateFloat(
+            initialValue = 0.4f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(animation = tween(900), repeatMode = RepeatMode.Reverse),
+            label = "thinkingAlpha",
+        )
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(Accent.copy(alpha = alpha)),
+        )
+        Text(
+            text = "正在思考…",
+            color = Accent.copy(alpha = alpha),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
 @Composable
 private fun ChatItemRow(
     item: ChatItem,
     balance: String? = null,
     cumulativeTokens: Long = 0,
     isStreaming: Boolean = false,
+    // 2026-08-09：该消息为最后一条流式消息（正文尾部显示闪烁光标）
+    streamCursor: Boolean = false,
     assistantName: String? = null,
     userName: String? = null,
     onApprove: ((session: Boolean, persist: Boolean, scope: String) -> Unit)?,
@@ -259,6 +342,7 @@ private fun ChatItemRow(
                 if (item.content.isNotBlank()) {
                     AssistantMessageBubble(
                         text = item.content,
+                        showStreamCursor = streamCursor,
                         onRegenerate = onRegenerate,
                         onDelete = onDeleteMessage,
                     )
@@ -325,10 +409,11 @@ private fun ChatItemRow(
                 if (toolAccumulator.isNotEmpty()) {
                     ToolStepsCard(blocks = toolAccumulator.toList(), isStreaming = isStreaming)
                 }
-                // 正文统一在思考卡/工具卡之后渲染
-                textAccumulator.forEach { t ->
+                // 正文统一在思考卡/工具卡之后渲染；流式光标只挂在最后一个文本块尾部
+                textAccumulator.forEachIndexed { i, t ->
                     AssistantMessageBubble(
                         text = t,
+                        showStreamCursor = streamCursor && i == textAccumulator.lastIndex,
                         onRegenerate = onRegenerate,
                         onDelete = onDeleteMessage,
                     )

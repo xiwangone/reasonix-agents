@@ -1,6 +1,11 @@
 package com.reasonix.agents.ui.components
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -217,6 +222,8 @@ fun UserMessageBubble(
 fun AssistantMessageBubble(
     text: String,
     modifier: Modifier = Modifier,
+    // 2026-08-09：最后一条流式消息 → 正文尾部追加闪烁光标「▍」（提醒仍在生成）
+    showStreamCursor: Boolean = false,
     onRegenerate: (() -> Unit)? = null,
     onDelete: ((String) -> Unit)? = null,
 ) {
@@ -345,6 +352,25 @@ fun AssistantMessageBubble(
             codeTextColor = fg2,
             linkColor = accent,
         )
+
+        // 2026-08-09：流式光标——紧跟最后一行文本，alpha 0.3→1.0 闪烁，完成后消失
+        if (showStreamCursor) {
+            val cursorAlpha by
+                rememberInfiniteTransition(label = "streamCursor").animateFloat(
+                    initialValue = 0.3f,
+                    targetValue = 1.0f,
+                    animationSpec = infiniteRepeatable(animation = tween(500), repeatMode = RepeatMode.Reverse),
+                    label = "cursorAlpha",
+                )
+            Text(
+                text = "▍",
+                color = accent.copy(alpha = cursorAlpha),
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

@@ -2,7 +2,11 @@ package com.reasonix.agents.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,6 +77,12 @@ fun ToolStepsCard(
 
     // 折叠状态记忆——rememberSaveable 保持（列表重组不重置）
     var expanded by rememberSaveable { mutableStateOf(false) }
+    // 2026-08-09：箭头旋转过渡（展开 180°），折叠/展开不生硬
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(220),
+        label = "arrowRotation",
+    )
 
     val running = isStreaming && blocks.any { it.isRunning }
 
@@ -107,22 +117,21 @@ fun ToolStepsCard(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // 折叠箭头
+                // 折叠箭头（旋转过渡：折叠=向下 0° → 展开=向上 180°）
                 Icon(
-                    imageVector =
-                        if (expanded) {
-                            Icons.Default.KeyboardArrowUp
-                        } else {
-                            Icons.Default.KeyboardArrowDown
-                        },
+                    imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     tint = Muted,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(20.dp).rotate(arrowRotation),
                 )
             }
 
-            // 折叠态：工具名摘要行（点击展开）
-            if (!expanded) {
+            // 折叠态：工具名摘要行（点击展开）——AnimatedVisibility 平滑出现/收起
+            AnimatedVisibility(
+                visible = !expanded,
+                enter = expandVertically(animationSpec = tween(220)) + fadeIn(tween(220)),
+                exit = shrinkVertically(animationSpec = tween(160)) + fadeOut(tween(160)),
+            ) {
                 Row(
                     modifier =
                         Modifier
@@ -152,11 +161,11 @@ fun ToolStepsCard(
                 }
             }
 
-            // ═══════════ 展开态：全部步骤 ═══════════
+            // ═══════════ 展开态：全部步骤（expandVertically + fadeIn 过渡） ═══════════
             AnimatedVisibility(
                 visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically(),
+                enter = expandVertically(animationSpec = tween(220)) + fadeIn(tween(220)),
+                exit = shrinkVertically(animationSpec = tween(160)) + fadeOut(tween(160)),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     blocks.forEach { block ->
