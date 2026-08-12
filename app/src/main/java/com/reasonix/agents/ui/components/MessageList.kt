@@ -128,7 +128,12 @@ fun MessageList(
                 }
             }
 
-            itemsIndexed(items, key = { index, item -> item.id.ifBlank { "msg_$index" } }) { index, item ->
+            itemsIndexed(items, key = { index, item ->
+                when (item) {
+                    is ChatItem.ToolCard -> item.id.ifBlank { "msg_$index" }
+                    else -> "msg_$index"
+                }
+            }) { index, item ->
                 // 2026-08-09：入场动画 = 淡入 + 轻微上滑（1/4 高度）——新消息「浮现」而非硬出现；
                 // 分组视觉：同轮助手内容紧凑（4dp）、轮间/新用户轮稍大（12~14dp），见 gapBefore
                 AnimatedVisibility(
