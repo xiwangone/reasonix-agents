@@ -33,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,8 +96,8 @@ fun ToolCard(
     truncated: Boolean = false,
     isRunning: Boolean = true,
 ) {
-    // 2026-08-06 优化：折叠状态记忆——rememberSaveable 保持展开（列表重组不重置）
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    // 折叠状态——remember 不跨重组保持：滚动回收/位置复用时自动回折叠（默认折叠）
+    var expanded by remember { mutableStateOf(false) }
 
     // 敲定状态
     val status: ToolStatus =

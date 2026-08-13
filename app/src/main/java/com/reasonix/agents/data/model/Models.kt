@@ -304,7 +304,6 @@ sealed class TurnBlock {
         val err: String? = null,
         val truncated: Boolean = false,
         val isRunning: Boolean = true,
-        val expanded: Boolean = false,
     ) : TurnBlock()
 }
 

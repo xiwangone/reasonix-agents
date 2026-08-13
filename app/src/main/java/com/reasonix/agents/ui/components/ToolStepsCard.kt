@@ -26,7 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,8 +75,8 @@ fun ToolStepsCard(
 ) {
     if (blocks.isEmpty()) return
 
-    // 折叠状态记忆——rememberSaveable 保持（列表重组不重置）
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    // 折叠状态——remember 不跨重组保持：滚动回收/位置复用时自动回折叠（默认折叠）
+    var expanded by remember { mutableStateOf(false) }
     // 2026-08-09：箭头旋转过渡（展开 180°），折叠/展开不生硬
     val arrowRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,

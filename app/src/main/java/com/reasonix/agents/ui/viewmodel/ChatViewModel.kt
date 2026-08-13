@@ -447,7 +447,6 @@ class ChatViewModel(
                                 args = tc.arguments,
                                 output = result?.content,
                                 isRunning = result == null,
-                                expanded = result != null,
                             ),
                         )
                     }
@@ -705,17 +704,26 @@ class ChatViewModel(
     }
 
     /**
-     * 发送图片消息（第六批：本地 OCR 优先）。
+     * 发送图片消息（第六批：本地 OCR 优先；2026-08-14 语义修正）。
      *
-     * - [ocrText]：OCR 识别文本，作为消息内容发送（图片+文字展示在消息中）；
-     *   识别失败选择「发送原图」时传空字符串，服务端侧用「[图片]」占位，本地消息展示图片。
-     * - [imagePath]：本地缓存图片文件路径，仅用于本地消息展示（不发送给服务端）。
+     * - [userText]：用户输入文字（可空）。图片消息以「[图片]」标记与正常文字消息区分，
+     *   OCR 识别文本仅本地预览展示、不进消息体（避免 AI 混淆图片来源）。
+     * - [imagePaths]：本地缓存图片文件路径，仅用于本地消息展示（不发送给服务端）。
      */
     fun sendImageMessage(
-        ocrText: String,
+        userText: String,
         imagePaths: List<String>,
     ) {
-        val text = ocrText.trim()
+        val typed = userText.trim()
+        // 图片标记：单图 [图片]，多图 [图片1][图片2]...（与正常文字明确区分）
+        val imageMarker =
+            if (imagePaths.size <= 1) {
+                "[图片]"
+            } else {
+                imagePaths.indices.joinToString("") { "[图片${it + 1}]" }
+            }
+        val body =
+            if (typed.isNotBlank()) "$typed\n$imageMarker" else imageMarker
         // 2026-08-08：图片消息忙时不入队（队列仅存文字），提示正忙
         if (_uiState.value.isStreaming) {
             appendMessage(ChatItem.SystemNotice("AI 正忙，请稍后（图片消息不支持排队）", isWarning = true))
@@ -728,8 +736,8 @@ class ChatViewModel(
             )
         }
 
-        // 添加用户消息（图片 + OCR 文字）
-        appendMessage(ChatItem.UserMessage(text, imagePaths))
+        // 添加用户消息（本地展示：文字 + 图片）
+        appendMessage(ChatItem.UserMessage(typed, imagePaths))
 
         // 初始化流式缓冲区（轮级重置：一轮回复=一条消息，多 turn 合并）
         currentAssistantMsgIndex = null
@@ -741,7 +749,7 @@ class ChatViewModel(
         turnFinalizeJob = null
 
         // 提交消息 → 启动 SSE 监听（复用统一注入构建，保前缀稳定）
-        val effectiveInput = buildInjectedInput(text.ifBlank { "[图片]" })
+        val effectiveInput = buildInjectedInput(body)
         viewModelScope.launch {
             try {
                 repository.submit(effectiveInput)
@@ -1371,20 +1379,27 @@ class ChatViewModel(
         viewModelScope.launch {
             try {
                 val status = repository.getStatus()
-                status?.let {
+                if (status == null) {
+                    Log.w(TAG, "refreshStats: /status 返回空，会话统计校准跳过")
+                } else {
                     _uiState.update { state ->
                         state.copy(
-                            cumulativeTokens = it.used,
-                            cumulativePromptTokens = it.lastUsage?.promptTokens ?: state.cumulativePromptTokens,
-                            cumulativeCompletionTokens = it.lastUsage?.completionTokens ?: state.cumulativeCompletionTokens,
-                            cumulativeCacheHit = it.cacheHit,
-                            cumulativeCacheMiss = it.cacheMiss,
-                            serverRunning = it.running,
+                            cumulativeTokens = status.used,
+                            cumulativePromptTokens = status.lastUsage?.promptTokens ?: state.cumulativePromptTokens,
+                            cumulativeCompletionTokens = status.lastUsage?.completionTokens ?: state.cumulativeCompletionTokens,
+                            cumulativeCacheHit = status.cacheHit,
+                            cumulativeCacheMiss = status.cacheMiss,
+                            serverRunning = status.running,
                         )
                     }
+                    // 2026-08-14：lastUsage 全空 → 服务端未回传 usage，UI 显示「usage 未回传」提示
+                    val lu = status.lastUsage
+                    if (lu == null || (lu.promptTokens == null && lu.completionTokens == null)) {
+                        Log.w(TAG, "refreshStats: lastUsage 为空，↑输入/↓输出/费用无数据源（服务端未回传 usage）")
+                    }
                 }
-            } catch (_: Exception) {
-                // 统计刷新失败不打扰对话
+            } catch (e: Exception) {
+                Log.w(TAG, "refreshStats 失败: ${e.message}", e)
             }
         }
     }
@@ -1809,5 +1824,9 @@ class ChatViewModel(
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = ChatViewModel(app, serverUrl, auth) as T
+    }
+
+    companion object {
+        private const val TAG = "ChatViewModel"
     }
 }

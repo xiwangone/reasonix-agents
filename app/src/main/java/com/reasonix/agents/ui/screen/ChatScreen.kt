@@ -615,16 +615,10 @@ fun ChatScreen(
                 onInputChange = { viewModel.onInputChange(it) },
                 onSend = {
                     if (pendingImages.isNotEmpty()) {
-                        // 2026-08-08：图片先加到输入框附件条，发送时与输入文字合并一起提交（多张 OCR 文本拼接）
+                        // 2026-08-14：图片消息 = 用户输入 + [图片] 标记（OCR 文本仅本地预览，不进消息体，
+                        // 避免 AI 把图片转述内容当作正常文字混淆）
                         val typed = state.inputText.trim()
-                        val ocrParts =
-                            pendingImages
-                                .map { it.ocrText }
-                                .filter { it.isNotBlank() }
-                        val combined =
-                            listOfNotNull(typed.ifBlank { null }, ocrParts.joinToString("\n").ifBlank { null })
-                                .joinToString("\n")
-                        viewModel.sendImageMessage(combined, pendingImages.map { it.imagePath })
+                        viewModel.sendImageMessage(typed, pendingImages.map { it.imagePath })
                         pendingImages = emptyList()
                         viewModel.onInputChange("")
                     } else {
@@ -873,6 +867,7 @@ fun ChatScreen(
                     )
                 },
                 confirmButton = {
+                    // 2026-08-14：失败原图 → 无用户输入，消息体为纯 [图片] 标记
                     TextButton(onClick = {
                         ocrFailedPath = null
                         viewModel.sendImageMessage("", listOf(failedPath))
@@ -2069,8 +2064,13 @@ private fun Footer(
                     null
                 }
             val cacheShow = cachePct?.let { "${fmtTokens(cumulativeCacheHit)}·$it" } ?: "${fmtTokens(cumulativeCacheHit)}"
+            // 2026-08-14：有累计（/status used 生效）但输入/输出明细恒 0 → 服务端未回传 usage（SSE 事件与 lastUsage 均缺失）
+            val usageMissing =
+                cumulativeTokens > 0 &&
+                    cumulativePromptTokens == 0L &&
+                    cumulativeCompletionTokens == 0L
             val summary =
-                "会话统计｜↑输入 ${fmtTokens(cumulativePromptTokens)} · 缓存 $cacheShow · ↓输出 ${fmtTokens(cumulativeCompletionTokens)}（累计 ${fmtTokens(cumulativeTokens)} · ${fmtCost(cumulativeCost)}）"
+                "会话统计｜↑输入 ${fmtTokens(cumulativePromptTokens)} · 缓存 $cacheShow · ↓输出 ${fmtTokens(cumulativeCompletionTokens)}（累计 ${fmtTokens(cumulativeTokens)} · ${fmtCost(cumulativeCost)}）${if (usageMissing) "（usage 未回传）" else ""}"
             Row(
                 modifier =
                     Modifier
@@ -2090,7 +2090,7 @@ private fun Footer(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "↑${fmtTokens(cumulativePromptTokens)} · 缓存 $cacheShow · ↓${fmtTokens(cumulativeCompletionTokens)}",
+                    text = "↑${fmtTokens(cumulativePromptTokens)} · 缓存 $cacheShow · ↓${fmtTokens(cumulativeCompletionTokens)}${if (usageMissing) "（usage 未回传）" else ""}",
                     color = Fg2,
                     fontSize = 11.sp,
                 )
@@ -2171,33 +2171,45 @@ private fun Footer(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 pendingImages.forEach { img ->
-                    Box {
-                        AsyncImage(
-                            model = File(img.imagePath),
-                            contentDescription = "待发送图片",
-                            contentScale = ContentScale.Crop,
-                            modifier =
-                                Modifier
-                                    .size(56.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Bg2),
-                        )
-                        // 右上角删除
-                        Box(
-                            modifier =
-                                Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(18.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xCC000000))
-                                    .clickable { onRemoveImage(img) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "移除图片",
-                                tint = Color.White,
-                                modifier = Modifier.size(12.dp),
+                    // 2026-08-14：图片下方展示 OCR 识别文本（仅本地预览，不进消息体）
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box {
+                            AsyncImage(
+                                model = File(img.imagePath),
+                                contentDescription = "待发送图片",
+                                contentScale = ContentScale.Crop,
+                                modifier =
+                                    Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Bg2),
+                            )
+                            // 右上角删除
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xCC000000))
+                                        .clickable { onRemoveImage(img) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "移除图片",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                            }
+                        }
+                        if (img.ocrText.isNotBlank()) {
+                            Text(
+                                text = "▣ ${img.ocrText.replace('\n', ' ').take(24)}",
+                                fontSize = 10.sp,
+                                color = Muted2,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
