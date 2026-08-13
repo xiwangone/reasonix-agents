@@ -49,6 +49,8 @@ data class ChatUiState(
     val showRewindPicker: Boolean = false,
     val checkpoints: List<CheckpointInfo> = emptyList(),
     val showStatsDialog: Boolean = false,
+    /** 2026-08-13 自动压缩：待确认触发（生成中延后，对话空闲时弹出） */
+    val autoCompactPending: Boolean = false,
     val settings: AppSettingsStore.Settings = AppSettingsStore.Settings(),
     val customModels: List<CustomModelStore.CustomModel> = emptyList(),
     val customPrompts: List<PromptStore.CustomPrompt> = emptyList(),
@@ -632,7 +634,44 @@ class ChatViewModel(
                 ))
             }
         }
+        // 2026-08-13 自动压缩：对话空闲（非流式/无排队）时检查触发条件
+        checkAutoCompact()
         maybeDequeueNext()
+    }
+
+    /** 2026-08-13 自动压缩触发检测（仿 RikkaHub Agents 双模式，客户端侧）。 */
+    private fun checkAutoCompact() {
+        val s = _uiState.value
+        if (s.isStreaming || s.pendingMessages.isNotEmpty()) return
+        val mode = s.settings.autoCompactMode
+        if (mode == AppSettingsStore.AUTO_COMPACT_OFF) return
+        if (s.autoCompactPending) return
+        val triggered =
+            when (mode) {
+                AppSettingsStore.AUTO_COMPACT_PERCENT -> {
+                    // 百分比阈值：以服务端上下文窗口用量为准（/status used 相对 capacity）
+                    val capacity = s.cumulativeTokens + s.cumulativeCacheHit + s.cumulativeCacheMiss
+                    capacity > 0 && s.cumulativeTokens.toDouble() / capacity >= s.settings.autoCompactThreshold / 100.0
+                }
+                AppSettingsStore.AUTO_COMPACT_TOKEN -> {
+                    s.cumulativeTokens >= s.settings.autoCompactThreshold
+                }
+                else -> false
+            }
+        if (triggered) {
+            _uiState.update { it.copy(autoCompactPending = true) }
+        }
+    }
+
+    /** 2026-08-13 用户确认自动压缩（触发 /compact auto）。 */
+    fun confirmAutoCompact() {
+        _uiState.update { it.copy(autoCompactPending = false) }
+        compactConversation()
+    }
+
+    /** 2026-08-13 用户拒绝自动压缩（本轮不再弹，下轮继续检测）。 */
+    fun dismissAutoCompact() {
+        _uiState.update { it.copy(autoCompactPending = false) }
     }
 
     /** 从队列取第一条待发消息发送（AI 已空闲时）。 */

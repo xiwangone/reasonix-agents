@@ -708,6 +708,32 @@ fun ChatScreen(
             )
         }
 
+        // ── 自动压缩确认对话框（2026-08-13，仿 RikkaHub Agents）──
+        if (state.autoCompactPending) {
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissAutoCompact() },
+                title = { Text("建议压缩上下文", color = Fg) },
+                text = {
+                    Text(
+                        "当前会话上下文用量已达阈值，压缩可降低 token 消耗。是否现在压缩？",
+                        fontSize = 13.sp,
+                        color = Fg2,
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.confirmAutoCompact() }) {
+                        Text("压缩", color = Accent)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissAutoCompact() }) {
+                        Text("暂不", color = Fg2)
+                    }
+                },
+                containerColor = Panel,
+            )
+        }
+
         // ── Stats 对话框 ──
         if (state.showStatsDialog) {
             StatsDialog(

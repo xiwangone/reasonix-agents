@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -128,7 +129,100 @@ fun SettingsDisplayScreen(
                 fontSize = 10.sp,
                 color = Muted2,
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── 自动压缩（2026-08-13，仿 RikkaHub Agents 双模式）──
+            SectionTitle("自动压缩")
+            Text(
+                text = "上下文用量达到阈值时自动询问是否压缩，降低 token 消耗。",
+                fontSize = 11.sp,
+                color = Muted2,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AutoCompactChip(
+                    "关闭",
+                    settings.autoCompactMode == AppSettingsStore.AUTO_COMPACT_OFF,
+                    { onSettingsChange(settings.copy(autoCompactMode = AppSettingsStore.AUTO_COMPACT_OFF)) },
+                )
+                AutoCompactChip(
+                    "按百分比",
+                    settings.autoCompactMode == AppSettingsStore.AUTO_COMPACT_PERCENT,
+                    { onSettingsChange(settings.copy(autoCompactMode = AppSettingsStore.AUTO_COMPACT_PERCENT)) },
+                )
+                AutoCompactChip(
+                    "按 Token 数",
+                    settings.autoCompactMode == AppSettingsStore.AUTO_COMPACT_TOKEN,
+                    { onSettingsChange(settings.copy(autoCompactMode = AppSettingsStore.AUTO_COMPACT_TOKEN)) },
+                )
+            }
+            if (settings.autoCompactMode == AppSettingsStore.AUTO_COMPACT_PERCENT) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "阈值: ${settings.autoCompactThreshold}%",
+                        fontSize = 13.sp,
+                        color = Fg,
+                        modifier = Modifier.width(90.dp),
+                    )
+                    androidx.compose.material3.Slider(
+                        value = settings.autoCompactThreshold.toFloat(),
+                        onValueChange = { v ->
+                            onSettingsChange(settings.copy(autoCompactThreshold = v.toInt().coerceIn(30, 95)))
+                        },
+                        valueRange = 30f..95f,
+                        steps = 12,
+                    )
+                }
+            } else if (settings.autoCompactMode == AppSettingsStore.AUTO_COMPACT_TOKEN) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "阈值: ${settings.autoCompactThreshold / 1000}k",
+                        fontSize = 13.sp,
+                        color = Fg,
+                        modifier = Modifier.width(90.dp),
+                    )
+                    androidx.compose.material3.Slider(
+                        value = (settings.autoCompactThreshold / 1000).toFloat(),
+                        onValueChange = { v ->
+                            onSettingsChange(settings.copy(autoCompactThreshold = (v.toInt() * 1000).coerceIn(5000, 200000)))
+                        },
+                        valueRange = 5f..200f,
+                        steps = 38,
+                    )
+                }
+            }
         }
+    }
+}
+
+/** 自动压缩模式选择 chip（2026-08-13） */
+@Composable
+private fun AutoCompactChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val accent = LocalPalette.current.accent
+    val fg = LocalPalette.current.fg
+    val border = LocalPalette.current.border
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        color = if (selected) accent else LocalPalette.current.panel,
+        border = BorderStroke(1.dp, if (selected) accent else border),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            fontSize = 12.sp,
+            color = if (selected) Color.White else fg,
+        )
     }
 }
 

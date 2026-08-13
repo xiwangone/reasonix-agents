@@ -58,6 +58,15 @@ object AppSettingsStore {
     const val CHAT_FONT_MONO = 2
     const val CHAT_FONT_JETBRAINS = 3
 
+    // 自动压缩（2026-08-13 仿 RikkaHub Agents 双模式）
+    const val AUTO_COMPACT_OFF = 0
+    const val AUTO_COMPACT_PERCENT = 1
+    const val AUTO_COMPACT_TOKEN = 2
+    const val KEY_AUTO_COMPACT_MODE = "auto_compact_mode" // 0=关 1=百分比阈值 2=token 累计
+    const val KEY_AUTO_COMPACT_THRESHOLD = "auto_compact_threshold" // 百分比 0-100 或 token 数
+    const val DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT = 80
+    const val DEFAULT_AUTO_COMPACT_THRESHOLD_TOKEN = 40000
+
     data class Settings(
         val themePreset: Int = THEME_PRESET_BRAND,
         val themeMode: Int = THEME_MODE_SYSTEM,
@@ -69,6 +78,9 @@ object AppSettingsStore {
         val sseReconnectEnabled: Boolean = true,
         val sseReconnectMaxDelaySec: Int = 30,
         val httpWarningAcked: Boolean = false,
+        // 自动压缩（2026-08-13）
+        val autoCompactMode: Int = AUTO_COMPACT_OFF,
+        val autoCompactThreshold: Int = DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT,
     )
 
     fun load(context: Context): Settings {
@@ -84,6 +96,8 @@ object AppSettingsStore {
             sseReconnectEnabled = prefs.getBoolean(KEY_SSE_RECONNECT_ENABLED, true),
             sseReconnectMaxDelaySec = prefs.getInt(KEY_SSE_RECONNECT_MAX_DELAY_SEC, 30),
             httpWarningAcked = prefs.getBoolean(KEY_HTTP_WARNING_ACKED, false),
+            autoCompactMode = prefs.getInt(KEY_AUTO_COMPACT_MODE, AUTO_COMPACT_OFF),
+            autoCompactThreshold = prefs.getInt(KEY_AUTO_COMPACT_THRESHOLD, DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT),
         )
     }
 
@@ -104,6 +118,8 @@ object AppSettingsStore {
             .putBoolean(KEY_SSE_RECONNECT_ENABLED, s.sseReconnectEnabled)
             .putInt(KEY_SSE_RECONNECT_MAX_DELAY_SEC, s.sseReconnectMaxDelaySec)
             .putBoolean(KEY_HTTP_WARNING_ACKED, s.httpWarningAcked)
+            .putInt(KEY_AUTO_COMPACT_MODE, s.autoCompactMode)
+            .putInt(KEY_AUTO_COMPACT_THRESHOLD, s.autoCompactThreshold)
             .apply()
     }
 
