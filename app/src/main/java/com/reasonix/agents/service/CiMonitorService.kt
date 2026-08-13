@@ -222,7 +222,7 @@ class CiMonitorService : Service() {
         expanded = !expanded
         bubble?.let { b ->
             val dot = b.getChildAt(0)
-            val panel = b.getChildAt(1)
+            val panel = b.getChildAt(1) as FrameLayout
             if (expanded) {
                 // 展开：先准备面板内容，再动画淡入 + scale
                 (panel.getChildAt(0) as TextView).text = statusLine()
