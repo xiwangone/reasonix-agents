@@ -13,10 +13,10 @@ on:
     branches: [main, master]
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: '仅填此值才会创建 GitHub Release（发版）；留空 = 只出 APK 包不发版'
+      nothing:
+        description: '手动触发编译（不发版；发版走 release.yml 工作流，版本号由发版输入控制）'
         required: false
-        type: string
+        type: boolean
 
 permissions:
   contents: write
@@ -70,7 +70,7 @@ jobs:
           ./ktlint app/src/main/java 2>&1 | tail -30 || true
 
       - name: 版本号检查（只读提示，不自动 bump 不发版）
-        # 2026-08-13：改为只读——自动 bump 会 push 触发循环构建；发版改为手动 workflow_dispatch
+        # 2026-08-13：只读——自动 bump 会 push 触发循环构建；发版走 release.yml 工作流
         if: github.event_name == 'push'
         run: |
           VER=$(awk -F'"' '/versionName/{print $2; exit}' app/build.gradle.kts)
@@ -110,42 +110,6 @@ jobs:
         with:
           name: Reasonix-Agents-release
           path: app/build/outputs/apk/release/*.apk
-
-      - name: 手动发版（仅 workflow_dispatch 且提供 release_tag）
-        # 2026-08-13：push 一律不发版（CI 只出包）；需要发版时手动 workflow_dispatch 填 release_tag
-        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          TAG="$RELEASE_TAG"
-          echo "Release TAG: $TAG"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
-            --title "🚀 Reasonix Agents $TAG" \
-            --notes "$(git log --oneline --no-merges $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~10)..HEAD 2>/dev/null | head -60 | awk '
-              function classify(msg,    m) {
-                if (msg ~ /^feat|^✨/) return "✨ 新增"
-                if (msg ~ /^fix|^🐛/) return "🔨 修复"
-                if (msg ~ /^ci|^chore|^🔧/) return "🔧 维护"
-                return "📝 其他"
-              }
-              {
-                msg = $0; sub(/^[0-9a-f]+ /, "", msg)
-                cat = classify(msg)
-                items[cat] = items[cat] "\n- " msg
-              }
-              END {
-                order[1]="✨ 新增"; order[2]="🔨 修复"; order[3]="🔧 维护"; order[4]="📝 其他"
-                for (i=1; i<=4; i++) {
-                  c = order[i]
-                  if (items[c] != "") { print "### " c; print items[c]; print "" }
-                }
-              }' || echo "## ✨ v$TAG\n\n### 📦 安装包\n- arm64-v8a 固定签名版\n- universal 全架构版")" || true
-          cd app/build/outputs/apk/release
-          for apk in *.apk; do
-            gh release upload "$TAG" "$apk" --clobber
-            echo "Uploaded $apk"
-          done
 
       - name: Upload Build Reports (on failure)
         if: failure()
