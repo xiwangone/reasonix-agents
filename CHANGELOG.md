@@ -1,3 +1,8 @@
+## 2026-08-13
+
+- **功能** 记忆分层注入（仿 RikkaHub Agents 记忆分层）— MemoryItem 加 tier（core 常驻 / conditional 按需），core 每轮注入、conditional 按用户消息关键词匹配注入（省 token）；旧数据归一化兼容；设置页添加可选类型 + 条目「按需」徽标（`e614db9`）
+- **文档** 新增《对比分析-RikkaHub-Agents吸收规划-20260813.md》（定位对比 + P0/P1/P2 吸收清单 + AGPL/MIT 许可约束）与《自动任务-吸收执行清单.md》（T1-T7 逐项验收）
+
 # Changelog — Reasonix Agents
 
 > Reasonix 的 Android 原生客户端（Kotlin + Jetpack Compose + Markwon），与 RikkaHub Agents 并列独立维护。
