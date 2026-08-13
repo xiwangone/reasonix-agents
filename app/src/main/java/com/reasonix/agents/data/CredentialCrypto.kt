@@ -72,6 +72,17 @@ object CredentialCrypto {
         }
     }
 
+    /**
+     * 输出掩码（2026-08-13，仿 RikkaHub SecretMasker 理念，零依赖实现）：
+     * 敏感值对外展示/日志输出时掩码——前3后3 + ***，长度 ≤6 全掩。
+     * 用于防窥屏、防日志落盘明文。
+     */
+    fun mask(value: String): String {
+        if (value.isEmpty()) return ""
+        if (value.length <= 6) return "***"
+        return value.take(3) + "***" + value.takeLast(3)
+    }
+
     /** 取 AndroidKeyStore 中的 AES 密钥；不存在则生成（首次调用时）。 */
     private fun getOrCreateKey(): SecretKey {
         val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
