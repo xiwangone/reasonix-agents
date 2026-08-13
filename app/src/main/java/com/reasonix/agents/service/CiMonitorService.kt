@@ -214,16 +214,47 @@ class CiMonitorService : Service() {
         }
     }
 
+    /**
+     * 展开/收起切换（2026-08-13 动画化，仿 RikkaHub 悬浮窗交互）：
+     * 常态小圆点 → 点击以圆点为锚 scale+淡入展开卡片；收起反向动画。
+     */
     private fun toggleExpand() {
         expanded = !expanded
         bubble?.let { b ->
-            // 圆点（child 0）与展开面板（child 1）互斥显示
-            b.getChildAt(0).visibility = if (expanded) View.GONE else View.VISIBLE
-            val panel = b.getChildAt(1) as FrameLayout
-            panel.visibility = if (expanded) View.VISIBLE else View.GONE
+            val dot = b.getChildAt(0)
+            val panel = b.getChildAt(1)
             if (expanded) {
+                // 展开：先准备面板内容，再动画淡入 + scale
                 (panel.getChildAt(0) as TextView).text = statusLine()
                 (panel.getChildAt(1) as TextView).text = "上次构建: $lastRunTimeText"
+                dot.animate().alpha(0f).setDuration(120).withEndAction {
+                    dot.visibility = View.GONE
+                }.start()
+                panel.alpha = 0f
+                panel.scaleX = 0.7f
+                panel.scaleY = 0.7f
+                panel.visibility = View.VISIBLE
+                panel
+                    .animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(180)
+                    .start()
+            } else {
+                // 收起：动画反向
+                panel
+                    .animate()
+                    .alpha(0f)
+                    .scaleX(0.7f)
+                    .scaleY(0.7f)
+                    .setDuration(150)
+                    .withEndAction {
+                        panel.visibility = View.GONE
+                        dot.visibility = View.VISIBLE
+                        dot.animate().alpha(1f).setDuration(120).start()
+                    }
+                    .start()
             }
         }
     }

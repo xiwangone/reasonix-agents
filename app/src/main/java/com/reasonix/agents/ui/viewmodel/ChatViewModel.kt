@@ -588,20 +588,7 @@ class ChatViewModel(
         turnFinalizeJob = null
 
         // 提交消息 → 启动 SSE 监听
-        // 第四批：选中用户提示词时，附加在系统提示词之后注入会话上下文
-        val promptContent = activePromptContent()
-        // 2026-08-06：记忆功能第一版——启用时注入【记忆】段落（提示词之后、用户文本之前）
-        // 2026-08-13 分层注入：conditional 记忆按当前用户消息关键词匹配
-        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey(), userText = text)
-        // 第五批 E-3：CLI 集成开启时，注入部署 CLI 工具可用性指令（提示词层）
-        val cliInstruction = cliInstruction()
-        // 2026-08-07 防复述：注入内容（提示词/记忆/CLI 指令）仅供上下文参考，
-        // 明确要求 AI 不要在回复中复述或重复它们（此前 AI 常把注入内容整段复述，观感即「历史内容反复出现」）
-        val antiEcho =
-            "（以下注入内容仅供你参考执行，回复时请直接回答用户问题，不要复述或重复任何注入内容。）"
-        val effectiveInput =
-            listOfNotNull(antiEcho, promptContent, memoryText, cliInstruction, text)
-                .joinToString("\n\n")
+        val effectiveInput = buildInjectedInput(text)
         viewModelScope.launch {
             try {
                 repository.submit(effectiveInput)
@@ -619,6 +606,22 @@ class ChatViewModel(
      * 结束一轮流式：置 isStreaming=false 并尝试发送下一条排队消息。
      * 所有流式结束点（turn_done / 提交失败 / slash 中断）统一走这里，保证排队消息被消费。
      */
+    /**
+     * 2026-08-13 统一注入构建（缓存命中优化，仿 RikkaHub 保前缀理念）：
+     * 注入顺序固定为 antiEcho → 提示词 → 记忆 → CLI 指令 → 用户文本，
+     * 保证同会话连续请求前缀字节稳定，利于服务端 prompt 前缀缓存命中。
+     */
+    private fun buildInjectedInput(userText: String): String {
+        val promptContent = activePromptContent()
+        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey(), userText = userText)
+        val cliInstruction = cliInstruction()
+        // 防复述：注入内容仅供上下文参考，明确要求 AI 不要复述或重复
+        val antiEcho =
+            "（以下注入内容仅供你参考执行，回复时请直接回答用户问题，不要复述或重复任何注入内容。）"
+        return listOfNotNull(antiEcho, promptContent, memoryText, cliInstruction, userText)
+            .joinToString("\n\n")
+    }
+
     private fun finishStreaming() {
         _uiState.update { it.copy(isStreaming = false) }
         // 排队超时兜底：延迟后检查是否仍卡在排队
@@ -721,14 +724,8 @@ class ChatViewModel(
         turnFinalizeJob?.cancel()
         turnFinalizeJob = null
 
-        // 提交消息 → 启动 SSE 监听（复用 sendMessage 的提示词/CLI 注入逻辑）
-        val promptContent = activePromptContent()
-        // 2026-08-13 分层注入：conditional 记忆按当前用户消息关键词匹配
-        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey(), userText = text)
-        val cliInstruction = cliInstruction()
-        val effectiveInput =
-            listOfNotNull(promptContent, memoryText, cliInstruction, text.ifBlank { "[图片]" })
-                .joinToString("\n\n")
+        // 提交消息 → 启动 SSE 监听（复用统一注入构建，保前缀稳定）
+        val effectiveInput = buildInjectedInput(text.ifBlank { "[图片]" })
         viewModelScope.launch {
             try {
                 repository.submit(effectiveInput)
