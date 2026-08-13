@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: '自定义 Release tag（默认取 versionName，如 1.0）'
+        description: '仅填此值才会创建 GitHub Release（发版）；留空 = 只出 APK 包不发版'
         required: false
         type: string
 
@@ -41,16 +41,24 @@ jobs:
         with:
           gradle-version: wrapper
 
-      - name: Cache Gradle & Android SDK
+      - name: Cache Gradle & Android SDK（依赖缓存 key 指纹化 + 构建缓存固定 key 防堆积）
         uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
             ~/.gradle/wrapper
             ~/.android/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', '**/*.gradle', '**/libs.versions.toml') }}
+          key: ${{ runner.os }}-gradle-deps-${{ hashFiles('**/*.gradle.kts', '**/*.gradle', '**/libs.versions.toml') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-gradle-deps-
+      - name: Cache Kotlin/Gradle build cache（固定 key，防止每构建存全量快照）
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/build-cache-1
+          key: ${{ runner.os }}-gradle-buildcache-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-buildcache-
 
       - name: Grant gradlew execute permission
         run: chmod +x gradlew
@@ -61,30 +69,12 @@ jobs:
           chmod +x ktlint
           ./ktlint app/src/main/java 2>&1 | tail -30 || true
 
-      - name: 版本号自动 bump（push 时当前版本已有 Release 则补丁号+1）
-        # 小修复自动区分：3.0.1 已有 Release → 自动 bump 为 3.0.2（versionCode+1）
-        # 避免小修复永远无法发版；workflow_dispatch 手动发版不 bump（用输入 release_tag 控制）
+      - name: 版本号检查（只读提示，不自动 bump 不发版）
+        # 2026-08-13：改为只读——自动 bump 会 push 触发循环构建；发版改为手动 workflow_dispatch
         if: github.event_name == 'push'
         run: |
           VER=$(awk -F'"' '/versionName/{print $2; exit}' app/build.gradle.kts)
-          CODE=$(awk '/versionCode = /{print $3; exit}' app/build.gradle.kts)
-          if gh release view "$VER" >/dev/null 2>&1; then
-            echo "版本 $VER 已有 Release，自动 bump 补丁号"
-            # 标准补丁号递增：3.0.1 → 3.0.2；3.0.9 → 3.0.10
-            NEW_VER=$(echo "$VER" | awk -F. '{ if (NF>=3) { $3=$3+1; print $1"."$2"."$3 } else { print $0".1" } }')
-            NEW_CODE=$((CODE + 1))
-            sed -i "s/versionCode = $CODE/versionCode = $NEW_CODE/" app/build.gradle.kts
-            sed -i "s/versionName = \"$VER\"/versionName = \"$NEW_VER\"/" app/build.gradle.kts
-            echo "bumped: $VER → $NEW_VER (versionCode $CODE → $NEW_CODE)"
-            # 提交版本号推进，避免下次 push 重复 bump
-            git config user.name "Auto Version Bot"
-            git config user.email "bot@rikkahub-agents.local"
-            git add app/build.gradle.kts
-            git commit -m "chore: 自动 bump 版本号 $VER → $NEW_VER（versionCode $NEW_CODE）"
-            git push origin main
-          else
-            echo "版本 $VER 无 Release，保持原版本"
-          fi
+          echo "当前版本: $VER（构建产物用此版本号命名）"
 
       - name: 固定签名构建 Release (overwrite-install)
         env:
@@ -121,24 +111,15 @@ jobs:
           name: Reasonix-Agents-release
           path: app/build/outputs/apk/release/*.apk
 
-      - name: 创建/更新 Release（push 自动发版 + workflow_dispatch 手动发版）
+      - name: 手动发版（仅 workflow_dispatch 且提供 release_tag）
+        # 2026-08-13：push 一律不发版（CI 只出包）；需要发版时手动 workflow_dispatch 填 release_tag
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          # 动态读取 versionName 作为默认 tag，可用 workflow_dispatch 的 release_tag 覆盖
-          DEFAULT_TAG=$(awk -F'"' '/versionName/{print $2; exit}' app/build.gradle.kts)
-          TAG="${RELEASE_TAG:-$DEFAULT_TAG}"
+          TAG="$RELEASE_TAG"
           echo "Release TAG: $TAG"
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            # push 自动发版：Release 已存在则跳过（避免每 push 都重建同名 Release）
-            if gh release view "$TAG" >/dev/null 2>&1; then
-              echo "Release $TAG 已存在，push 自动发版跳过（如需更新请手动 workflow_dispatch）"
-              exit 0
-            fi
-          fi
-          # Release 不存在则创建，已存在则跳过创建
-          # notes 自动生成：git log 按类型分组（✨新增/🔨修复/🔧维护/📝其他）
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
             --title "🚀 Reasonix Agents $TAG" \
             --notes "$(git log --oneline --no-merges $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~10)..HEAD 2>/dev/null | head -60 | awk '
@@ -159,8 +140,7 @@ jobs:
                   c = order[i]
                   if (items[c] != "") { print "### " c; print items[c]; print "" }
                 }
-              }' || echo '## ✨ v$TAG\n\n### 📦 安装包\n- arm64-v8a 固定签名版\n- universal 全架构版')" || true
-          # 上传 APK 到 Release
+              }' || echo "## ✨ v$TAG\n\n### 📦 安装包\n- arm64-v8a 固定签名版\n- universal 全架构版")" || true
           cd app/build/outputs/apk/release
           for apk in *.apk; do
             gh release upload "$TAG" "$apk" --clobber
