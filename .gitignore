@@ -19,3 +19,5 @@ index.html
 Markwon
 .idea
 image.png
+# 构建缓存
+.kotlin/

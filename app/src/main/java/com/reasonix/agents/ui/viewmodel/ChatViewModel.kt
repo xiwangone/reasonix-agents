@@ -589,7 +589,8 @@ class ChatViewModel(
         // 第四批：选中用户提示词时，附加在系统提示词之后注入会话上下文
         val promptContent = activePromptContent()
         // 2026-08-06：记忆功能第一版——启用时注入【记忆】段落（提示词之后、用户文本之前）
-        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey())
+        // 2026-08-13 分层注入：conditional 记忆按当前用户消息关键词匹配
+        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey(), userText = text)
         // 第五批 E-3：CLI 集成开启时，注入部署 CLI 工具可用性指令（提示词层）
         val cliInstruction = cliInstruction()
         // 2026-08-07 防复述：注入内容（提示词/记忆/CLI 指令）仅供上下文参考，
@@ -683,8 +684,8 @@ class ChatViewModel(
 
         // 提交消息 → 启动 SSE 监听（复用 sendMessage 的提示词/CLI 注入逻辑）
         val promptContent = activePromptContent()
-        // 2026-08-06：记忆功能第一版——启用时注入【记忆】段落
-        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey())
+        // 2026-08-13 分层注入：conditional 记忆按当前用户消息关键词匹配
+        val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey(), userText = text)
         val cliInstruction = cliInstruction()
         val effectiveInput =
             listOfNotNull(promptContent, memoryText, cliInstruction, text.ifBlank { "[图片]" })

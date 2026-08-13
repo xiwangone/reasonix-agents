@@ -6,7 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 /**
- * 记忆存储（2026-08-06 新增：仿 RikkaHub Agents 记忆功能）。
+ * 记忆存储（2026-08-06 新增：仿 RikkaHub Agents 记忆功能；2026-08-13 分层：core 常驻 + conditional 按需）。
  *
  * 用户自定义长期记忆，持久化到 SharedPreferences（JSON）。
  * 启用后，发送消息时自动注入到会话（随用户消息一起发送）。
@@ -14,6 +14,10 @@ import com.google.gson.reflect.TypeToken
  * 1. 手动：设置页「记忆」添加/删除；
  * 2. AI 直接管理（方案 A）：AI 在回复末尾写【记忆+】内容 / 【记忆-】内容 标记，
  *    客户端在 turn 结束时自动应用并剔除标记（见 processMarkers）。
+ *
+ * 分层（2026-08-13 仿 RikkaHub Agents 记忆分层，理念级借鉴）：
+ * - core（默认）：常驻注入——纪律/决策/指针类长期事实，每轮都带；
+ * - conditional：按需注入——场景细节，默认不注入，仅当用户消息命中关键词时附带（省 token）。
  */
 object MemoryStore {
     private const val TAG = "MemoryStore"
@@ -26,6 +30,11 @@ object MemoryStore {
     /** 注入总长上限（字符）——防 token 膨胀（用户关注点：token 消耗少） */
     const val MAX_INJECT_CHARS = 800
 
+    /** 记忆分层：常驻注入 */
+    const val TIER_CORE = "core"
+    /** 记忆分层：按需检索（用户消息命中关键词才注入） */
+    const val TIER_CONDITIONAL = "conditional"
+
     private val gson = Gson()
 
     /** 一条记忆。 */
@@ -33,6 +42,8 @@ object MemoryStore {
         val id: String = "",
         val content: String = "",
         val createdAt: Long = 0L,
+        /** 分层：TIER_CORE（常驻）/ TIER_CONDITIONAL（按需）。缺省按 core 处理。 */
+        val tier: String = TIER_CORE,
     )
 
     /** 记忆模式：互通(全局共享) / 隔离(本会话独立) / 关闭 */
@@ -80,7 +91,16 @@ object MemoryStore {
         if (raw.isBlank()) return emptyList()
         return try {
             val type = object : TypeToken<List<MemoryItem>>() {}.type
-            gson.fromJson<List<MemoryItem>>(raw, type) ?: emptyList()
+            val items = gson.fromJson<List<MemoryItem>>(raw, type) ?: emptyList()
+            // 2026-08-13：旧数据无 tier 字段（Gson 缺字段为 null）→ 归一化为 core
+            items.map { item ->
+                val t = item.tier
+                if (t == null || t.isBlank() || (t != TIER_CORE && t != TIER_CONDITIONAL)) {
+                    item.copy(tier = TIER_CORE)
+                } else {
+                    item
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "解析记忆失败", e)
             emptyList()
@@ -104,9 +124,16 @@ object MemoryStore {
         context: Context,
         content: String,
         sessionKey: String? = null,
+        tier: String = TIER_CORE,
     ): List<MemoryItem> {
         val items = load(context, sessionKey).toMutableList()
-        val item = MemoryItem(id = "${System.currentTimeMillis()}-${items.size}", content = content.trim(), createdAt = System.currentTimeMillis())
+        val item =
+            MemoryItem(
+                id = "${System.currentTimeMillis()}-${items.size}",
+                content = content.trim(),
+                createdAt = System.currentTimeMillis(),
+                tier = if (tier == TIER_CONDITIONAL) TIER_CONDITIONAL else TIER_CORE,
+            )
         items.removeAll { it.id == item.id }
         items.add(item)
         val result = items.toList()
@@ -152,41 +179,94 @@ object MemoryStore {
             .apply()
     }
 
+    // ═══════════ 分层注入（2026-08-13）═══════════
+
+    /**
+     * conditional 按需匹配：用户消息命中记忆关键词才注入。
+     * 分词取长度 ≥2 的中英文词，任一命中即返回 true。
+     */
+    private val WORD_SPLIT = Regex("[\\s,，。.!！?？;；:：、()（）\\[\\]{}'\"“”‘’]+")
+
+    fun matchesUserText(
+        memoryContent: String,
+        userText: String?,
+    ): Boolean {
+        if (userText.isNullOrBlank()) return false
+        val words =
+            WORD_SPLIT
+                .split(memoryContent)
+                .map { it.trim() }
+                .filter { it.length >= 2 }
+        if (words.isEmpty()) return false
+        val text = userText.lowercase()
+        return words.any { text.contains(it.lowercase()) }
+    }
+
     /**
      * 注入文本：启用时返回「【记忆】…」段落（含 AI 管理约定），否则 null。
      * 由 ChatViewModel 拼入 effectiveInput（在提示词之后、用户文本之前）。
      * 无记忆时也注入（携带约定，AI 首次即可写入）。
+     *
+     * @param userText 当前用户消息——用于 conditional 记忆按需匹配；null 时只注入 core 常驻部分。
      */
     fun activeMemoriesText(
         context: Context,
         sessionKey: String? = null,
+        userText: String? = null,
     ): String? {
         if (!isEnabled(context)) return null
-        // 2026-08-08：按会话记忆模式选 key——GLOBAL=互通(全局记忆) / LOCAL=隔离(本会话记忆) / OFF=关闭
+        // 按会话记忆模式选 key——GLOBAL=互通(全局记忆) / LOCAL=隔离(本会话记忆) / OFF=关闭
         val effectiveKey =
             when (memoryMode(context, sessionKey)) {
                 MemoryMode.GLOBAL -> null
                 MemoryMode.LOCAL -> sessionKey
                 MemoryMode.OFF -> return null
             }
-        val items = load(context, effectiveKey).filter { it.content.isNotBlank() }
-        if (items.isEmpty()) return null
-        // 2026-08-06 优化：注入截断——总长超限时按条截断（保留最新，尾部省略号），防 token 膨胀
+        val all = load(context, effectiveKey).filter { it.content.isNotBlank() }
+        if (all.isEmpty()) return null
+
+        val coreItems = all.filter { it.tier == TIER_CORE }
+        val conditionalItems = all.filter { it.tier == TIER_CONDITIONAL }
+        // 按需：命中关键词的 conditional 记忆
+        val hitItems = conditionalItems.filter { matchesUserText(it.content, userText) }
+
+        // 注入总长上限（字符）——防 token 膨胀（用户关注点：token 消耗少）
         val body = StringBuilder()
         var total = 0
-        for (it in items) {
-            val line = "- ${it.content}"
+
+        fun appendLine(line: String): Boolean {
             if (total + line.length > MAX_INJECT_CHARS) {
                 val remain = MAX_INJECT_CHARS - total
                 if (remain > 20) {
-                    body.append("- ").append(it.content.take(remain - 4)).append("…")
+                    body.append(line.take(remain - 4)).append("…").append('\n')
+                    total += remain
                 }
-                break
+                return false
             }
             body.append(line).append('\n')
             total += line.length + 1
+            return true
         }
-        return "【记忆】\n${body.toString().trimEnd()}\n约定：需要记住新事实时，在回复末尾单独一行写【记忆+】内容；删除某条记忆写【记忆-】内容（内容须与已存完全一致）。"
+
+        // core 常驻（优先）
+        if (coreItems.isNotEmpty()) {
+            appendLine("【记忆-常驻】")
+            for (it in coreItems) {
+                if (!appendLine("- ${it.content}")) break
+            }
+        }
+        // conditional 按需命中（仅命中时附带）
+        if (hitItems.isNotEmpty()) {
+            appendLine("【记忆-按需】")
+            for (it in hitItems) {
+                if (!appendLine("- ${it.content}")) break
+            }
+        }
+
+        val injected = body.toString().trimEnd()
+        if (injected.isBlank()) return null
+
+        return "【记忆】\n${injected}\n约定：需要记住新事实时，在回复末尾单独一行写【记忆+】内容（默认常驻记忆）；删除某条记忆写【记忆-】内容（内容须与已存完全一致）。常驻记忆每轮携带；按需记忆仅在相关话题出现时附带。"
     }
 
     // ═══════════ AI 直接管理记忆（方案 A，2026-08-06）═══════════
@@ -198,7 +278,7 @@ object MemoryStore {
 
     /**
      * 解析并应用回复中的记忆标记（逐行）：
-     * - 行首为【记忆+】 → 该行其余部分作为新记忆写入
+     * - 行首为【记忆+】 → 该行其余部分作为新记忆写入（core 常驻）
      * - 行首为【记忆-】 → 该行其余部分按内容精确删除
      * 返回剔除标记行后的干净内容（供 UI 展示）。
      */

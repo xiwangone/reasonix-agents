@@ -75,6 +75,8 @@ fun SettingsMemoryScreen(
     var enabled by remember { mutableStateOf(MemoryStore.isEnabled(context)) }
     var draftActive by remember { mutableStateOf(false) }
     var draftText by remember { mutableStateOf("") }
+    // 2026-08-13 分层：core 常驻 / conditional 按需
+    var draftTier by remember { mutableStateOf(MemoryStore.TIER_CORE) }
     // 2026-08-06 优化：记忆搜索
     var searchQuery by remember { mutableStateOf("") }
     val filteredMemories = memories.filter {
@@ -95,13 +97,14 @@ fun SettingsMemoryScreen(
             limitHint = false
             draftActive = true
             draftText = ""
+            draftTier = MemoryStore.TIER_CORE
         }
     }
 
     fun saveDraft() {
         val content = draftText.trim()
         if (content.isBlank()) return
-        MemoryStore.add(context, content)
+        MemoryStore.add(context, content, tier = draftTier)
         refresh()
         draftActive = false
         draftText = ""
@@ -223,6 +226,23 @@ fun SettingsMemoryScreen(
                                 inner()
                             },
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // 2026-08-13 分层选择：常驻 / 按需
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("类型", fontSize = 12.sp, color = Muted2)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            TierChip(
+                                label = "常驻（每轮注入）",
+                                selected = draftTier == MemoryStore.TIER_CORE,
+                                onClick = { draftTier = MemoryStore.TIER_CORE },
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TierChip(
+                                label = "按需（关键词命中）",
+                                selected = draftTier == MemoryStore.TIER_CONDITIONAL,
+                                onClick = { draftTier = MemoryStore.TIER_CONDITIONAL },
+                            )
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -348,6 +368,20 @@ fun SettingsMemoryScreen(
                             color = Fg,
                             modifier = Modifier.weight(1f).padding(end = 8.dp),
                         )
+                        // 2026-08-13 分层徽标
+                        if (item.tier == MemoryStore.TIER_CONDITIONAL) {
+                            Text(
+                                text = "按需",
+                                fontSize = 11.sp,
+                                color = Accent,
+                                modifier =
+                                    Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Accent.copy(alpha = 0.12f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
                         IconButton(onClick = { removeItem(item.id) }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
@@ -362,4 +396,25 @@ fun SettingsMemoryScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+/** 2026-08-13 分层选择 Chip。 */
+@Composable
+private fun TierChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = label,
+        fontSize = 12.sp,
+        color = if (selected) Accent else Muted,
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (selected) Accent.copy(alpha = 0.12f) else Bg2)
+                .border(1.dp, if (selected) Accent else Border, RoundedCornerShape(8.dp))
+                .clickable { onClick() }
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+    )
 }
