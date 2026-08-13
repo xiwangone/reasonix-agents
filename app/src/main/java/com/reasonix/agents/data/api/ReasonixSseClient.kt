@@ -4,6 +4,7 @@ import android.util.Base64
 import com.google.gson.Gson
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.AuthType
+import java.net.Proxy
 import com.reasonix.agents.data.model.ConnectionState
 import com.reasonix.agents.data.model.SseEvent
 import kotlinx.coroutines.channels.awaitClose
@@ -47,12 +48,15 @@ class ReasonixSseClient(
     private val auth: AuthInfo? = null,
     private val reconnectEnabled: Boolean = true,
     private val maxReconnectDelayMs: Long = 30_000L,
+    /** 网络代理（2026-08-13）：null=直连 */
+    private val proxy: Proxy? = null,
     private val client: OkHttpClient =
         OkHttpClient
             .Builder()
             .connectTimeout(120, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .writeTimeout(120, TimeUnit.SECONDS)
+            .apply { proxy?.let { proxy(it) } }
             .build(),
 ) {
     private val gson = Gson()

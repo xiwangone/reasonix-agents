@@ -12,6 +12,8 @@ import com.reasonix.agents.data.BackupManager
 import com.reasonix.agents.data.CliIntegrationStore
 import com.reasonix.agents.data.CustomModelStore
 import com.reasonix.agents.data.MemoryStore
+import java.net.InetSocketAddress
+import java.net.Proxy
 import com.reasonix.agents.data.PromptStore
 import com.reasonix.agents.data.ServerConfigStore
 import com.reasonix.agents.data.model.*
@@ -177,6 +179,15 @@ class ChatViewModel(
         auth: AuthInfo? = null,
     ): ChatRepository {
         val s = _uiState.value.settings
+        val proxy =
+            if (s.proxyEnabled && s.proxyHost.isNotBlank()) {
+                Proxy(
+                    if (s.proxyType == "http") Proxy.Type.HTTP else Proxy.Type.SOCKS,
+                    InetSocketAddress(s.proxyHost, s.proxyPort),
+                )
+            } else {
+                null
+            }
         return ChatRepository(
             url,
             ChatRepository.ConnectionConfig(
@@ -184,6 +195,7 @@ class ChatViewModel(
                 connectTimeoutSec = s.connectTimeoutSec,
                 sseReconnectEnabled = s.sseReconnectEnabled,
                 sseReconnectMaxDelaySec = s.sseReconnectMaxDelaySec,
+                proxy = proxy,
             ),
         )
     }
@@ -473,7 +485,11 @@ class ChatViewModel(
         val connectionChanged =
             old.connectTimeoutSec != s.connectTimeoutSec ||
                 old.sseReconnectEnabled != s.sseReconnectEnabled ||
-                old.sseReconnectMaxDelaySec != s.sseReconnectMaxDelaySec
+                old.sseReconnectMaxDelaySec != s.sseReconnectMaxDelaySec ||
+                old.proxyEnabled != s.proxyEnabled ||
+                old.proxyType != s.proxyType ||
+                old.proxyHost != s.proxyHost ||
+                old.proxyPort != s.proxyPort
         if (connectionChanged && _uiState.value.serverUrl.isNotBlank()) {
             repository = createRepository(_uiState.value.serverUrl, currentAuth)
             collectConnectionState()

@@ -1,6 +1,8 @@
 package com.reasonix.agents.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -127,6 +129,101 @@ fun SettingsNetworkScreen(
                     color = Muted2,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ── 网络代理（2026-08-13，连海外 VPS serve 用）──
+            Text(
+                text = "网络代理",
+                fontSize = 14.sp,
+                color = Fg,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            )
+            Text(
+                text = "直连海外服务器失败时，可经 SOCKS5 / HTTP 代理转发（需服务器支持对应协议）。",
+                fontSize = 11.sp,
+                color = Muted2,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            SettingSwitch(
+                title = "启用代理",
+                checked = settings.proxyEnabled,
+                onCheckedChange = { on ->
+                    onSettingsChange(settings.copy(proxyEnabled = on))
+                },
+            )
+            if (settings.proxyEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ThemeChip(
+                        "SOCKS5",
+                        settings.proxyType == "socks",
+                        { onSettingsChange(settings.copy(proxyType = "socks")) },
+                    )
+                    ThemeChip(
+                        "HTTP",
+                        settings.proxyType == "http",
+                        { onSettingsChange(settings.copy(proxyType = "http")) },
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                // 主机
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .background(LocalPalette.current.bg2)
+                            .border(1.dp, LocalPalette.current.border, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                ) {
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = settings.proxyHost,
+                        onValueChange = { onSettingsChange(settings.copy(proxyHost = it)) },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Fg, fontSize = 14.sp),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { inner ->
+                            if (settings.proxyHost.isEmpty()) {
+                                Text("代理主机（如 127.0.0.1）", fontSize = 14.sp, color = Muted2)
+                            }
+                            inner()
+                        },
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                // 端口
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .background(LocalPalette.current.bg2)
+                            .border(1.dp, LocalPalette.current.border, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                ) {
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = settings.proxyPort.toString(),
+                        onValueChange = { v ->
+                            val p = v.filter { it.isDigit() }.take(5).toIntOrNull() ?: 0
+                            onSettingsChange(settings.copy(proxyPort = p))
+                        },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Fg, fontSize = 14.sp),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { inner ->
+                            if (settings.proxyPort == 0) {
+                                Text("代理端口（如 1080）", fontSize = 14.sp, color = Muted2)
+                            }
+                            inner()
+                        },
+                    )
+                }
             }
         }
     }

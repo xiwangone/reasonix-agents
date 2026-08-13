@@ -3,6 +3,7 @@ package com.reasonix.agents.data.repository
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.api.ConnectResult
 import com.reasonix.agents.data.api.ReasonixApi
+import java.net.Proxy
 import com.reasonix.agents.data.api.ReasonixSseClient
 import com.reasonix.agents.data.model.*
 import kotlinx.coroutines.flow.Flow
@@ -21,15 +22,18 @@ class ChatRepository(
         val connectTimeoutSec: Int = 30,
         val sseReconnectEnabled: Boolean = true,
         val sseReconnectMaxDelaySec: Int = 30,
+        /** 网络代理（2026-08-13）：null=直连；非空时 OkHttp 经代理连接 */
+        val proxy: Proxy? = null,
     )
 
     constructor(baseUrl: String, config: ConnectionConfig = ConnectionConfig()) : this(
-        ReasonixApi(baseUrl, config.auth, config.connectTimeoutSec),
+        ReasonixApi(baseUrl, config.auth, config.connectTimeoutSec, proxy = config.proxy),
         ReasonixSseClient(
             baseUrl,
             config.auth,
             config.sseReconnectEnabled,
             config.sseReconnectMaxDelaySec * 1000L,
+            proxy = config.proxy,
         ),
     )
 

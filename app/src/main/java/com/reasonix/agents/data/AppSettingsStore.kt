@@ -62,6 +62,12 @@ object AppSettingsStore {
     const val AUTO_COMPACT_OFF = 0
     const val AUTO_COMPACT_PERCENT = 1
     const val AUTO_COMPACT_TOKEN = 2
+    // 网络代理（2026-08-13）：SOCKS5 / HTTP
+    const val KEY_PROXY_ENABLED = "proxy_enabled"
+    const val KEY_PROXY_TYPE = "proxy_type" // socks / http
+    const val KEY_PROXY_HOST = "proxy_host"
+    const val KEY_PROXY_PORT = "proxy_port"
+
     const val KEY_AUTO_COMPACT_MODE = "auto_compact_mode" // 0=关 1=百分比阈值 2=token 累计
     const val KEY_AUTO_COMPACT_THRESHOLD = "auto_compact_threshold" // 百分比 0-100 或 token 数
     const val DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT = 80
@@ -81,6 +87,11 @@ object AppSettingsStore {
         // 自动压缩（2026-08-13）
         val autoCompactMode: Int = AUTO_COMPACT_OFF,
         val autoCompactThreshold: Int = DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT,
+        // 网络代理（2026-08-13）
+        val proxyEnabled: Boolean = false,
+        val proxyType: String = "socks",
+        val proxyHost: String = "",
+        val proxyPort: Int = 1080,
     )
 
     fun load(context: Context): Settings {
@@ -98,6 +109,10 @@ object AppSettingsStore {
             httpWarningAcked = prefs.getBoolean(KEY_HTTP_WARNING_ACKED, false),
             autoCompactMode = prefs.getInt(KEY_AUTO_COMPACT_MODE, AUTO_COMPACT_OFF),
             autoCompactThreshold = prefs.getInt(KEY_AUTO_COMPACT_THRESHOLD, DEFAULT_AUTO_COMPACT_THRESHOLD_PERCENT),
+            proxyEnabled = prefs.getBoolean(KEY_PROXY_ENABLED, false),
+            proxyType = prefs.getString(KEY_PROXY_TYPE, "socks") ?: "socks",
+            proxyHost = prefs.getString(KEY_PROXY_HOST, "") ?: "",
+            proxyPort = prefs.getInt(KEY_PROXY_PORT, 1080),
         )
     }
 
@@ -120,6 +135,10 @@ object AppSettingsStore {
             .putBoolean(KEY_HTTP_WARNING_ACKED, s.httpWarningAcked)
             .putInt(KEY_AUTO_COMPACT_MODE, s.autoCompactMode)
             .putInt(KEY_AUTO_COMPACT_THRESHOLD, s.autoCompactThreshold)
+            .putBoolean(KEY_PROXY_ENABLED, s.proxyEnabled)
+            .putString(KEY_PROXY_TYPE, s.proxyType)
+            .putString(KEY_PROXY_HOST, s.proxyHost)
+            .putInt(KEY_PROXY_PORT, s.proxyPort)
             .apply()
     }
 

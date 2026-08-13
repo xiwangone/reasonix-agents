@@ -6,6 +6,7 @@ import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import com.reasonix.agents.data.AuthInfo
 import com.reasonix.agents.data.AuthType
+import java.net.Proxy
 import com.reasonix.agents.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,12 +43,15 @@ class ReasonixApi(
     private val baseUrl: String,
     private val auth: AuthInfo? = null,
     private val connectTimeoutSec: Int = 30,
+    /** 网络代理（2026-08-13）：null=直连 */
+    private val proxy: Proxy? = null,
     private val client: OkHttpClient =
         OkHttpClient
             .Builder()
             .connectTimeout(connectTimeoutSec.toLong(), TimeUnit.SECONDS)
             .readTimeout(connectTimeoutSec.toLong(), TimeUnit.SECONDS)
             .writeTimeout(connectTimeoutSec.toLong(), TimeUnit.SECONDS)
+            .apply { proxy?.let { proxy(it) } }
             .build(),
 ) {
     private val gson = Gson()
