@@ -428,7 +428,16 @@ class ChatViewModel(
         return history.flatMap { hist ->
             when (hist.role) {
                 "user" -> {
-                    listOf(ChatItem.UserMessage(hist.content ?: ""))
+                    // 2026-08-15：剥离注入前缀——发送时注入内容（防复述提示/提示词/记忆/CLI 指令）
+                    // 与用户文本以固定标记 INJECTED_MSG_SEPARATOR 连接后提交，服务端原样存入 history；
+                    // 重进会话渲染时按标记剥离注入，仅显示真实用户文本（顶部注入折叠卡已展示注入）。
+                    val raw = hist.content ?: ""
+                    val display =
+                        raw.substringAfter(INJECTED_MSG_SEPARATOR)
+                            .takeIf { it != raw }
+                            ?.trim()
+                            ?: stripLegacyInjectedPrefix(raw)
+                    listOf(ChatItem.UserMessage(display))
                 }
 
                 "assistant" -> {
@@ -625,16 +634,22 @@ class ChatViewModel(
      * 2026-08-13 统一注入构建（缓存命中优化，仿 RikkaHub 保前缀理念）：
      * 注入顺序固定为 antiEcho → 提示词 → 记忆 → CLI 指令 → 用户文本，
      * 保证同会话连续请求前缀字节稳定，利于服务端 prompt 前缀缓存命中。
+     * 2026-08-15：注入内容与用户文本之间以固定分隔标记 [INJECTED_MSG_SEPARATOR] 连接，
+     * history 重建时据此剥离注入内容（顶部注入折叠卡已展示注入，背景不再重复）。
      */
     private fun buildInjectedInput(userText: String): String {
+        return buildInjectedPrefix(userText) + INJECTED_MSG_SEPARATOR + userText
+    }
+
+    /** 注入前缀（除用户文本外的部分）：antiEcho → 提示词 → 记忆 → CLI 指令。 */
+    private fun buildInjectedPrefix(userText: String): String {
         val promptContent = activePromptContent()
         val memoryText = MemoryStore.activeMemoriesText(getApplication(), currentSessionKey(), userText = userText)
         val cliInstruction = cliInstruction()
         // 防复述：注入内容仅供上下文参考，明确要求 AI 不要复述或重复
         val antiEcho =
             "（以下注入内容仅供你参考执行，回复时请直接回答用户问题，不要复述或重复任何注入内容。）"
-        return listOfNotNull(antiEcho, promptContent, memoryText, cliInstruction, userText)
-            .joinToString("\n\n")
+        return listOfNotNull(antiEcho, promptContent, memoryText, cliInstruction).joinToString("\n\n")
     }
 
     private fun finishStreaming() {
@@ -704,15 +719,17 @@ class ChatViewModel(
     }
 
     /**
-     * 发送图片消息（第六批：本地 OCR 优先；2026-08-14 语义修正）。
+     * 发送图片消息（第六批：本地 OCR 优先；2026-08-14 语义修正，2026-08-15 恢复 OCR 文本随消息发送）。
      *
-     * - [userText]：用户输入文字（可空）。图片消息以「[图片]」标记与正常文字消息区分，
-     *   OCR 识别文本仅本地预览展示、不进消息体（避免 AI 混淆图片来源）。
+     * - [userText]：用户输入文字（可空）。
      * - [imagePaths]：本地缓存图片文件路径，仅用于本地消息展示（不发送给服务端）。
+     * - [ocrTexts]：每张图片的本地 OCR 识别文本（与 [imagePaths] 一一对应），
+     *   作为图片内容随消息发送给 AI（AI 依赖转述内容理解图片）；空字符串表示该图未识别出文字。
      */
     fun sendImageMessage(
         userText: String,
         imagePaths: List<String>,
+        ocrTexts: List<String> = emptyList(),
     ) {
         val typed = userText.trim()
         // 图片标记：单图 [图片]，多图 [图片1][图片2]...（与正常文字明确区分）
@@ -722,8 +739,20 @@ class ChatViewModel(
             } else {
                 imagePaths.indices.joinToString("") { "[图片${it + 1}]" }
             }
+        // OCR 文本作为图片内容随消息发送（AI 只能看到文字）
+        val ocrPart =
+            ocrTexts
+                .mapIndexedNotNull { i, t ->
+                    val label = if (imagePaths.size <= 1) "[图片]" else "[图片${i + 1}]"
+                    t.trim().takeIf { it.isNotBlank() }?.let { "$label 内容：$it" }
+                }
+                .joinToString("\n")
         val body =
-            if (typed.isNotBlank()) "$typed\n$imageMarker" else imageMarker
+            listOfNotNull(
+                typed.takeIf { it.isNotBlank() },
+                ocrPart.takeIf { it.isNotBlank() },
+                imageMarker,
+            ).joinToString("\n")
         // 2026-08-08：图片消息忙时不入队（队列仅存文字），提示正忙
         if (_uiState.value.isStreaming) {
             appendMessage(ChatItem.SystemNotice("AI 正忙，请稍后（图片消息不支持排队）", isWarning = true))
@@ -1272,6 +1301,18 @@ class ChatViewModel(
             else -> pendingBlocks.add(block)
         }
         scheduleUiRefresh()
+    }
+
+    /**
+     * 2026-08-15：旧格式（修复前无分隔标记）注入消息的尽力剥离。
+     * 用当前可重建的注入前缀匹配：若 history 消息以当前注入前缀开头且剩余非空，
+     * 则视为旧版注入消息，剥离注入仅保留用户文本。前缀随提示词/记忆变化可能匹配失败，
+     * 失败时原样返回（历史遗留，新消息已带标记不再产生重复）。
+     */
+    private fun stripLegacyInjectedPrefix(raw: String): String {
+        val prefix = buildInjectedPrefix("")
+        if (prefix.isBlank() || !raw.startsWith(prefix) || raw.length <= prefix.length) return raw
+        return raw.removePrefix(prefix).trimStart('\n').trim()
     }
 
     /** 更新工具块：按「最后一条运行中的同 id 块」回填（同 id 多次调用按顺序配对） */
@@ -1828,5 +1869,12 @@ class ChatViewModel(
 
     companion object {
         private const val TAG = "ChatViewModel"
+
+        /**
+         * 2026-08-15：注入内容与用户文本之间的固定分隔标记。
+         * 发送时 [buildInjectedInput] 用该标记连接注入内容与用户文本，
+         * history 重建渲染 user 消息时按标记剥离注入部分，避免与顶部注入折叠卡重复显示。
+         */
+        private const val INJECTED_MSG_SEPARATOR = "\n\n【用户消息】\n\n"
     }
 }

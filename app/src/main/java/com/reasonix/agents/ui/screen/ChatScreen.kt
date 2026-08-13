@@ -615,10 +615,14 @@ fun ChatScreen(
                 onInputChange = { viewModel.onInputChange(it) },
                 onSend = {
                     if (pendingImages.isNotEmpty()) {
-                        // 2026-08-14：图片消息 = 用户输入 + [图片] 标记（OCR 文本仅本地预览，不进消息体，
-                        // 避免 AI 把图片转述内容当作正常文字混淆）
+                        // 2026-08-14：图片消息 = 用户输入 + [图片] 标记；2026-08-15：恢复 OCR 文本随消息发送
+                        // （OCR 识别文本作为图片内容发给 AI，AI 依赖转述内容理解图片）
                         val typed = state.inputText.trim()
-                        viewModel.sendImageMessage(typed, pendingImages.map { it.imagePath })
+                        viewModel.sendImageMessage(
+                            typed,
+                            pendingImages.map { it.imagePath },
+                            pendingImages.map { it.ocrText },
+                        )
                         pendingImages = emptyList()
                         viewModel.onInputChange("")
                     } else {
