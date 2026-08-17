@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -280,5 +281,132 @@ private fun StatusDot(
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
         )
+    }
+}
+
+// ═══════════════════════════════════════════════
+// ToolLogCard — 正文中夹带的工具执行日志折叠卡
+// ═══════════════════════════════════════════════
+// 服务端有时把工具执行日志（如 MCP capability 代理、CLI 回显、
+// 输出截断提示、后台任务启动行）作为正文 text 事件推送，
+// 原样渲染会占据大段篇幅且与正常回复格式不同。
+// 这里在渲染层按行识别，剥离为默认折叠的日志卡，展开可见全文。
+
+/** 判断一行是否为工具日志行：强特征词独立判定；其他组合需竖线/mark 前缀 + 工具词（防误伤正文）。 */
+fun isToolLogLine(line: String): Boolean {
+    val t = line.trimStart()
+    if (t.isEmpty()) return false
+    // 强特征词：出现即视为工具日志（服务端回显特征，正常正文几乎不会出现）
+    val strong =
+        t.contains("capability proxy", ignoreCase = true) ||
+            t.contains("tool output truncated", ignoreCase = true) ||
+            t.contains("truncated:", ignoreCase = true) ||
+            t.contains("bytes elided", ignoreCase = true) ||
+            t.contains("background ", ignoreCase = true) && t.contains(" started", ignoreCase = true) ||
+            t.contains("(source /", ignoreCase = true)
+    if (strong) return true
+    // 弱组合：竖线/mark 前缀 + 工具词
+    val hasMarker = t.startsWith("|") || t.startsWith("│") || t.startsWith("▌") || t.startsWith(">")
+    val hasKeyword =
+        t.contains("elided", ignoreCase = true) ||
+            t.contains("truncated", ignoreCase = true) ||
+            t.contains("output", ignoreCase = true) && t.contains("tool", ignoreCase = true) ||
+            t.contains("started", ignoreCase = true) &&
+            (t.contains("bash", ignoreCase = true) ||
+                t.contains("job", ignoreCase = true) ||
+                t.contains("task", ignoreCase = true) ||
+                t.contains("cmd", ignoreCase = true))
+    return hasMarker && hasKeyword
+}
+
+/**
+ * 把正文文本拆成 干净正文 + 工具日志段落列表。
+ * 按行扫描：日志行聚成连续段；空行在日志段内保留、在段外当作正文分隔。
+ */
+fun splitToolLogText(text: String): Pair<String, List<String>> {
+    val normalLines = mutableListOf<String>()
+    val logs = mutableListOf<String>()
+    val logBuf = mutableListOf<String>()
+    var inLog = false
+    for (line in text.split("\n")) {
+        val isLog = isToolLogLine(line) || (line.isBlank() && inLog)
+        if (isLog) {
+            if (!inLog && logBuf.isNotEmpty()) {
+                logs.add(logBuf.joinToString("\n"))
+                logBuf.clear()
+            }
+            logBuf.add(line)
+            inLog = true
+        } else {
+            if (inLog && logBuf.isNotEmpty()) {
+                logs.add(logBuf.joinToString("\n"))
+                logBuf.clear()
+                inLog = false
+            }
+            normalLines.add(line)
+        }
+    }
+    if (logBuf.isNotEmpty()) logs.add(logBuf.joinToString("\n"))
+    return normalLines.joinToString("\n") to logs
+}
+
+/** 正文工具日志折叠卡：默认折叠，展开显示日志全文（等宽、小字、弱色）。 */
+@Composable
+fun ToolLogCard(logs: List<String>) {
+    if (logs.isEmpty()) return
+
+    var expanded by remember { mutableStateOf(false) }
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(220),
+        label = "toolLogArrow",
+    )
+    val totalLines = logs.sumOf { it.lines().size }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = CardBg,
+        shadowElevation = 1.dp,
+        tonalElevation = 0.dp,
+    ) {
+        Column {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = "工具日志 · $totalLines 行",
+                    color = Fg,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = Muted,
+                    modifier = Modifier.size(18.dp).rotate(arrowRotation),
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(animationSpec = tween(220)) + fadeIn(tween(220)),
+                exit = shrinkVertically(animationSpec = tween(160)) + fadeOut(tween(160)),
+            ) {
+                Text(
+                    text = logs.joinToString("\n\n"),
+                    color = Fg2,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                )
+            }
+        }
     }
 }

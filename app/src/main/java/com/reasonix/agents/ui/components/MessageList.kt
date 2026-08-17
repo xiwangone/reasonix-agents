@@ -424,13 +424,21 @@ private fun ChatItemRow(
                 // 避免「正文→工具→正文」的多 turn 模型把回复拆成多个割裂气泡；
                 // 段落间以空行衔接，流式光标只挂末尾。
                 if (textAccumulator.isNotEmpty()) {
-                    AssistantMessageBubble(
-                        text = textAccumulator.joinToString("\n\n"),
-                        showStreamCursor = streamCursor,
-                        onRegenerate = onRegenerate,
-                        onDelete = onDeleteMessage,
-                        timestamp = if (!isStreaming) item.timestamp else null,
-                    )
+                    // 2026-08-17：正文中夹带的工具执行日志（服务端作为 text 推送）剥离为折叠卡
+                    val merged = textAccumulator.joinToString("\n\n")
+                    val (cleanText, toolLogs) = splitToolLogText(merged)
+                    if (cleanText.isNotBlank()) {
+                        AssistantMessageBubble(
+                            text = cleanText,
+                            showStreamCursor = streamCursor,
+                            onRegenerate = onRegenerate,
+                            onDelete = onDeleteMessage,
+                            timestamp = if (!isStreaming) item.timestamp else null,
+                        )
+                    }
+                    if (toolLogs.isNotEmpty()) {
+                        ToolLogCard(logs = toolLogs)
+                    }
                 }
             }
         }
