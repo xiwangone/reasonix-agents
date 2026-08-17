@@ -74,9 +74,11 @@ fun ReasoningBlock(
     var expanded by rememberSaveable { mutableStateOf(false) }
     // 生成中已思考秒数
     var elapsed by remember { mutableIntStateOf(0) }
+    // 2026-08-17：生成结束定格的最终耗时（摘要行专用，防新一轮计时清零污染上一轮显示）
+    var finalElapsed by remember { mutableIntStateOf(0) }
 
     // 进入流式生成：默认展开实时可见（对标 Claude/Kimi 实时思考流）；
-    // 计时（秒）。生成结束后保留定格耗时用于摘要标签。
+    // 计时（秒）。生成结束后把耗时定格到 finalElapsed 供摘要行使用。
     LaunchedEffect(isStreaming) {
         if (isStreaming) {
             expanded = true
@@ -85,6 +87,8 @@ fun ReasoningBlock(
                 delay(1000)
                 elapsed++
             }
+        } else {
+            if (elapsed > 0) finalElapsed = elapsed
         }
     }
 
@@ -135,8 +139,8 @@ fun ReasoningBlock(
                         isStreaming && text.isBlank() -> "思考中 · ${elapsed}s"
                         isStreaming -> "思考 · ${text.length} 字 · ${elapsed}s"
                         text.isBlank() -> "思考中…"
-                        // 完成后折叠为摘要行：字数 + 定格耗时（对标 Claude/Gemini 耗时标签）
-                        else -> "思考 · ${text.length} 字 · ${elapsed}s"
+                        // 完成后折叠为摘要行：字数 + 定格耗时（finalElapsed 防清零污染）
+                        else -> "思考 · ${text.length} 字 · ${finalElapsed}s"
                     },
                 color = if (isStreaming) accent else muted,
                 fontSize = 13.sp,
