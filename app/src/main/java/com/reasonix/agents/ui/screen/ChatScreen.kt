@@ -2362,17 +2362,18 @@ private fun Footer(
                 Spacer(modifier = Modifier.width(6.dp))
             }
 
-            // 流式时只显打断按钮；空闲时只显发送箭头（视觉无歧义）
+            // 2026-08-17（对标 ChatGPT/Claude/RikkaHub 稳定按钮不换位）：
+            // 发送箭头常驻（生成中可点 = 打断并发送新消息）；打断按钮仅在流式时附加在左侧。
             if (isStreaming) {
-                // 打断按钮（红色方块，点击取消当前任务）
+                // 打断按钮（红色方块，仅取消当前任务，不发送输入内容）
                 IconButton(
                     onClick = onCancel,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(40.dp),
                 ) {
                     Box(
                         modifier =
                             Modifier
-                                .size(32.dp)
+                                .size(28.dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Danger),
                         contentAlignment = Alignment.Center,
@@ -2380,31 +2381,31 @@ private fun Footer(
                         Box(
                             modifier =
                                 Modifier
-                                    .size(14.dp)
+                                    .size(12.dp)
                                     .clip(RoundedCornerShape(2.dp))
                                     .background(Color.White),
                         )
                     }
                 }
-            } else {
-                // 发送箭头（仅空闲时显示，输入框有内容才亮起）
-                IconButton(
-                    onClick = onSend,
-                    enabled = inputText.isNotBlank() || pendingImages.isNotEmpty(),
-                    modifier = Modifier.size(44.dp),
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+            // 发送箭头（生成中也可点：走 sendMessage 的「打断并发送」逻辑）
+            IconButton(
+                onClick = onSend,
+                enabled = inputText.isNotBlank() || pendingImages.isNotEmpty(),
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(
+                                if (inputText.isNotBlank() || pendingImages.isNotEmpty()) Accent else Panel2,
+                            ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(32.dp)
-                                .clip(RoundedCornerShape(9.dp))
-                                .background(
-                                    if (inputText.isNotBlank() || pendingImages.isNotEmpty()) Accent else Panel2,
-                                ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    }
+                    Text("↑", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

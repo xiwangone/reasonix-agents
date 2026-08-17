@@ -337,7 +337,12 @@ private fun ChatItemRow(
 ) {
     when (item) {
         is ChatItem.UserMessage -> {
-            UserMessageBubble(text = item.content, imagePaths = item.imagePaths, userName = userName)
+            UserMessageBubble(
+                text = item.content,
+                imagePaths = item.imagePaths,
+                userName = userName,
+                timestamp = item.timestamp,
+            )
         }
 
         is ChatItem.AssistantMessage -> {
@@ -415,12 +420,16 @@ private fun ChatItemRow(
                     ToolStepsCard(blocks = toolAccumulator.toList(), isStreaming = isStreaming)
                 }
                 // 正文统一在思考卡/工具卡之后渲染；流式光标只挂在最后一个文本块尾部
-                textAccumulator.forEachIndexed { i, t ->
+                // 同轮多段正文合并为单一连续气泡（对标 RikkaHub groupMessageParts）：
+                // 避免「正文→工具→正文」的多 turn 模型把回复拆成多个割裂气泡；
+                // 段落间以空行衔接，流式光标只挂末尾。
+                if (textAccumulator.isNotEmpty()) {
                     AssistantMessageBubble(
-                        text = t,
-                        showStreamCursor = streamCursor && i == textAccumulator.lastIndex,
+                        text = textAccumulator.joinToString("\n\n"),
+                        showStreamCursor = streamCursor,
                         onRegenerate = onRegenerate,
                         onDelete = onDeleteMessage,
+                        timestamp = if (!isStreaming) item.timestamp else null,
                     )
                 }
             }

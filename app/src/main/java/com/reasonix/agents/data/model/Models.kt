@@ -221,6 +221,8 @@ sealed class ChatItem {
         val content: String,
         // 2026-08-08：多图支持（最多 3 张），本地路径列表仅用于展示
         val imagePaths: List<String> = emptyList(),
+        // 2026-08-17：发送时间戳（渲染侧显示，历史重建时回填服务器时间）
+        val timestamp: Long = System.currentTimeMillis(),
     ) : ChatItem()
 
     data class AssistantMessage(
@@ -236,6 +238,8 @@ sealed class ChatItem {
      */
     data class AssistantTurn(
         val blocks: List<TurnBlock>,
+        // 2026-08-17：本轮回复完成时间戳（渲染侧显示耗时来源）
+        val timestamp: Long = System.currentTimeMillis(),
     ) : ChatItem()
 
     data class ToolCard(

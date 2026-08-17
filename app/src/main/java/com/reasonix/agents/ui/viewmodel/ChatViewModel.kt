@@ -566,7 +566,9 @@ class ChatViewModel(
         val text = _uiState.value.inputText.trim()
         if (text.isBlank()) return
 
-        // 2026-08-08 排队机制：AI 忙（isStreaming）时消息入队，最多 MAX_PENDING_MESSAGES 条
+        // 2026-08-17 打断并发送（对标 ChatGPT/Claude：生成中可发新消息即时打断）：
+        // AI 忙时点发送 = 用户消息即时上屏 + 排队 + 打断当前生成
+        // （打断完成 finalizeTurn→finishStreaming→maybeDequeueNext 自动消费队列）
         if (_uiState.value.isStreaming) {
             val pending = _uiState.value.pendingMessages
             if (pending.size >= MAX_PENDING_MESSAGES) {
@@ -576,6 +578,9 @@ class ChatViewModel(
                 _uiState.update {
                     it.copy(inputText = "", pendingMessages = pending + text)
                 }
+                // 即时上屏用户消息（修复：排队期间看不到自己发送内容的体验问题）
+                appendMessage(ChatItem.UserMessage(text))
+                cancelStreaming()
             }
             return
         }
@@ -583,8 +588,10 @@ class ChatViewModel(
         sendText(text)
     }
 
-    /** 实际发送一条消息（AI 空闲时直接发；排队 dequeue 时也走这里） */
-    private fun sendText(text: String) {
+    /** 实际发送一条消息（AI 空闲时直接发；排队 dequeue 时也走这里）。
+     *  [userMessageVisible] 2026-08-17：消息已由「打断并发送」即时上屏时传 true，
+     *  避免二次上屏。 */
+    private fun sendText(text: String, userMessageVisible: Boolean = false) {
         _uiState.update {
             it.copy(
                 inputText = "",
@@ -599,8 +606,10 @@ class ChatViewModel(
             return
         }
 
-        // 添加用户消息
-        appendMessage(ChatItem.UserMessage(text))
+        // 添加用户消息（打开发送时已上屏的消息不重复渲染）
+        if (!userMessageVisible) {
+            appendMessage(ChatItem.UserMessage(text))
+        }
 
         // 初始化流式缓冲区（轮级重置：一轮回复=一条消息，多 turn 合并）
         currentAssistantMsgIndex = null
@@ -715,7 +724,8 @@ class ChatViewModel(
         _uiState.update {
             it.copy(pendingMessages = it.pendingMessages.drop(1))
         }
-        sendText(next)
+        // 2026-08-17：排队消息由「打断并发送」即时上屏过，消费时不重复渲染
+        sendText(next, userMessageVisible = true)
     }
 
     /**
@@ -1400,6 +1410,9 @@ class ChatViewModel(
                     else -> "已完成 ${toolNames.size} 个工具步骤（${toolNames.take(3).joinToString("、")} 等）"
                 }
             NotificationHelper.notifyTaskDone(getApplication(), summary)
+        } else if (raw.isNullOrBlank().not()) {
+            // 2026-08-17（对标 VSCode chat.notifyWindowOnResponseReceived）：纯文本回复完成也通知
+            NotificationHelper.notifyTaskDone(getApplication(), "AI 回复完成")
         }
         pendingBlocks = mutableListOf()
         // 2026-08-07：本轮 token 统计——结束本轮时在回复末尾追加一张汇总卡（含会话累计），

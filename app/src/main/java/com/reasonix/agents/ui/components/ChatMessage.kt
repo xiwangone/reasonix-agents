@@ -103,6 +103,8 @@ fun UserMessageBubble(
     imagePaths: List<String> = emptyList(),
     // 2026-08-08：用户名称（本地资料 displayName），显示在消息上方右侧
     userName: String? = null,
+    // 2026-08-17：消息时间戳（HH:mm）
+    timestamp: Long? = null,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -206,6 +208,15 @@ fun UserMessageBubble(
                         lineHeight = 22.sp,
                     )
                 }
+                // 2026-08-17：时间戳（右下角小字，灰调）
+                timestamp?.let {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = formatMessageTime(it),
+                        color = userBubbleFg.copy(alpha = 0.55f),
+                        fontSize = 10.sp,
+                    )
+                }
             }
         }
     }
@@ -226,6 +237,8 @@ fun AssistantMessageBubble(
     showStreamCursor: Boolean = false,
     onRegenerate: (() -> Unit)? = null,
     onDelete: ((String) -> Unit)? = null,
+    // 2026-08-17：消息时间戳（左上角小字，灰调）
+    timestamp: Long? = null,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -371,7 +384,22 @@ fun AssistantMessageBubble(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+
+        // 2026-08-17：完成时间戳（消息底部小字）
+        timestamp?.let {
+            Text(
+                text = formatMessageTime(it),
+                color = muted.copy(alpha = 0.7f),
+                fontSize = 10.sp,
+                modifier = Modifier.padding(start = 2.dp, top = 2.dp),
+            )
+        }
     }
+}
+
+/** 2026-08-17：消息时间戳格式化（HH:mm）。 */
+private fun formatMessageTime(ts: Long): String {
+    return java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(ts))
 }
 
 /** 2026-08-07：分享消息文本（系统分享面板）。 */
