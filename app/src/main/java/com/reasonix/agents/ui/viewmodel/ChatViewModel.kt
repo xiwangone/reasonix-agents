@@ -46,6 +46,8 @@ data class ChatUiState(
     val planMode: Boolean = false,
     val toolApprovalMode: String = "auto",
     val inputText: String = "",
+    // 2026-08-18：引用回复状态（被引用的消息内容）
+    val quotedMessage: String? = null,
     val serverUrl: String = "http://127.0.0.1:8920",
     val showSidebar: Boolean = false,
     val showRewindPicker: Boolean = false,
@@ -479,6 +481,15 @@ class ChatViewModel(
         _uiState.update { it.copy(inputText = text) }
     }
 
+    // 2026-08-18：引用回复
+    fun setQuotedMessage(message: String) {
+        _uiState.update { it.copy(quotedMessage = message) }
+    }
+
+    fun clearQuotedMessage() {
+        _uiState.update { it.copy(quotedMessage = null) }
+    }
+
     fun onServerUrlChange(url: String) {
         _uiState.update { it.copy(serverUrl = url) }
     }
@@ -566,26 +577,35 @@ class ChatViewModel(
         val text = _uiState.value.inputText.trim()
         if (text.isBlank()) return
 
+        // 2026-08-18：引用回复——在消息前添加引用标记
+        val quotedMessage = _uiState.value.quotedMessage
+        val finalText = if (!quotedMessage.isNullOrBlank()) {
+            val truncatedQuote = if (quotedMessage.length > 200) quotedMessage.take(200) + "..." else quotedMessage
+            "> 引用：${truncatedQuote}\n\n${text}"
+        } else {
+            text
+        }
+
         // 2026-08-17 打断并发送（对标 ChatGPT/Claude：生成中可发新消息即时打断）：
         // AI 忙时点发送 = 用户消息即时上屏 + 排队 + 打断当前生成
         // （打断完成 finalizeTurn→finishStreaming→maybeDequeueNext 自动消费队列）
         if (_uiState.value.isStreaming) {
             val pending = _uiState.value.pendingMessages
             if (pending.size >= MAX_PENDING_MESSAGES) {
-                _uiState.update { it.copy(inputText = "") }
+                _uiState.update { it.copy(inputText = "", quotedMessage = null) }
                 appendMessage(ChatItem.SystemNotice("AI 正忙，请稍后（最多排队 $MAX_PENDING_MESSAGES 条）", isWarning = true))
             } else {
                 _uiState.update {
-                    it.copy(inputText = "", pendingMessages = pending + text)
+                    it.copy(inputText = "", quotedMessage = null, pendingMessages = pending + finalText)
                 }
                 // 即时上屏用户消息（修复：排队期间看不到自己发送内容的体验问题）
-                appendMessage(ChatItem.UserMessage(text))
+                appendMessage(ChatItem.UserMessage(finalText))
                 cancelStreaming()
             }
             return
         }
 
-        sendText(text)
+        sendText(finalText)
     }
 
     /** 实际发送一条消息（AI 空闲时直接发；排队 dequeue 时也走这里）。

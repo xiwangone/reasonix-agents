@@ -96,6 +96,7 @@ private fun fmtCost(
 /**
  * 用户消息气泡：右对齐，橙底白字圆角气泡，顶部带有复制按钮。
  * 第六批：图片发送——[imagePath] 非空时在文字上方展示本地图片（OCR 识别文字）。
+ * 2026-08-18：支持左滑引用回复、右滑收藏。
  */
 @Composable
 fun UserMessageBubble(
@@ -105,10 +106,18 @@ fun UserMessageBubble(
     userName: String? = null,
     // 2026-08-17：消息时间戳（HH:mm）
     timestamp: Long? = null,
+    // 2026-08-18：滑动手势回调
+    onSwipeLeft: (() -> Unit)? = null,
+    onSwipeRight: (() -> Unit)? = null,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
+    // 2026-08-18：左滑引用回复、右滑收藏
+    SwipeableMessageCard(
+        onSwipeLeft = onSwipeLeft,
+        onSwipeRight = onSwipeRight,
+    ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End,
@@ -220,6 +229,7 @@ fun UserMessageBubble(
             }
         }
     }
+    } // SwipeableMessageCard 结束
 }
 
 // ═══════════════════════════════════════════════
@@ -228,6 +238,7 @@ fun UserMessageBubble(
 
 /**
  * 助手消息气泡：左对齐，Markdown 富文本渲染 + 右上角复制按钮。
+ * 2026-08-18：支持左滑引用回复、右滑收藏。
  */
 @Composable
 fun AssistantMessageBubble(
@@ -239,6 +250,9 @@ fun AssistantMessageBubble(
     onDelete: ((String) -> Unit)? = null,
     // 2026-08-17：消息时间戳（左上角小字，灰调）
     timestamp: Long? = null,
+    // 2026-08-18：滑动手势回调
+    onSwipeLeft: (() -> Unit)? = null,
+    onSwipeRight: (() -> Unit)? = null,
 ) {
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -248,6 +262,11 @@ fun AssistantMessageBubble(
     val favoritedToast = stringResource(R.string.toast_favorited)
     var menuExpanded by remember { mutableStateOf(false) }
 
+    // 2026-08-18：左滑引用回复、右滑收藏
+    SwipeableMessageCard(
+        onSwipeLeft = onSwipeLeft,
+        onSwipeRight = onSwipeRight,
+    ) {
     Column(
         modifier =
             modifier
@@ -395,6 +414,7 @@ fun AssistantMessageBubble(
             )
         }
     }
+    } // SwipeableMessageCard 结束
 }
 
 /** 2026-08-17：消息时间戳格式化（HH:mm）。 */

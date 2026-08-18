@@ -550,6 +550,14 @@ fun ChatScreen(
                     modifier = Modifier.weight(1f),
                 )
             } else {
+                // 2026-08-18：注入上下文卡片固定悬浮在消息区顶部（不区分新旧对话）
+                InjectionContextCard(
+                    systemPrompt = state.systemPrompt,
+                    userPrompt = viewModel.activePromptContent(),
+                    memoryText = state.memoryText,
+                    onSaveUserPrompt = { viewModel.saveActivePrompt(it) },
+                    onSaveMemory = { viewModel.saveMemoryText(it) },
+                )
                 // Todo 面板：有任务时显示在消息列表上方
                 if (state.todos.isNotEmpty()) {
                     TodoPanel(
@@ -557,6 +565,46 @@ fun ChatScreen(
                         onRefresh = { viewModel.loadTodos() },
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
+                }
+                // 2026-08-18：引用回复预览
+                state.quotedMessage?.let { quoted ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(LocalPalette.current.bg2)
+                            .border(1.dp, LocalPalette.current.accent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Reply,
+                            contentDescription = null,
+                            tint = LocalPalette.current.accent,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (quoted.length > 80) quoted.take(80) + "..." else quoted,
+                            fontSize = 12.sp,
+                            color = LocalPalette.current.fg2,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        IconButton(
+                            onClick = { viewModel.clearQuotedMessage() },
+                            modifier = Modifier.size(24.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "取消引用",
+                                tint = LocalPalette.current.muted,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
                 }
                 MessageList(
                     items = state.messages,
@@ -568,11 +616,7 @@ fun ChatScreen(
                     cumulativeTokens = state.cumulativeTokens,
                     onRegenerate = { viewModel.regenerateLast() },
                     onDeleteMessage = { viewModel.deleteMessage(it) },
-                    systemPrompt = state.systemPrompt,
-                    userPrompt = viewModel.activePromptContent(),
-                    memoryText = state.memoryText,
-                    onSaveUserPrompt = { viewModel.saveActivePrompt(it) },
-                    onSaveMemory = { viewModel.saveMemoryText(it) },
+                    onSwipeLeft = { message -> viewModel.setQuotedMessage(message) },
                     onApprove = { session, persist, scope ->
                         val approval =
                             state.messages.lastOrNull {
@@ -664,6 +708,8 @@ fun ChatScreen(
                     viewModel.onInputChange(template)
                     focusRequester.requestFocus()
                 },
+                // 2026-08-18：传递自定义快捷操作列表
+                quickActions = state.settings.quickActions,
                 showSidebar = state.showSidebar,
                 onToggleSidebar = { viewModel.toggleSidebar() },
             )
@@ -1905,6 +1951,8 @@ private fun Footer(
     onPickImage: () -> Unit,
     onAttach: () -> Unit = {},
     onQuickAction: ((String) -> Unit)? = null,
+    // 2026-08-18：自定义快捷操作列表
+    quickActions: List<AppSettingsStore.QuickAction> = AppSettingsStore.DEFAULT_QUICK_ACTIONS,
     showSidebar: Boolean = false,
     onToggleSidebar: () -> Unit = {},
 ) {
@@ -2000,11 +2048,10 @@ private fun Footer(
                 Spacer(modifier = Modifier.width(2.dp))
                 Box(modifier = Modifier.width(1.dp).height(16.dp).background(Border))
                 Spacer(modifier = Modifier.width(2.dp))
-                QuickActionButton("解释代码", onClick = { onQuickAction("请解释以下代码的功能和结构：") })
-                QuickActionButton("修复错误", onClick = { onQuickAction("请查找并修复以下代码中的错误：") })
-                QuickActionButton("编写测试", onClick = { onQuickAction("请为以下代码编写单元测试：") })
-                QuickActionButton("代码审查", onClick = { onQuickAction("请对以下代码进行代码审查，指出潜在问题和改进建议：") })
-                QuickActionButton("优化性能", onClick = { onQuickAction("请分析以下代码的性能瓶颈并给出优化建议：") })
+                // 2026-08-18：使用自定义快捷操作
+                quickActions.forEach { action ->
+                    QuickActionButton(action.label, onClick = { onQuickAction(action.prompt) })
+                }
             }
 
             // 分隔

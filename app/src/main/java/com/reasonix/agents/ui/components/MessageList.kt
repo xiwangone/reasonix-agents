@@ -10,24 +10,30 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -50,6 +56,7 @@ private val Muted: Color @Composable get() = LocalPalette.current.muted
 /**
  * 聊天消息列表 — LazyColumn 渲染所有 ChatItem 类型。
  * 自动滚动到最新消息。
+ * 2026-08-18：注入上下文卡片已移至 ChatScreen 固定悬浮，不再作为 LazyColumn item。
  */
 @Composable
 fun MessageList(
@@ -67,18 +74,47 @@ fun MessageList(
     // 2026-08-08：消息区显示 AI/用户名称（AI 名 = 服务端 label，用户 = 本地资料 displayName）
     assistantName: String? = null,
     userName: String? = null,
-    // 2026-08-07：注入上下文折叠卡（系统提示词/用户提示词/记忆）
-    systemPrompt: String? = null,
-    userPrompt: String = "",
-    memoryText: String? = null,
-    onSaveUserPrompt: (String) -> Unit = {},
-    onSaveMemory: (String) -> Unit = {},
+    // 2026-08-18：滑动手势回调
+    onSwipeLeft: ((String) -> Unit)? = null,
+    onSwipeRight: ((String) -> Unit)? = null,
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     // 2026-08-08：首次进入（恢复历史）强制跳到最后一条记录；之后保持「靠近底部才跟随」逻辑
     var didInitialScroll by remember { mutableStateOf(false) }
+    // 2026-08-18：消息搜索状态
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+
+    // 过滤后的消息列表
+    val filteredItems = remember(items, searchQuery) {
+        if (searchQuery.isBlank()) {
+            items
+        } else {
+            items.filter { item ->
+                when (item) {
+                    is ChatItem.UserMessage -> item.content.contains(searchQuery, ignoreCase = true)
+                    is ChatItem.AssistantMessage -> item.content.contains(searchQuery, ignoreCase = true)
+                    is ChatItem.AssistantTurn -> item.blocks.any { block ->
+                        when (block) {
+                            is TurnBlock.Text -> block.text.contains(searchQuery, ignoreCase = true)
+                            is TurnBlock.Reasoning -> block.text.contains(searchQuery, ignoreCase = true)
+                            is TurnBlock.Tool -> block.name.contains(searchQuery, ignoreCase = true) ||
+                                block.args.contains(searchQuery, ignoreCase = true) ||
+                                block.output.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+                    is ChatItem.ToolCard -> item.name.contains(searchQuery, ignoreCase = true) ||
+                        item.args.contains(searchQuery, ignoreCase = true) ||
+                        item.output.contains(searchQuery, ignoreCase = true)
+                    is ChatItem.ErrorMessage -> item.text.contains(searchQuery, ignoreCase = true)
+                    is ChatItem.SystemNotice -> item.text.contains(searchQuery, ignoreCase = true)
+                    else -> false
+                }
+            }
+        }
+    }
 
     // 新消息到达时自动滚到底部（流式中 instant 不蹦跳；离开底部不抢夺）
     LaunchedEffect(items.size, isStreaming) {
@@ -106,29 +142,74 @@ fun MessageList(
                 .fillMaxWidth()
                 .fillMaxSize(),
     ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // 2026-08-18：消息搜索栏
+            if (items.size > 3) { // 仅消息较多时显示搜索
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(LocalPalette.current.bg2)
+                        .border(1.dp, LocalPalette.current.border, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "搜索",
+                        tint = LocalPalette.current.muted,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(32.dp),
+                        textStyle = TextStyle(
+                            fontSize = 13.sp,
+                            color = LocalPalette.current.fg,
+                        ),
+                        singleLine = true,
+                        cursorBrush = SolidColor(LocalPalette.current.accent),
+                    )
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(
+                            onClick = { searchQuery = "" },
+                            modifier = Modifier.size(24.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "清除",
+                                tint = LocalPalette.current.muted,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                    // 搜索结果计数
+                    if (searchQuery.isNotEmpty()) {
+                        Text(
+                            text = "${filteredItems.size}",
+                            fontSize = 11.sp,
+                            color = LocalPalette.current.muted2,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    }
+                }
+            }
+
         LazyColumn(
             state = listState,
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxSize()
+                    .weight(1f)
                     .background(bg),
             contentPadding = PaddingValues(vertical = 8.dp),
         ) {
-            // 2026-08-07：注入上下文折叠卡——默认折叠，展示/编辑注入 AI 的上下文
-            if (systemPrompt != null || userPrompt.isNotBlank() || !memoryText.isNullOrBlank()) {
-                item(key = "injection_context") {
-                    InjectionContextCard(
-                        systemPrompt = systemPrompt,
-                        userPrompt = userPrompt,
-                        memoryText = memoryText,
-                        onSaveUserPrompt = onSaveUserPrompt,
-                        onSaveMemory = onSaveMemory,
-                    )
-                }
-            }
-
-            itemsIndexed(items, key = { index, item ->
+            itemsIndexed(filteredItems, key = { index, item ->
                 when (item) {
                     is ChatItem.ToolCard -> item.id.ifBlank { "msg_$index" }
                     else -> "msg_$index"
@@ -149,13 +230,15 @@ fun MessageList(
                         balance = balance,
                         isStreaming = isStreaming,
                         // 2026-08-09：最后一条且流式生成中 → 正文尾部显示闪烁光标
-                        streamCursor = isStreaming && index == items.lastIndex,
+                        streamCursor = isStreaming && index == filteredItems.lastIndex,
                         onApprove = onApprove,
                         onDeny = onDeny,
                         onAskSubmit = onAskSubmit,
                         cumulativeTokens = cumulativeTokens,
                         onRegenerate = onRegenerate,
                         onDeleteMessage = onDeleteMessage,
+                        onSwipeLeft = onSwipeLeft,
+                        onSwipeRight = onSwipeRight,
                     )
                 }
             }
@@ -334,6 +417,9 @@ private fun ChatItemRow(
     onAskSubmit: ((List<Map<String, String>>) -> Unit)?,
     onRegenerate: (() -> Unit)? = null,
     onDeleteMessage: ((String) -> Unit)? = null,
+    // 2026-08-18：滑动手势回调
+    onSwipeLeft: ((String) -> Unit)? = null,
+    onSwipeRight: ((String) -> Unit)? = null,
 ) {
     when (item) {
         is ChatItem.UserMessage -> {
@@ -342,6 +428,8 @@ private fun ChatItemRow(
                 imagePaths = item.imagePaths,
                 userName = userName,
                 timestamp = item.timestamp,
+                onSwipeLeft = onSwipeLeft,
+                onSwipeRight = onSwipeRight,
             )
         }
 
@@ -355,6 +443,8 @@ private fun ChatItemRow(
                         showStreamCursor = streamCursor,
                         onRegenerate = onRegenerate,
                         onDelete = onDeleteMessage,
+                        onSwipeLeft = onSwipeLeft,
+                        onSwipeRight = onSwipeRight,
                     )
                 }
                 // 推理文本（如有）— 默认折叠，点击展开

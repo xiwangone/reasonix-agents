@@ -67,6 +67,8 @@ object AppSettingsStore {
     const val KEY_PROXY_TYPE = "proxy_type" // socks / http
     const val KEY_PROXY_HOST = "proxy_host"
     const val KEY_PROXY_PORT = "proxy_port"
+    // 2026-08-18：自定义快捷操作
+    const val KEY_QUICK_ACTIONS = "quick_actions"
 
     const val KEY_AUTO_COMPACT_MODE = "auto_compact_mode" // 0=关 1=百分比阈值 2=token 累计
     const val KEY_AUTO_COMPACT_THRESHOLD = "auto_compact_threshold" // 百分比 0-100 或 token 数
@@ -92,10 +94,47 @@ object AppSettingsStore {
         val proxyType: String = "socks",
         val proxyHost: String = "",
         val proxyPort: Int = 1080,
+        // 2026-08-18：自定义快捷操作（标签 + 提示词）
+        val quickActions: List<QuickAction> = DEFAULT_QUICK_ACTIONS,
     )
+
+    /** 快捷操作项 */
+    data class QuickAction(
+        val label: String,
+        val prompt: String,
+    )
+
+    companion object {
+        val DEFAULT_QUICK_ACTIONS = listOf(
+            QuickAction("解释代码", "请解释以下代码的功能和结构："),
+            QuickAction("修复错误", "请查找并修复以下代码中的错误："),
+            QuickAction("编写测试", "请为以下代码编写单元测试："),
+            QuickAction("代码审查", "请对以下代码进行代码审查，指出潜在问题和改进建议："),
+            QuickAction("优化性能", "请分析以下代码的性能瓶颈并给出优化建议："),
+        )
+    }
 
     fun load(context: Context): Settings {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        // 2026-08-18：加载自定义快捷操作
+        val quickActionsJson = prefs.getString(KEY_QUICK_ACTIONS, null)
+        val quickActions = if (!quickActionsJson.isNullOrBlank()) {
+            try {
+                val arr = com.google.gson.JsonParser.parseString(quickActionsJson).asJsonArray
+                arr.map { el ->
+                    val obj = el.asJsonObject
+                    QuickAction(
+                        label = obj.get("label")?.asString ?: "",
+                        prompt = obj.get("prompt")?.asString ?: "",
+                    )
+                }.filter { it.label.isNotBlank() && it.prompt.isNotBlank() }
+            } catch (_: Exception) {
+                DEFAULT_QUICK_ACTIONS
+            }
+        } else {
+            DEFAULT_QUICK_ACTIONS
+        }
+
         return Settings(
             themePreset = prefs.getInt(KEY_THEME_PRESET, THEME_PRESET_BRAND),
             themeMode = prefs.getInt(KEY_THEME_MODE, THEME_MODE_SYSTEM),
@@ -113,6 +152,7 @@ object AppSettingsStore {
             proxyType = prefs.getString(KEY_PROXY_TYPE, "socks") ?: "socks",
             proxyHost = prefs.getString(KEY_PROXY_HOST, "") ?: "",
             proxyPort = prefs.getInt(KEY_PROXY_PORT, 1080),
+            quickActions = quickActions,
         )
     }
 
@@ -120,6 +160,9 @@ object AppSettingsStore {
         context: Context,
         s: Settings,
     ) {
+        // 2026-08-18：保存自定义快捷操作
+        val quickActionsJson = com.google.gson.Gson().toJson(s.quickActions)
+
         context
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
@@ -139,6 +182,7 @@ object AppSettingsStore {
             .putString(KEY_PROXY_TYPE, s.proxyType)
             .putString(KEY_PROXY_HOST, s.proxyHost)
             .putInt(KEY_PROXY_PORT, s.proxyPort)
+            .putString(KEY_QUICK_ACTIONS, quickActionsJson)
             .apply()
     }
 

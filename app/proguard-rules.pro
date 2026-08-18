@@ -1,21 +1,66 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ═══════════════════════════════════════════════
+# Reasonix Agents ProGuard Rules
+# 2026-08-18：Release 启用混淆
+# ═══════════════════════════════════════════════
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ── 保留行号信息（崩溃堆栈可追溯）──
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ── Gson / JSON 序列化 ──
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.reasonix.agents.data.model.** { *; }
+-keep class com.reasonix.agents.data.** { *; }
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# ── OkHttp ──
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
+
+# ── Markwon ──
+-keep class io.noties.markwon.** { *; }
+-keep class io.noties.prism4j.** { *; }
+
+# ── Coil 图片加载 ──
+-keep class coil.** { *; }
+-dontwarn coil.**
+
+# ── ML Kit OCR ──
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+
+# ── AndroidX Compose ─>
+-keep class androidx.compose.** { *; }
+
+# ── Material3 ──
+-keep class com.google.android.material.** { *; }
+
+# ── Enums ──
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# ── Parcelable ─>
+-keepclassmembers class * implements android.os.Parcelable {
+    public static final ** CREATOR;
+}
+
+# ── R 文件（资源引用）──
+-keepclassmembers class **.R$* {
+    public static <fields>;
+}
+
+# ── SSE 事件类（反射解析）──
+-keep class com.reasonix.agents.data.model.SseEvent** { *; }
+-keep class com.reasonix.agents.data.model.TurnBlock** { *; }
+-keep class com.reasonix.agents.data.model.ChatItem** { *; }
+
+# ── WebDav ──
+-keep class com.thegrizzlylabs.sardineandroid.** { *; }
+-dontwarn com.thegrizzlylabs.sardineandroid.**
