@@ -645,3 +645,4 @@ private fun CompactionNoticeCard(notice: ChatItem.CompactionNotice) {
         }
     }
 }
+}

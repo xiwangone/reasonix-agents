@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.reasonix.agents.data.AuthInfo
+import com.reasonix.agents.data.AppSettingsStore
 import com.reasonix.agents.data.CustomModelStore
 import com.reasonix.agents.data.MemoryStore
 import com.reasonix.agents.data.PinnedSessionsStore
