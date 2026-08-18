@@ -15,8 +15,20 @@ object CustomModelStore {
     private const val PREFS_NAME = "reasonix_custom_models"
     private const val KEY_MODELS = "models_json"
     private const val KEY_CURRENT = "current_model"
+    private const val KEY_SEEDED = "zen_free_seeded"
 
     private val gson = Gson()
+
+    // ── OpenCode Zen 免费模型预置（首次加载自动填充） ──
+    private const val ZEN_FREE_BASE_URL = "https://opencode.ai/zen/v1"
+    private val ZEN_FREE_MODELS = listOf(
+        Triple("deepseek-v4-flash-free", "DeepSeek V4 Flash Free", "opencode-zen"),
+        Triple("mimo-v2.5-free", "MiMo V2.5 Free", "opencode-zen"),
+        Triple("hy3-free", "Hy3 Free", "opencode-zen"),
+        Triple("nemotron-3-ultra-free", "Nemotron 3 Ultra Free", "opencode-zen"),
+        Triple("nemotron-3.5-lightning-free", "Nemotron 3.5 Lightning Free", "opencode-zen"),
+        Triple("laguna-s-2.1-free", "Laguna S 2.1 Free", "opencode-zen"),
+    )
 
     /**
      * provider：builtin=内置 / custom=自定义；compat：openai / deepseek / other。
@@ -38,10 +50,29 @@ object CustomModelStore {
     }
 
     fun load(context: Context): List<CustomModel> {
-        val raw =
-            context
-                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getString(KEY_MODELS, "") ?: ""
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_MODELS, "") ?: ""
+
+        // 首次加载：预置 Zen 免费模型
+        if (!prefs.getBoolean(KEY_SEEDED, false)) {
+            val seeded = ZEN_FREE_MODELS.map { (id, name, key) ->
+                CustomModel(
+                    id = id,
+                    name = name,
+                    key = key,
+                    provider = "custom",
+                    baseUrl = ZEN_FREE_BASE_URL,
+                    apiKey = "",
+                    compat = "openai",
+                )
+            }
+            prefs.edit()
+                .putBoolean(KEY_SEEDED, true)
+                .apply()
+            save(context, seeded)
+            return seeded
+        }
+
         if (raw.isBlank()) return emptyList()
         return try {
             val type = object : TypeToken<List<CustomModel>>() {}.type
