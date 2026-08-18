@@ -25,6 +25,10 @@
 # ── Markwon ──
 -keep class io.noties.markwon.** { *; }
 -keep class io.noties.prism4j.** { *; }
+-dontwarn com.caverock.androidsvg.**
+-dontwarn pl.droidsonroids.gif.**
+-dontwarn com.squareup.picasso.**
+-dontwarn jp.wasabeef.glide.**
 
 # ── Coil 图片加载 ──
 -keep class coil.** { *; }

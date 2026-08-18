@@ -42,10 +42,10 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun SwipeableMessageCard(
-    content: @Composable () -> Unit,
     onSwipeLeft: (() -> Unit)? = null,
     onSwipeRight: (() -> Unit)? = null,
     swipeThreshold: Float = 120f,
+    content: @Composable () -> Unit,
 ) {
     val p = LocalPalette.current
     val density = LocalDensity.current

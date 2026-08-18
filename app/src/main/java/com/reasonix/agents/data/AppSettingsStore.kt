@@ -104,15 +104,14 @@ object AppSettingsStore {
         val prompt: String,
     )
 
-    companion object {
-        val DEFAULT_QUICK_ACTIONS = listOf(
-            QuickAction("解释代码", "请解释以下代码的功能和结构："),
-            QuickAction("修复错误", "请查找并修复以下代码中的错误："),
-            QuickAction("编写测试", "请为以下代码编写单元测试："),
-            QuickAction("代码审查", "请对以下代码进行代码审查，指出潜在问题和改进建议："),
-            QuickAction("优化性能", "请分析以下代码的性能瓶颈并给出优化建议："),
-        )
-    }
+    /** 默认快捷操作（放 object 顶层，避免 data class 默认值引用 companion 常量） */
+    val DEFAULT_QUICK_ACTIONS = listOf(
+        QuickAction("解释代码", "请解释以下代码的功能和结构："),
+        QuickAction("修复错误", "请查找并修复以下代码中的错误："),
+        QuickAction("编写测试", "请为以下代码编写单元测试："),
+        QuickAction("代码审查", "请对以下代码进行代码审查，指出潜在问题和改进建议："),
+        QuickAction("优化性能", "请分析以下代码的性能瓶颈并给出优化建议："),
+    )
 
     fun load(context: Context): Settings {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

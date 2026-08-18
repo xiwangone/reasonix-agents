@@ -101,13 +101,13 @@ fun MessageList(
                             is TurnBlock.Text -> block.text.contains(searchQuery, ignoreCase = true)
                             is TurnBlock.Reasoning -> block.text.contains(searchQuery, ignoreCase = true)
                             is TurnBlock.Tool -> block.name.contains(searchQuery, ignoreCase = true) ||
-                                block.args.contains(searchQuery, ignoreCase = true) ||
-                                block.output.contains(searchQuery, ignoreCase = true)
+                                (block.args?.contains(searchQuery, ignoreCase = true) ?: false) ||
+                                (block.output?.contains(searchQuery, ignoreCase = true) ?: false)
                         }
                     }
                     is ChatItem.ToolCard -> item.name.contains(searchQuery, ignoreCase = true) ||
-                        item.args.contains(searchQuery, ignoreCase = true) ||
-                        item.output.contains(searchQuery, ignoreCase = true)
+                        (item.args?.contains(searchQuery, ignoreCase = true) ?: false) ||
+                        (item.output?.contains(searchQuery, ignoreCase = true) ?: false)
                     is ChatItem.ErrorMessage -> item.text.contains(searchQuery, ignoreCase = true)
                     is ChatItem.SystemNotice -> item.text.contains(searchQuery, ignoreCase = true)
                     else -> false
@@ -250,94 +250,94 @@ fun MessageList(
                 }
             }
         }
+    }
 
-        // 2026-08-08：消息足够多时显示右侧快速导航——垂直滑动条（拖动跳转）+ 跳最上/最下按钮
-        if (items.size > 8) {
-            val total = items.size
-            val firstVisible = listState.firstVisibleItemIndex.coerceIn(0, total - 1)
-            var barHeightPx by remember { mutableIntStateOf(0) }
-            val thumbSizePx = with(density) { 14.dp.toPx() }
-            val thumbOffsetPx =
-                if (barHeightPx > 0 && total > 1) {
-                    ((barHeightPx - thumbSizePx) * (firstVisible.toFloat() / (total - 1).toFloat())).toInt()
-                } else {
-                    0
-                }
-            Column(
+    // 2026-08-08：消息足够多时显示右侧快速导航——垂直滑动条（拖动跳转）+ 跳最上/最下按钮
+    if (items.size > 8) {
+        val total = items.size
+        val firstVisible = listState.firstVisibleItemIndex.coerceIn(0, total - 1)
+        var barHeightPx by remember { mutableIntStateOf(0) }
+        val thumbSizePx = with(density) { 14.dp.toPx() }
+        val thumbOffsetPx =
+            if (barHeightPx > 0 && total > 1) {
+                ((barHeightPx - thumbSizePx) * (firstVisible.toFloat() / (total - 1).toFloat())).toInt()
+            } else {
+                0
+            }
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 2.dp)
+                    .fillMaxHeight(0.94f)
+                    .width(30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            IconButton(
+                onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                modifier = Modifier.size(22.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowUp,
+                    contentDescription = "跳转到最上",
+                    tint = Muted,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            // 垂直快速滑动条：按下/拖动按 y 比例跳转到对应消息
+            Box(
                 modifier =
                     Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 2.dp)
-                        .fillMaxHeight(0.94f)
-                        .width(30.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
             ) {
-                IconButton(
-                    onClick = { scope.launch { listState.animateScrollToItem(0) } },
-                    modifier = Modifier.size(22.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowUp,
-                        contentDescription = "跳转到最上",
-                        tint = Muted,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-                // 垂直快速滑动条：按下/拖动按 y 比例跳转到对应消息
                 Box(
                     modifier =
                         Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black.copy(alpha = 0.10f))
-                                .onSizeChanged { barHeightPx = it.height }
-                                .pointerInput(total) {
-                                    awaitPointerEventScope {
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val y = event.changes.firstOrNull()?.position?.y ?: continue
-                                            val target =
-                                                ((y / size.height) * total)
-                                                    .toInt()
-                                                    .coerceIn(0, total - 1)
-                                            scope.launch { listState.scrollToItem(target) }
-                                            event.changes.forEach { it.consume() }
-                                        }
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.10f))
+                            .onSizeChanged { barHeightPx = it.height }
+                            .pointerInput(total) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        val y = event.changes.firstOrNull()?.position?.y ?: continue
+                                        val target =
+                                            ((y / size.height) * total)
+                                                .toInt()
+                                                .coerceIn(0, total - 1)
+                                        scope.launch { listState.scrollToItem(target) }
+                                        event.changes.forEach { it.consume() }
                                     }
-                                },
-                    )
-                    Box(
-                        modifier =
-                            Modifier
-                                .offset { IntOffset(0, thumbOffsetPx) }
-                                .padding(horizontal = 6.dp)
-                                .size(12.dp)
-                                .clip(CircleShape)
-                                .background(Accent.copy(alpha = 0.7f)),
-                    )
-                }
-                IconButton(
-                    onClick = { scope.launch { listState.animateScrollToItem(items.size - 1) } },
-                    modifier = Modifier.size(22.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowDown,
-                        contentDescription = "跳转到最下",
-                        tint = Muted,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
+                                }
+                            },
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .offset { IntOffset(0, thumbOffsetPx) }
+                            .padding(horizontal = 6.dp)
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(Accent.copy(alpha = 0.7f)),
+                )
+            }
+            IconButton(
+                onClick = { scope.launch { listState.animateScrollToItem(items.size - 1) } },
+                modifier = Modifier.size(22.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = "跳转到最下",
+                    tint = Muted,
+                    modifier = Modifier.size(16.dp),
+                )
             }
         }
     }
-}
+    }
 }
 
 // ═══════════════════════════════════════════════
@@ -429,8 +429,8 @@ private fun ChatItemRow(
                 imagePaths = item.imagePaths,
                 userName = userName,
                 timestamp = item.timestamp,
-                onSwipeLeft = onSwipeLeft,
-                onSwipeRight = onSwipeRight,
+                onSwipeLeft = onSwipeLeft?.let { { it(item.content) } },
+                onSwipeRight = onSwipeRight?.let { { it(item.content) } },
             )
         }
 
@@ -444,8 +444,8 @@ private fun ChatItemRow(
                         showStreamCursor = streamCursor,
                         onRegenerate = onRegenerate,
                         onDelete = onDeleteMessage,
-                        onSwipeLeft = onSwipeLeft,
-                        onSwipeRight = onSwipeRight,
+                        onSwipeLeft = onSwipeLeft?.let { { it(item.content) } },
+                        onSwipeRight = onSwipeRight?.let { { it(item.content) } },
                     )
                 }
                 // 推理文本（如有）— 默认折叠，点击展开
