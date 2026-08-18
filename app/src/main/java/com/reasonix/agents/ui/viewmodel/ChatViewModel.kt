@@ -12,6 +12,7 @@ import com.reasonix.agents.data.BackupManager
 import com.reasonix.agents.data.CliIntegrationStore
 import com.reasonix.agents.data.CustomModelStore
 import com.reasonix.agents.data.MemoryStore
+import com.reasonix.agents.data.SessionCacheStore
 import java.net.InetSocketAddress
 import java.net.Proxy
 import com.reasonix.agents.data.PromptStore
@@ -76,6 +77,8 @@ data class ChatUiState(
     /** 正在删除的会话名称集合（乐观移除 + 加载指示） */
     val deletingSessions: Set<String> = emptySet(),
     val pendingTimeoutHit: Boolean = false,  // 2026-08-08: 排队超时标记
+    /** 离线模式标记（网络不可用，使用缓存数据） */
+    val isOffline: Boolean = false,
 )
 
 /** 备份导出结果（第五批 E-1）：json 为生成的备份文件内容，失败时 error 非空。 */
@@ -214,13 +217,53 @@ class ChatViewModel(
                     // 新建失败不阻塞其余数据加载（服务端可能不支持）
                 }
             }
-            val sessions = repository.getSessions()
-            val status = repository.getStatus()
+
+            // 离线浏览支持：尝试从服务器加载，失败时使用缓存
+            var sessions = emptyList<SessionInfo>()
+            var isOffline = false
+            try {
+                sessions = repository.getSessions()
+                // 成功加载，更新缓存
+                SessionCacheStore.save(getApplication(), sessions)
+            } catch (e: Exception) {
+                // 网络不可用，使用缓存
+                sessions = SessionCacheStore.load(getApplication())
+                isOffline = sessions.isNotEmpty()
+                if (isOffline) {
+                    appendMessage(ChatItem.ErrorMessage("网络不可用，显示缓存的会话列表"))
+                }
+            }
+
+            val status = try {
+                repository.getStatus()
+            } catch (e: Exception) {
+                null
+            }
+
             // 批 C-7：新建会话时初始消息列表为空，不加载上次的 messages
-            val history = if (freshSession) emptyList() else repository.getHistory()
-            val modelsResp = repository.getModels()
-            val systemPrompt = repository.getSystemPrompt()
-            val todos = repository.getTodos()
+            val history = if (freshSession) emptyList() else try {
+                repository.getHistory()
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            val modelsResp = try {
+                repository.getModels()
+            } catch (e: Exception) {
+                null
+            }
+
+            val systemPrompt = try {
+                repository.getSystemPrompt()
+            } catch (e: Exception) {
+                null
+            }
+
+            val todos = try {
+                repository.getTodos()
+            } catch (e: Exception) {
+                emptyList()
+            }
 
             val historyItems = buildHistoryItems(history)
 
@@ -242,6 +285,7 @@ class ChatViewModel(
                     planMode = status?.plan ?: false,
                     toolApprovalMode = status?.toolApprovalMode ?: "auto",
                     customModels = CustomModelStore.load(getApplication()),
+                    isOffline = isOffline,
                 )
             }
         }

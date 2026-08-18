@@ -407,6 +407,7 @@ fun ChatScreen(
                             drawerScope.launch { drawerState.close() }
                             showMemoryModeDialog = true
                         },
+                        isOffline = state.isOffline,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -1353,6 +1354,7 @@ private fun Sidebar(
     onStats: () -> Unit,
     onExport: () -> Unit,
     onMemoryMode: () -> Unit,
+    isOffline: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // 第五批 E-2：会话多选模式——长按进入，支持全选 / 批量删除 / 单条删除
@@ -1442,6 +1444,16 @@ private fun Sidebar(
             }
             Spacer(modifier = Modifier.width(9.dp))
             Text("Reasonix", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Fg)
+            // 离线模式指示器
+            if (isOffline) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "（离线）",
+                    fontSize = 10.sp,
+                    color = Danger,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
 
         HorizontalDivider(color = Border, thickness = 1.dp)
