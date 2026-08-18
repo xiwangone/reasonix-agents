@@ -1965,7 +1965,7 @@ private fun Footer(
     onAttach: () -> Unit = {},
     onQuickAction: ((String) -> Unit)? = null,
     // 2026-08-18：自定义快捷操作列表
-    quickActions: List<AppSettingsStore.QuickAction> = AppSettingsStore.DEFAULT_QUICK_ACTIONS,
+    quickActions: List<AppSettingsStore.QuickAction> = emptyList(),
     showSidebar: Boolean = false,
     onToggleSidebar: () -> Unit = {},
 ) {
