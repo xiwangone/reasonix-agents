@@ -338,6 +338,7 @@ fun MessageList(
         }
     }
 }
+}
 
 // ═══════════════════════════════════════════════
 // 分组视觉：同一轮内紧凑、轮与轮之间留白
@@ -644,5 +645,4 @@ private fun CompactionNoticeCard(notice: ChatItem.CompactionNotice) {
             )
         }
     }
-}
 }
